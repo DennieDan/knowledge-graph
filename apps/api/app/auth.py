@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from .config import get_settings
 from .database import get_session
-from .models import GoogleAccount, User
+from .models import GoogleAccount, User, WhatsappConnection
 
 GOOGLE_AUTHORIZATION_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
@@ -114,12 +114,22 @@ def google_callback(request: Request, session: Session = Depends(get_session)):
 @router.get("/me")
 def me(user: User = Depends(get_current_user), session: Session = Depends(get_session)):
     linked = session.scalar(select(GoogleAccount.id).where(GoogleAccount.user_id == user.id)) is not None
+    whatsapp_linked = (
+        session.scalar(
+            select(WhatsappConnection.id).where(
+                WhatsappConnection.user_id == user.id,
+                WhatsappConnection.status == "WORKING",
+            )
+        )
+        is not None
+    )
     return {
         "id": str(user.id),
         "email": user.email,
         "display_name": user.display_name,
         "avatar_url": user.avatar_url,
         "drive_linked": linked,
+        "whatsapp_linked": whatsapp_linked,
     }
 
 

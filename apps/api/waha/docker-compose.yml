@@ -1,0 +1,35 @@
+# WAHA (WhatsApp HTTP API) — self-hosted engine behind /whatsapp endpoints.
+#
+# Local dev (this Mac, Apple Silicon):
+#   WAHA_IMAGE_TAG=gows-arm WAHA_API_KEY=dev-secret WAHA_DASHBOARD_PASSWORD=dev \
+#     docker compose -f apps/api/waha/docker-compose.yml up -d
+#
+# Production (x86 VPS): omit WAHA_IMAGE_TAG (defaults to :gows), set strong
+# secrets, and put the port behind a TLS reverse proxy instead of binding it.
+#
+# Docs: https://waha.devlike.pro/docs/how-to/install/
+
+services:
+  waha:
+    image: devlikeapro/waha:${WAHA_IMAGE_TAG:-gows}
+    restart: unless-stopped
+    environment:
+      WHATSAPP_DEFAULT_ENGINE: GOWS
+      # REST API auth — the API sends this as X-Api-Key.
+      WAHA_API_KEY: ${WAHA_API_KEY:?set WAHA_API_KEY}
+      # Restart saved sessions after container reboot so users don't re-scan.
+      WHATSAPP_RESTART_ALL_SESSIONS: "true"
+      # Dashboard (http://host:3000/dashboard). Disable it in production or
+      # restrict it at the proxy — it controls every connected account.
+      WAHA_DASHBOARD_ENABLED: ${WAHA_DASHBOARD_ENABLED:-true}
+      WAHA_DASHBOARD_USERNAME: ${WAHA_DASHBOARD_USERNAME:-admin}
+      WAHA_DASHBOARD_PASSWORD: ${WAHA_DASHBOARD_PASSWORD:?set WAHA_DASHBOARD_PASSWORD}
+    ports:
+      # Localhost-only by default. For production, keep it private and let the
+      # reverse proxy forward to it.
+      - "127.0.0.1:3100:3000"
+    volumes:
+      - waha_sessions:/app/.sessions
+
+volumes:
+  waha_sessions:
