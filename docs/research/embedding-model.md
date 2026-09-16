@@ -303,26 +303,19 @@ Jina commercial on-prem is a **license SKU**, not a $0 Apache drop-in. Skip it u
 
 ## Retrieval test
 
-Ran 2026-09-16 on CPU with `sentence-transformers` 5.x-class install, **invented sentences only** (no customer data). Corpus: three facts (part number + date or revision code), each written in English, Chinese, Malay, Singlish, and EN/ZH/MS code-switch, plus five lexical distractors that reuse the same identifiers with the **wrong** fact.
+Ran 2026-09-16 on CPU with `sentence-transformers==6.0.1`, **invented sentences only** (no customer data). Script: [`run_embedding_test.py`](run_embedding_test.py). Ranks: [`embedding-test-results.json`](embedding-test-results.json).
 
-Hit@1 was **15/15 for all three models**. Unique part numbers (`PN-4482-B`, `SK-9910`, `DWG-A17`) make Hit@1 a weak test. The useful signal is **whether top-3 stays on the same fact**.
+12 passages (Atlas launch in EN/ZH/MS/Singlish/code-switch; WO-4412 revision; SKU-A19 price; two distractors) and 10 paraphrased / code-switched queries. Metric: cluster recall (did the top hit belong to the same fact).
 
-| Query | MiniLM-L6-v2 top-3 | paraphrase-multilingual top-3 | e5-small top-3 |
+| Model | recall@1 | recall@3 | What the ranks actually show |
 | --- | --- | --- | --- |
-| ZH: PN-4482-B 修订 C date | fact A, **fact B (SK-9910 ZH)**, fact A | all fact A | all fact A |
-| MS: bila PN-4482-B semakan C | fact A, fact A, **fact C (DWG MS)** | all fact A | all fact A |
-| EN: when was PN-4482-B rev C issued | fact A, **rev-B distractor**, fact A | all fact A | all fact A |
-| Other 12 queries | Hit@1 OK | Hit@1 OK | Hit@1 OK; top-3 usually same-fact paraphrases |
+| all-MiniLM-L6-v2 | 1.0 | 1.0 | **Same-language / shared-token retrieval.** English Atlas query top-3: `atlas-en`, `atlas-mix`, `atlas-sg` — **not** `atlas-zh`. Chinese Atlas query top-3: `atlas-zh`, `dist-zh`, `wo-zh` (other Chinese rows). Codes like `WO-4412` carry MiniLM. |
+| paraphrase-multilingual-MiniLM-L12-v2 | 1.0 | 1.0 | **Cross-lingual.** Chinese Atlas query retrieved `atlas-zh`, then `atlas-ms` and `atlas-en`. English WO query retrieved `wo-zh` first. Chinese scores are modest (0.466 on the ZH Atlas hit). |
+| multilingual-e5-small | 1.0 | 1.0 | **Cross-lingual with higher margins.** Chinese Atlas: 0.934 on `atlas-zh`, 0.869 on `atlas-mix`. Malay Atlas query: 0.885 on `atlas-ms` then English/mix. |
 
-**Read:** MiniLM can rank a Chinese/Malay query using overlapping tokens from a *different* fact. e5-small kept Chinese, Malay, Singlish, and code-switch queries inside the same fact’s cluster. This is a 20-passage toy index, not MIRACL. It is enough to refuse “MiniLM is fine because Hit@1 was 100%.”
+The 1.0 recall on MiniLM is a **small-corpus artefact** (unique names and part numbers). The ranking pattern is the decision: MiniLM does not map “阿特拉斯什么时候发布” to the English Atlas passage. E5-small and the multilingual MiniLM do.
 
-Invented facts used:
-
-1. Pump housing **PN-4482-B revision C** issued **12 March 2024**
-2. Valve seal kit **SK-9910** expired **1 August 2025**
-3. Drawing **DWG-A17 revision 3** supersedes revision 2
-
-Parent session may replace this section with a larger mixed-language run in the same folder.
+E5-small still pulls `dist-zh` as rank 3 for a Chinese Atlas query (0.832 vs 0.934). Script overlap is not gone; BM25 on codes remains the other half of search. This is a toy index, not MIRACL. It is enough to refuse staying on English MiniLM.
 
 ---
 
