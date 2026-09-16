@@ -35,23 +35,41 @@ web (Next.js, http://localhost:3000)
 api (FastAPI, http://localhost:8000)
 ```
 
-The backend currently exposes one endpoint:
+The backend exposes liveness and database readiness endpoints:
 
 ```text
 GET /health -> {"status":"ok"}
+GET /ready  -> 200 when PostgreSQL, pgvector, and application tables are ready; otherwise 503
 ```
 
 ### Backend setup
 
-Create a virtual environment and install the API dependencies:
+Prerequisites: Docker with Compose, Python 3.9+, and the Node/pnpm versions in
+`package.json`. Start the local PostgreSQL 18 service (pgvector 0.8.6):
+
+```sh
+docker compose up -d --wait db
+```
+
+Create a virtual environment, install dependencies, configure the backend, and
+apply the schema migrations:
 
 ```sh
 cd apps/api
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
+cp .env.example .env
+python -m alembic upgrade head
 cd ../..
 ```
+
+If you already have an `.env`, preserve it and add `DATABASE_URL` from the example.
+The checked-in Compose credentials are for local development only. PostgreSQL is
+bound to `127.0.0.1:5432`; the named volume preserves data when containers stop or
+are recreated. `docker compose down` retains that volume; `down -v` deletes it.
+A database already using port 5432 must be stopped, or both the Compose host port
+and the backend connection URL must be changed.
 
 Then start all applications with:
 
@@ -70,6 +88,60 @@ To run only the backend:
 ```sh
 pnpm --filter api dev
 ```
+
+### Database development
+
+The browser calls FastAPI; only the backend connects to PostgreSQL. Settings read
+`apps/api/.env` regardless of the working directory (also for the built app), and
+an exported `DATABASE_URL` overrides the file. No credentials belong in frontend
+`NEXT_PUBLIC_*` variables.
+
+Initial schema:
+
+- `organizations`: company/workspace ownership.
+- `documents`: organization, title, source, external ID, and source/file URI.
+- `document_versions`: revision number, original extracted text, SHA-256 hash,
+  and creation time. A document cannot have duplicate revision numbers.
+- `chunks`: version reference, ordered text, optional embedding and model ID.
+  The model ID is required when an embedding exists.
+
+Foreign keys preserve the source chain and cascade deletions. This is storage
+infrastructure: authentication, memberships, document permissions, upload/search
+endpoints, and automatic embedding generation are subsequent work. Organization
+ownership alone does not enforce access control. Add permission checks before
+exposing private document retrieval to users. Future search must restrict both
+organization/access and embedding model before ranking.
+
+The initial vector column has **384 dimensions**, provisionally matching
+[`sentence-transformers/all-MiniLM-L6-v2`](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2).
+No model is downloaded or called in this setup. Confirm the model before ingestion;
+changing dimensions requires a migration, and changing models requires re-embedding.
+Search initially uses exact cosine distance; no approximate vector index is needed
+for the foundation checks. [pgvector documentation](https://github.com/pgvector/pgvector)
+
+Run from `apps/api` with the virtual environment active:
+
+```sh
+python -m alembic upgrade head
+python -m alembic check
+python -m unittest discover -s tests -v
+```
+
+The integration tests require a migrated database. They verify document round trips,
+vector ranking, constraints, and readiness, and roll back their inserted records.
+The equivalent workspace scripts are `pnpm --filter api db:migrate`,
+`pnpm --filter api db:check`, and `pnpm --filter api test`.
+
+For later schema changes, update `app/models.py`, generate a migration with
+`python -m alembic revision --autogenerate -m "describe change"`, review it, then
+apply it. Migrations explicitly enable the `vector` extension; the initial downgrade
+removes application tables but retains the extension in case other schemas use it.
+The migration account needs permission to enable extensions; a production runtime
+account should have only the application permissions it needs.
+
+`GET /health` remains independent of PostgreSQL. `GET /ready` returns 503 when
+the database is unavailable, the extension is missing, or the expected tables/columns
+are absent. Database errors and credentials are not returned to clients.
 
 ### Utilities
 

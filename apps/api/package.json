@@ -7,6 +7,9 @@
     "build": ".venv/bin/python -c \"import shutil; shutil.copytree('app', 'dist/app', dirs_exist_ok=True)\"",
     "start": ".venv/bin/python -m uvicorn dist.app.main:app --port 8000",
     "lint": ".venv/bin/python -m compileall -q app",
-    "check-types": ".venv/bin/python -m compileall -q app"
+    "check-types": ".venv/bin/python -m compileall -q app",
+    "db:migrate": ".venv/bin/python -m alembic upgrade head",
+    "db:check": ".venv/bin/python -m alembic check",
+    "test": ".venv/bin/python -m unittest discover -s tests -v"
   }
 }
