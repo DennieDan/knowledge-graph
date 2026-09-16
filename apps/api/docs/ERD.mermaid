@@ -1,0 +1,39 @@
+erDiagram
+    ORGANIZATIONS ||--o{ DOCUMENTS : contains
+    DOCUMENTS ||--o{ DOCUMENT_VERSIONS : has
+    DOCUMENT_VERSIONS ||--o{ CHUNKS : contains
+
+    ORGANIZATIONS {
+        uuid id PK
+        varchar_255 name
+        timestamptz created_at
+    }
+
+    DOCUMENTS {
+        uuid id PK
+        uuid organization_id FK
+        text title
+        varchar_100 source
+        text external_id "nullable"
+        text source_uri "nullable"
+        timestamptz created_at
+    }
+
+    DOCUMENT_VERSIONS {
+        uuid id PK
+        uuid document_id FK
+        integer revision
+        varchar_64 content_hash
+        text content
+        timestamptz created_at
+    }
+
+    CHUNKS {
+        uuid id PK
+        uuid document_version_id FK
+        integer position
+        text text
+        vector_384 embedding "nullable"
+        varchar_255 embedding_model "nullable"
+        timestamptz created_at
+    }
