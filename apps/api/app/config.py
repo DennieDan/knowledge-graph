@@ -18,6 +18,11 @@ class Settings(BaseSettings):
         extra="ignore",
     )
     database_url: SecretStr
+    google_client_id: SecretStr
+    google_client_secret: SecretStr
+    google_redirect_uri: str = "http://localhost:8000/auth/google/callback"
+    session_secret: SecretStr
+    web_origin: str = "http://localhost:3000"
 
 
 @lru_cache

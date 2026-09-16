@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import DriveFiles from "./drive-files";
+import { getMe, loginUrl, logout, type Me } from "../lib/api";
 import styles from "./search-workspace.module.css";
 
 type Source = "Drive" | "WhatsApp" | "Knowledge record";
@@ -93,6 +95,13 @@ export default function SearchWorkspace() {
   const [query, setQuery] = useState("");
   const [sources, setSources] = useState({ Drive: true, WhatsApp: true });
   const [selected, setSelected] = useState(0);
+  const [me, setMe] = useState<Me | null>(null);
+
+  useEffect(() => {
+    getMe()
+      .then(setMe)
+      .catch(() => setMe(null));
+  }, []);
 
   const q = query.trim().toLowerCase();
   const results = SEARCHABLE.map((item, index) => ({ item, index })).filter(
@@ -123,7 +132,24 @@ export default function SearchWorkspace() {
             onChange={(e) => setQuery(e.target.value)}
           />
         </form>
-        <span className={styles.userChip}>Admin · Demo</span>
+        {me ? (
+          <>
+            <span className={styles.userChip}>
+              {me.display_name ?? me.email}
+            </span>
+            <button
+              type="button"
+              className={styles.btnText}
+              onClick={() => logout().then(() => setMe(null))}
+            >
+              Sign out
+            </button>
+          </>
+        ) : (
+          <a className={styles.userChip} href={loginUrl}>
+            Sign in with Google
+          </a>
+        )}
       </header>
 
       <div className={styles.shell}>
@@ -177,9 +203,13 @@ export default function SearchWorkspace() {
           <h2 className={styles.sectionLabel}>Connections</h2>
           <div className={styles.connection}>
             <span>Google Drive</span>
-            <button type="button" className={styles.btnText}>
-              Link
-            </button>
+            {me?.drive_linked ? (
+              <span className={styles.chip}>Connected</span>
+            ) : (
+              <a className={styles.btnText} href={loginUrl}>
+                Link
+              </a>
+            )}
           </div>
           <div className={styles.connection}>
             <span>WhatsApp</span>
@@ -226,6 +256,8 @@ export default function SearchWorkspace() {
               </button>
             ))}
           </div>
+
+          {me?.drive_linked && <DriveFiles />}
         </main>
 
         <aside className={styles.detail} aria-live="polite">

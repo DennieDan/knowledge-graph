@@ -16,6 +16,28 @@ class Base(DeclarativeBase):
     pass
 
 
+class User(Base):
+    __tablename__ = "users"
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    email: Mapped[str] = mapped_column(String(320), unique=True)
+    display_name: Mapped[Optional[str]] = mapped_column(Text)
+    avatar_url: Mapped[Optional[str]] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class GoogleAccount(Base):
+    __tablename__ = "google_accounts"
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True, index=True)
+    google_sub: Mapped[str] = mapped_column(String(255), unique=True)
+    scopes: Mapped[str] = mapped_column(Text)
+    access_token: Mapped[Optional[str]] = mapped_column(Text)
+    access_token_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    refresh_token: Mapped[Optional[str]] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
 class Organization(Base):
     __tablename__ = "organizations"
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
