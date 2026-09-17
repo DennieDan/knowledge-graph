@@ -7,10 +7,10 @@ from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Integer, 
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-# Initial schema choice for sentence-transformers/all-MiniLM-L6-v2.
-# Changing dimensions requires a migration and re-embedding existing chunks.
+# Changing dimensions requires a migration and re-embedding existing chunks;
+# changing the model requires re-embedding (scripts/reembed.py).
 EMBEDDING_DIMENSIONS = 384
-EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+EMBEDDING_MODEL = "intfloat/multilingual-e5-small"
 
 
 class Base(DeclarativeBase):
