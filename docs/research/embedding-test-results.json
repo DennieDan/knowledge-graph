@@ -1,0 +1,862 @@
+{
+  "passages": [
+    {
+      "id": "atlas-en",
+      "cluster": "atlas",
+      "text": "Project Atlas launch date moved to 25 September. The Drive brief still says 18 September."
+    },
+    {
+      "id": "atlas-zh",
+      "cluster": "atlas",
+      "text": "阿特拉斯项目发布改到9月25日。Drive里的brief还写着9月18日。"
+    },
+    {
+      "id": "atlas-ms",
+      "cluster": "atlas",
+      "text": "Tarikh pelancaran Projek Atlas ditunda ke 25 September. Brief di Drive masih tulis 18 September."
+    },
+    {
+      "id": "atlas-sg",
+      "cluster": "atlas",
+      "text": "Atlas launch confirm shift to 25 Sep liao. Brief in Drive still say 18th."
+    },
+    {
+      "id": "atlas-mix",
+      "cluster": "atlas",
+      "text": "Atlas launch 改到 25 Sep already, brief in Drive still say 18th."
+    },
+    {
+      "id": "wo-en",
+      "cluster": "wo4412",
+      "text": "Use drawing Rev 3 for part WO-4412. Do not machine from Rev 2."
+    },
+    {
+      "id": "wo-zh",
+      "cluster": "wo4412",
+      "text": "WO-4412 的图纸用 Rev 3，不要用 Rev 2 加工。"
+    },
+    {
+      "id": "wo-mix",
+      "cluster": "wo4412",
+      "text": "WO-4412 drawing 用 Rev 3, 不要用 Rev 2."
+    },
+    {
+      "id": "sku-en",
+      "cluster": "sku",
+      "text": "Northline Pte Ltd price list effective 1 August: SKU-A19 is $4.80 per unit."
+    },
+    {
+      "id": "sku-ms",
+      "cluster": "sku",
+      "text": "Senarai harga Northline Pte Ltd berkuat kuasa 1 Ogos: SKU-A19 ialah $4.80 seunit."
+    },
+    {
+      "id": "dist-en",
+      "cluster": "distractor",
+      "text": "The office will close at 3pm on Friday for the fire drill."
+    },
+    {
+      "id": "dist-zh",
+      "cluster": "distractor",
+      "text": "下周一的供应商会议改到下午两点。"
+    }
+  ],
+  "queries": [
+    {
+      "id": "q-atlas-en",
+      "cluster": "atlas",
+      "text": "When did the Atlas launch move to?"
+    },
+    {
+      "id": "q-atlas-zh",
+      "cluster": "atlas",
+      "text": "阿特拉斯什么时候发布"
+    },
+    {
+      "id": "q-atlas-ms",
+      "cluster": "atlas",
+      "text": "tarikh baru pelancaran Atlas"
+    },
+    {
+      "id": "q-atlas-sg",
+      "cluster": "atlas",
+      "text": "Atlas launch shift to when sia"
+    },
+    {
+      "id": "q-atlas-mix",
+      "cluster": "atlas",
+      "text": "Atlas launch 改到 which date"
+    },
+    {
+      "id": "q-wo-en",
+      "cluster": "wo4412",
+      "text": "WO-4412 which revision is current"
+    },
+    {
+      "id": "q-wo-zh",
+      "cluster": "wo4412",
+      "text": "WO-4412 用哪一版图纸"
+    },
+    {
+      "id": "q-wo-mix",
+      "cluster": "wo4412",
+      "text": "WO-4412 drawing which rev"
+    },
+    {
+      "id": "q-sku-en",
+      "cluster": "sku",
+      "text": "current price of SKU-A19"
+    },
+    {
+      "id": "q-sku-ms",
+      "cluster": "sku",
+      "text": "harga SKU-A19 sekarang"
+    }
+  ],
+  "models": {
+    "sentence-transformers/all-MiniLM-L6-v2": {
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "queries": [
+        {
+          "query": "q-atlas-en",
+          "query_text": "When did the Atlas launch move to?",
+          "want": "atlas",
+          "top": [
+            {
+              "id": "atlas-en",
+              "cluster": "atlas",
+              "score": 0.747
+            },
+            {
+              "id": "atlas-mix",
+              "cluster": "atlas",
+              "score": 0.65
+            },
+            {
+              "id": "atlas-sg",
+              "cluster": "atlas",
+              "score": 0.599
+            }
+          ],
+          "hit@1": true,
+          "hit@3": true
+        },
+        {
+          "query": "q-atlas-zh",
+          "query_text": "阿特拉斯什么时候发布",
+          "want": "atlas",
+          "top": [
+            {
+              "id": "atlas-zh",
+              "cluster": "atlas",
+              "score": 0.721
+            },
+            {
+              "id": "dist-zh",
+              "cluster": "distractor",
+              "score": 0.425
+            },
+            {
+              "id": "wo-zh",
+              "cluster": "wo4412",
+              "score": 0.409
+            }
+          ],
+          "hit@1": true,
+          "hit@3": true
+        },
+        {
+          "query": "q-atlas-ms",
+          "query_text": "tarikh baru pelancaran Atlas",
+          "want": "atlas",
+          "top": [
+            {
+              "id": "atlas-ms",
+              "cluster": "atlas",
+              "score": 0.595
+            },
+            {
+              "id": "atlas-sg",
+              "cluster": "atlas",
+              "score": 0.309
+            },
+            {
+              "id": "atlas-mix",
+              "cluster": "atlas",
+              "score": 0.306
+            }
+          ],
+          "hit@1": true,
+          "hit@3": true
+        },
+        {
+          "query": "q-atlas-sg",
+          "query_text": "Atlas launch shift to when sia",
+          "want": "atlas",
+          "top": [
+            {
+              "id": "atlas-sg",
+              "cluster": "atlas",
+              "score": 0.635
+            },
+            {
+              "id": "atlas-en",
+              "cluster": "atlas",
+              "score": 0.582
+            },
+            {
+              "id": "atlas-mix",
+              "cluster": "atlas",
+              "score": 0.582
+            }
+          ],
+          "hit@1": true,
+          "hit@3": true
+        },
+        {
+          "query": "q-atlas-mix",
+          "query_text": "Atlas launch 改到 which date",
+          "want": "atlas",
+          "top": [
+            {
+              "id": "atlas-mix",
+              "cluster": "atlas",
+              "score": 0.797
+            },
+            {
+              "id": "atlas-en",
+              "cluster": "atlas",
+              "score": 0.715
+            },
+            {
+              "id": "atlas-sg",
+              "cluster": "atlas",
+              "score": 0.692
+            }
+          ],
+          "hit@1": true,
+          "hit@3": true
+        },
+        {
+          "query": "q-wo-en",
+          "query_text": "WO-4412 which revision is current",
+          "want": "wo4412",
+          "top": [
+            {
+              "id": "wo-en",
+              "cluster": "wo4412",
+              "score": 0.485
+            },
+            {
+              "id": "wo-mix",
+              "cluster": "wo4412",
+              "score": 0.325
+            },
+            {
+              "id": "atlas-en",
+              "cluster": "atlas",
+              "score": 0.271
+            }
+          ],
+          "hit@1": true,
+          "hit@3": true
+        },
+        {
+          "query": "q-wo-zh",
+          "query_text": "WO-4412 用哪一版图纸",
+          "want": "wo4412",
+          "top": [
+            {
+              "id": "wo-zh",
+              "cluster": "wo4412",
+              "score": 0.569
+            },
+            {
+              "id": "dist-zh",
+              "cluster": "distractor",
+              "score": 0.51
+            },
+            {
+              "id": "atlas-zh",
+              "cluster": "atlas",
+              "score": 0.484
+            }
+          ],
+          "hit@1": true,
+          "hit@3": true
+        },
+        {
+          "query": "q-wo-mix",
+          "query_text": "WO-4412 drawing which rev",
+          "want": "wo4412",
+          "top": [
+            {
+              "id": "wo-en",
+              "cluster": "wo4412",
+              "score": 0.787
+            },
+            {
+              "id": "wo-mix",
+              "cluster": "wo4412",
+              "score": 0.592
+            },
+            {
+              "id": "wo-zh",
+              "cluster": "wo4412",
+              "score": 0.285
+            }
+          ],
+          "hit@1": true,
+          "hit@3": true
+        },
+        {
+          "query": "q-sku-en",
+          "query_text": "current price of SKU-A19",
+          "want": "sku",
+          "top": [
+            {
+              "id": "sku-en",
+              "cluster": "sku",
+              "score": 0.784
+            },
+            {
+              "id": "sku-ms",
+              "cluster": "sku",
+              "score": 0.525
+            },
+            {
+              "id": "atlas-en",
+              "cluster": "atlas",
+              "score": 0.129
+            }
+          ],
+          "hit@1": true,
+          "hit@3": true
+        },
+        {
+          "query": "q-sku-ms",
+          "query_text": "harga SKU-A19 sekarang",
+          "want": "sku",
+          "top": [
+            {
+              "id": "sku-ms",
+              "cluster": "sku",
+              "score": 0.629
+            },
+            {
+              "id": "sku-en",
+              "cluster": "sku",
+              "score": 0.371
+            },
+            {
+              "id": "atlas-ms",
+              "cluster": "atlas",
+              "score": 0.329
+            }
+          ],
+          "hit@1": true,
+          "hit@3": true
+        }
+      ],
+      "dimensions": 384,
+      "query_prefix": false
+    },
+    "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2": {
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "queries": [
+        {
+          "query": "q-atlas-en",
+          "query_text": "When did the Atlas launch move to?",
+          "want": "atlas",
+          "top": [
+            {
+              "id": "atlas-sg",
+              "cluster": "atlas",
+              "score": 0.72
+            },
+            {
+              "id": "atlas-mix",
+              "cluster": "atlas",
+              "score": 0.713
+            },
+            {
+              "id": "atlas-en",
+              "cluster": "atlas",
+              "score": 0.65
+            }
+          ],
+          "hit@1": true,
+          "hit@3": true
+        },
+        {
+          "query": "q-atlas-zh",
+          "query_text": "阿特拉斯什么时候发布",
+          "want": "atlas",
+          "top": [
+            {
+              "id": "atlas-zh",
+              "cluster": "atlas",
+              "score": 0.466
+            },
+            {
+              "id": "atlas-ms",
+              "cluster": "atlas",
+              "score": 0.375
+            },
+            {
+              "id": "atlas-en",
+              "cluster": "atlas",
+              "score": 0.359
+            }
+          ],
+          "hit@1": true,
+          "hit@3": true
+        },
+        {
+          "query": "q-atlas-ms",
+          "query_text": "tarikh baru pelancaran Atlas",
+          "want": "atlas",
+          "top": [
+            {
+              "id": "atlas-sg",
+              "cluster": "atlas",
+              "score": 0.748
+            },
+            {
+              "id": "atlas-mix",
+              "cluster": "atlas",
+              "score": 0.742
+            },
+            {
+              "id": "atlas-ms",
+              "cluster": "atlas",
+              "score": 0.69
+            }
+          ],
+          "hit@1": true,
+          "hit@3": true
+        },
+        {
+          "query": "q-atlas-sg",
+          "query_text": "Atlas launch shift to when sia",
+          "want": "atlas",
+          "top": [
+            {
+              "id": "atlas-sg",
+              "cluster": "atlas",
+              "score": 0.818
+            },
+            {
+              "id": "atlas-mix",
+              "cluster": "atlas",
+              "score": 0.71
+            },
+            {
+              "id": "atlas-en",
+              "cluster": "atlas",
+              "score": 0.641
+            }
+          ],
+          "hit@1": true,
+          "hit@3": true
+        },
+        {
+          "query": "q-atlas-mix",
+          "query_text": "Atlas launch 改到 which date",
+          "want": "atlas",
+          "top": [
+            {
+              "id": "atlas-mix",
+              "cluster": "atlas",
+              "score": 0.764
+            },
+            {
+              "id": "atlas-sg",
+              "cluster": "atlas",
+              "score": 0.761
+            },
+            {
+              "id": "atlas-en",
+              "cluster": "atlas",
+              "score": 0.716
+            }
+          ],
+          "hit@1": true,
+          "hit@3": true
+        },
+        {
+          "query": "q-wo-en",
+          "query_text": "WO-4412 which revision is current",
+          "want": "wo4412",
+          "top": [
+            {
+              "id": "wo-zh",
+              "cluster": "wo4412",
+              "score": 0.489
+            },
+            {
+              "id": "wo-mix",
+              "cluster": "wo4412",
+              "score": 0.466
+            },
+            {
+              "id": "wo-en",
+              "cluster": "wo4412",
+              "score": 0.382
+            }
+          ],
+          "hit@1": true,
+          "hit@3": true
+        },
+        {
+          "query": "q-wo-zh",
+          "query_text": "WO-4412 用哪一版图纸",
+          "want": "wo4412",
+          "top": [
+            {
+              "id": "wo-mix",
+              "cluster": "wo4412",
+              "score": 0.623
+            },
+            {
+              "id": "wo-zh",
+              "cluster": "wo4412",
+              "score": 0.597
+            },
+            {
+              "id": "wo-en",
+              "cluster": "wo4412",
+              "score": 0.505
+            }
+          ],
+          "hit@1": true,
+          "hit@3": true
+        },
+        {
+          "query": "q-wo-mix",
+          "query_text": "WO-4412 drawing which rev",
+          "want": "wo4412",
+          "top": [
+            {
+              "id": "wo-mix",
+              "cluster": "wo4412",
+              "score": 0.757
+            },
+            {
+              "id": "wo-en",
+              "cluster": "wo4412",
+              "score": 0.639
+            },
+            {
+              "id": "wo-zh",
+              "cluster": "wo4412",
+              "score": 0.629
+            }
+          ],
+          "hit@1": true,
+          "hit@3": true
+        },
+        {
+          "query": "q-sku-en",
+          "query_text": "current price of SKU-A19",
+          "want": "sku",
+          "top": [
+            {
+              "id": "sku-ms",
+              "cluster": "sku",
+              "score": 0.79
+            },
+            {
+              "id": "sku-en",
+              "cluster": "sku",
+              "score": 0.78
+            },
+            {
+              "id": "atlas-mix",
+              "cluster": "atlas",
+              "score": 0.277
+            }
+          ],
+          "hit@1": true,
+          "hit@3": true
+        },
+        {
+          "query": "q-sku-ms",
+          "query_text": "harga SKU-A19 sekarang",
+          "want": "sku",
+          "top": [
+            {
+              "id": "sku-ms",
+              "cluster": "sku",
+              "score": 0.775
+            },
+            {
+              "id": "sku-en",
+              "cluster": "sku",
+              "score": 0.762
+            },
+            {
+              "id": "atlas-mix",
+              "cluster": "atlas",
+              "score": 0.346
+            }
+          ],
+          "hit@1": true,
+          "hit@3": true
+        }
+      ],
+      "dimensions": 384,
+      "query_prefix": false
+    },
+    "intfloat/multilingual-e5-small": {
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "queries": [
+        {
+          "query": "q-atlas-en",
+          "query_text": "When did the Atlas launch move to?",
+          "want": "atlas",
+          "top": [
+            {
+              "id": "atlas-en",
+              "cluster": "atlas",
+              "score": 0.868
+            },
+            {
+              "id": "atlas-sg",
+              "cluster": "atlas",
+              "score": 0.85
+            },
+            {
+              "id": "atlas-mix",
+              "cluster": "atlas",
+              "score": 0.836
+            }
+          ],
+          "hit@1": true,
+          "hit@3": true
+        },
+        {
+          "query": "q-atlas-zh",
+          "query_text": "阿特拉斯什么时候发布",
+          "want": "atlas",
+          "top": [
+            {
+              "id": "atlas-zh",
+              "cluster": "atlas",
+              "score": 0.934
+            },
+            {
+              "id": "atlas-mix",
+              "cluster": "atlas",
+              "score": 0.869
+            },
+            {
+              "id": "dist-zh",
+              "cluster": "distractor",
+              "score": 0.832
+            }
+          ],
+          "hit@1": true,
+          "hit@3": true
+        },
+        {
+          "query": "q-atlas-ms",
+          "query_text": "tarikh baru pelancaran Atlas",
+          "want": "atlas",
+          "top": [
+            {
+              "id": "atlas-ms",
+              "cluster": "atlas",
+              "score": 0.885
+            },
+            {
+              "id": "atlas-mix",
+              "cluster": "atlas",
+              "score": 0.867
+            },
+            {
+              "id": "atlas-en",
+              "cluster": "atlas",
+              "score": 0.865
+            }
+          ],
+          "hit@1": true,
+          "hit@3": true
+        },
+        {
+          "query": "q-atlas-sg",
+          "query_text": "Atlas launch shift to when sia",
+          "want": "atlas",
+          "top": [
+            {
+              "id": "atlas-sg",
+              "cluster": "atlas",
+              "score": 0.908
+            },
+            {
+              "id": "atlas-mix",
+              "cluster": "atlas",
+              "score": 0.884
+            },
+            {
+              "id": "atlas-en",
+              "cluster": "atlas",
+              "score": 0.881
+            }
+          ],
+          "hit@1": true,
+          "hit@3": true
+        },
+        {
+          "query": "q-atlas-mix",
+          "query_text": "Atlas launch 改到 which date",
+          "want": "atlas",
+          "top": [
+            {
+              "id": "atlas-mix",
+              "cluster": "atlas",
+              "score": 0.933
+            },
+            {
+              "id": "atlas-sg",
+              "cluster": "atlas",
+              "score": 0.904
+            },
+            {
+              "id": "atlas-en",
+              "cluster": "atlas",
+              "score": 0.9
+            }
+          ],
+          "hit@1": true,
+          "hit@3": true
+        },
+        {
+          "query": "q-wo-en",
+          "query_text": "WO-4412 which revision is current",
+          "want": "wo4412",
+          "top": [
+            {
+              "id": "wo-en",
+              "cluster": "wo4412",
+              "score": 0.852
+            },
+            {
+              "id": "wo-mix",
+              "cluster": "wo4412",
+              "score": 0.846
+            },
+            {
+              "id": "wo-zh",
+              "cluster": "wo4412",
+              "score": 0.844
+            }
+          ],
+          "hit@1": true,
+          "hit@3": true
+        },
+        {
+          "query": "q-wo-zh",
+          "query_text": "WO-4412 用哪一版图纸",
+          "want": "wo4412",
+          "top": [
+            {
+              "id": "wo-zh",
+              "cluster": "wo4412",
+              "score": 0.914
+            },
+            {
+              "id": "wo-mix",
+              "cluster": "wo4412",
+              "score": 0.897
+            },
+            {
+              "id": "wo-en",
+              "cluster": "wo4412",
+              "score": 0.85
+            }
+          ],
+          "hit@1": true,
+          "hit@3": true
+        },
+        {
+          "query": "q-wo-mix",
+          "query_text": "WO-4412 drawing which rev",
+          "want": "wo4412",
+          "top": [
+            {
+              "id": "wo-en",
+              "cluster": "wo4412",
+              "score": 0.891
+            },
+            {
+              "id": "wo-mix",
+              "cluster": "wo4412",
+              "score": 0.871
+            },
+            {
+              "id": "wo-zh",
+              "cluster": "wo4412",
+              "score": 0.857
+            }
+          ],
+          "hit@1": true,
+          "hit@3": true
+        },
+        {
+          "query": "q-sku-en",
+          "query_text": "current price of SKU-A19",
+          "want": "sku",
+          "top": [
+            {
+              "id": "sku-ms",
+              "cluster": "sku",
+              "score": 0.878
+            },
+            {
+              "id": "sku-en",
+              "cluster": "sku",
+              "score": 0.875
+            },
+            {
+              "id": "atlas-mix",
+              "cluster": "atlas",
+              "score": 0.813
+            }
+          ],
+          "hit@1": true,
+          "hit@3": true
+        },
+        {
+          "query": "q-sku-ms",
+          "query_text": "harga SKU-A19 sekarang",
+          "want": "sku",
+          "top": [
+            {
+              "id": "sku-ms",
+              "cluster": "sku",
+              "score": 0.89
+            },
+            {
+              "id": "sku-en",
+              "cluster": "sku",
+              "score": 0.845
+            },
+            {
+              "id": "atlas-mix",
+              "cluster": "atlas",
+              "score": 0.829
+            }
+          ],
+          "hit@1": true,
+          "hit@3": true
+        }
+      ],
+      "dimensions": 384,
+      "query_prefix": true
+    }
+  }
+}
