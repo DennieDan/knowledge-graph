@@ -32,7 +32,7 @@ web (Next.js, http://localhost:3000)
         |
         | REST / SSE
         v
-api (FastAPI, http://localhost:8000)
+api (FastAPI, http://localhost:8000) ──> WAHA (WhatsApp HTTP API, http://localhost:3100)
 ```
 
 The backend exposes liveness and database readiness endpoints:
@@ -88,6 +88,34 @@ To run only the backend:
 ```sh
 pnpm --filter api dev
 ```
+
+### WhatsApp setup (WAHA, development only)
+
+WhatsApp import runs through a self-hosted [WAHA](https://waha.devlike.pro/)
+container — an **unofficial** WhatsApp Web API, so it is used only for
+development on a spare number (bans are possible). Start it and configure the
+backend:
+
+```sh
+# Apple Silicon: keep gows-arm. x86: omit WAHA_IMAGE_TAG (defaults to gows).
+WAHA_IMAGE_TAG=gows-arm WAHA_API_KEY=dev-secret WAHA_DASHBOARD_PASSWORD=devpass \
+  docker compose -f apps/api/waha/docker-compose.yml up -d
+```
+
+Then set in `apps/api/.env`:
+
+```env
+WAHA_BASE_URL=http://localhost:3100
+WAHA_API_KEY=dev-secret
+# Optional, for live incremental sync (omit for poll-only):
+WAHA_WEBHOOK_URL=http://host.docker.internal:8000/whatsapp/webhooks
+WAHA_WEBHOOK_SECRET=<random secret>
+```
+
+Apply migrations, sign in to the web app, and use **WhatsApp → Connect** to
+link a number by QR code or pairing code, then pick chats to import. Full
+details, endpoint reference, and testing steps:
+[`apps/api/docs/whatsapp.md`](apps/api/docs/whatsapp.md).
 
 ### Database development
 

@@ -3,7 +3,8 @@ from uuid import UUID, uuid4
 from typing import Optional
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 # Initial schema choice for sentence-transformers/all-MiniLM-L6-v2.
@@ -36,6 +37,55 @@ class GoogleAccount(Base):
     refresh_token: Mapped[Optional[str]] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class WhatsappConnection(Base):
+    # User-scoped by design: imported chats belong to the person, never to an
+    # organization.
+    __tablename__ = "whatsapp_connections"
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True, index=True)
+    waha_session: Mapped[str] = mapped_column(String(255), unique=True)
+    phone_number: Mapped[Optional[str]] = mapped_column(String(32))
+    status: Mapped[str] = mapped_column(String(32), default="STARTING")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class WhatsappChat(Base):
+    __tablename__ = "whatsapp_chats"
+    __table_args__ = (
+        UniqueConstraint("connection_id", "chat_jid"),
+        CheckConstraint("import_status IN ('none','importing','imported','failed')", name="valid_import_status"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    connection_id: Mapped[UUID] = mapped_column(ForeignKey("whatsapp_connections.id", ondelete="CASCADE"), index=True)
+    chat_jid: Mapped[str] = mapped_column(Text)
+    name: Mapped[Optional[str]] = mapped_column(Text)
+    chat_type: Mapped[str] = mapped_column(String(32), default="contact")
+    last_message_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    import_status: Mapped[str] = mapped_column(String(20), default="none")
+    import_error: Mapped[Optional[str]] = mapped_column(Text)
+    message_count: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class WhatsappMessage(Base):
+    __tablename__ = "whatsapp_messages"
+    __table_args__ = (UniqueConstraint("chat_id", "wa_message_id"),)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    chat_id: Mapped[UUID] = mapped_column(ForeignKey("whatsapp_chats.id", ondelete="CASCADE"), index=True)
+    wa_message_id: Mapped[str] = mapped_column(Text)
+    sent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    sender_jid: Mapped[Optional[str]] = mapped_column(Text)
+    sender_name: Mapped[Optional[str]] = mapped_column(Text)
+    from_me: Mapped[bool] = mapped_column(Boolean, default=False)
+    msg_type: Mapped[str] = mapped_column(String(50), default="chat")
+    body: Mapped[Optional[str]] = mapped_column(Text)
+    has_media: Mapped[bool] = mapped_column(Boolean, default=False)
+    raw: Mapped[Optional[dict]] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class Organization(Base):

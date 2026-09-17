@@ -12,6 +12,7 @@ from .config import get_settings
 from .database import get_engine
 from .drive import router as drive_router
 from .models import Base
+from .whatsapp import router as whatsapp_router
 
 app = FastAPI(title="Knowledge Graph API")
 
@@ -33,6 +34,7 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(drive_router)
+app.include_router(whatsapp_router)
 
 
 @app.get("/health")

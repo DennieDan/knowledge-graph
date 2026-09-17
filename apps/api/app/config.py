@@ -23,6 +23,13 @@ class Settings(BaseSettings):
     google_redirect_uri: str = "http://localhost:8000/auth/google/callback"
     session_secret: SecretStr
     web_origin: str = "http://localhost:3000"
+    waha_base_url: str = "http://localhost:3100"
+    waha_api_key: SecretStr | None = None
+    # Public URL WAHA POSTs events to (e.g. https://api.example.com/whatsapp/webhooks).
+    # Unset disables webhook registration on new sessions — poll-only mode.
+    waha_webhook_url: str | None = None
+    # Shared secret sent by WAHA as X-Webhook-Token and verified on receipt.
+    waha_webhook_secret: SecretStr | None = None
 
 
 @lru_cache

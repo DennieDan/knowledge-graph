@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import DriveFiles from "./drive-files";
+import WhatsAppConnect from "./whatsapp-connect";
 import { getMe, loginUrl, logout, type Me } from "../lib/api";
 import styles from "./search-workspace.module.css";
 
@@ -96,12 +97,17 @@ export default function SearchWorkspace() {
   const [sources, setSources] = useState({ Drive: true, WhatsApp: true });
   const [selected, setSelected] = useState(0);
   const [me, setMe] = useState<Me | null>(null);
+  const [waOpen, setWaOpen] = useState(false);
 
-  useEffect(() => {
+  const refreshMe = useCallback(() => {
     getMe()
       .then(setMe)
       .catch(() => setMe(null));
   }, []);
+
+  useEffect(() => {
+    refreshMe();
+  }, [refreshMe]);
 
   const q = query.trim().toLowerCase();
   const results = SEARCHABLE.map((item, index) => ({ item, index })).filter(
@@ -213,7 +219,13 @@ export default function SearchWorkspace() {
           </div>
           <div className={styles.connection}>
             <span>WhatsApp</span>
-            <span className={styles.chip}>Imported</span>
+            <button
+              type="button"
+              className={styles.btnText}
+              onClick={() => setWaOpen(true)}
+            >
+              {me?.whatsapp_linked ? "Manage" : "Import"}
+            </button>
           </div>
         </aside>
 
@@ -277,6 +289,13 @@ export default function SearchWorkspace() {
           <p className={styles.muted}>Source preview · Demo record</p>
         </aside>
       </div>
+
+      {waOpen && (
+        <WhatsAppConnect
+          onClose={() => setWaOpen(false)}
+          onChanged={refreshMe}
+        />
+      )}
 
       <footer className={styles.footer}>
         Low-fidelity wireframe · Fictional sample data · Actions affect this demo
