@@ -1,6 +1,7 @@
 "use client";
 
 import { loginUrl, type Me } from "../lib/api";
+import Icon from "./icons";
 import styles from "./sources.module.css";
 
 type SourceState = "Healthy" | "Stale" | "Gap";
@@ -29,9 +30,11 @@ function StatePill({ state }: { state: SourceState }) {
 export default function SourcesView({
   me,
   onManageWhatsApp,
+  onManageDrive,
 }: {
   me: Me | null;
   onManageWhatsApp: () => void;
+  onManageDrive: () => void;
 }) {
   return (
     <div className={styles.page}>
@@ -63,11 +66,15 @@ export default function SourcesView({
               <span className={styles.connMeta}>Google account</span>
             )}
           </div>
-          {!me?.drive_linked && (
-            <div className={styles.connAction}>
+          <div className={styles.connAction}>
+            {me?.drive_linked ? (
+              <button type="button" onClick={onManageDrive}>
+                <Icon name="settings" size={13} /> Manage access
+              </button>
+            ) : (
               <a href={loginUrl}>{me ? "Link Drive" : "Sign in to link"}</a>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         <div className={styles.connCard}>

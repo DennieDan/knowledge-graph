@@ -29,6 +29,10 @@
 - Components live in `apps/web/app/components/` as
   `<name>.tsx` + `<name>.module.css`.
 
+## AI-Human working style
+
+- Whenever given a prompt, agent is able to ask clarifying questions before implementing task (this is optional)
+
 ## Product domain
 
 - Target users: **Singapore SMEs**, starting with the **event organisers &

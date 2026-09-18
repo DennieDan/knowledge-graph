@@ -7,6 +7,7 @@ import SearchView from "./search-view";
 import SourcesView from "./sources-view";
 import StacksView from "./stacks-view";
 import WhatsAppConnect from "./whatsapp-connect";
+import DrivePicker from "./drive-picker";
 import {
   CreateStackModal,
   CreateSubstackModal,
@@ -70,6 +71,8 @@ export default function WorkspaceShell() {
   const [notice, setNotice] = useState("");
   const [me, setMe] = useState<Me | null>(null);
   const [waOpen, setWaOpen] = useState(false);
+  const [driveOpen, setDriveOpen] = useState(false);
+  const driveSetupPending = useRef(false);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refreshMe = useCallback(() => {
@@ -81,6 +84,23 @@ export default function WorkspaceShell() {
   useEffect(() => {
     refreshMe();
   }, [refreshMe]);
+
+  // The OAuth callback appends ?drive=setup when the account hasn't chosen
+  // what to share yet — open the picker once the session resolves.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("drive") === "setup") {
+      driveSetupPending.current = true;
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (driveSetupPending.current && me) {
+      driveSetupPending.current = false;
+      if (me.drive_linked) setDriveOpen(true);
+    }
+  }, [me]);
 
   // Restore locally persisted stacks after hydration.
   useEffect(() => {
@@ -294,7 +314,11 @@ export default function WorkspaceShell() {
           </header>
 
           {activeNav === "sources" && (
-            <SourcesView me={me} onManageWhatsApp={() => setWaOpen(true)} />
+            <SourcesView
+              me={me}
+              onManageWhatsApp={() => setWaOpen(true)}
+              onManageDrive={() => setDriveOpen(true)}
+            />
           )}
           {activeNav === "search" && <SearchView me={me} />}
           {activeNav === "maintenance" && (
@@ -366,6 +390,12 @@ export default function WorkspaceShell() {
           onClose={() => setWaOpen(false)}
           onChanged={refreshMe}
         />
+      )}
+
+      {driveOpen && (
+        <Modal onClose={() => setDriveOpen(false)}>
+          <DrivePicker onClose={() => setDriveOpen(false)} />
+        </Modal>
       )}
     </div>
   );
