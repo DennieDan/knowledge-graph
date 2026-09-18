@@ -148,6 +148,29 @@ content. Changing dimensions requires a migration; changing models requires re-e
 Search initially uses exact cosine distance; no approximate vector index is needed
 for the foundation checks. [pgvector documentation](https://github.com/pgvector/pgvector)
 
+### Ingestion
+
+`app/ingest.py` turns connector data into a `Document`, a new `DocumentVersion`,
+and its `chunks`. A revision is only written when the SHA-256 of the extracted
+text changes, so re-running is a no-op; earlier revisions keep their chunks.
+`app/sources.py` normalizes each connector — a WhatsApp chat becomes a
+chronological `timestamp speaker: message` transcript (media without a caption
+becomes `[image]`), and a Drive file is exported to text (Google editor files via
+`files.export`, other text types via `alt=media`; binary types are skipped).
+`app/chunking.py` splits on paragraphs, then sentences, and finally into
+overlapping windows for unspaced text such as Chinese.
+
+Documents are organization-scoped, but memberships do not exist yet, so the
+organization is passed explicitly:
+
+```sh
+pnpm --filter api db:ingest -- --organization-id UUID whatsapp --user-email me@example.com
+pnpm --filter api db:ingest -- --organization-id UUID drive --user-email me@example.com --file-id ID
+```
+
+Ingestion stores chunks without embeddings; run `db:reembed` afterwards to fill
+them in.
+
 ### Embeddings
 
 `app/embeddings.py` loads the encoder lazily on first use (weights download from
