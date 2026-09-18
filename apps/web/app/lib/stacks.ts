@@ -31,6 +31,7 @@ export const STACK_TYPES: StackType[] = [
   { id: "conversations", name: "Conversations", icon: "message-circle", desc: "Ongoing threads and communication history." },
   { id: "crew", name: "Crew", icon: "users", desc: "Team members, roles, and assignments." },
   { id: "licenses", name: "Licenses", icon: "shield", desc: "Software, creative, and legal licenses." },
+  { id: "venues", name: "Venues", icon: "map-pin", desc: "Event venues — contracts, rates, and availability." },
 ];
 
 export const INITIAL_SUBSTACKS: Substack[] = [
@@ -67,6 +68,9 @@ export const INITIAL_SUBSTACKS: Substack[] = [
   // Licenses
   { id: "l1", typeId: "licenses", name: "Software Licenses", desc: "Active software subscriptions and renewal dates.", scope: "workspace", access: "All members", role: "Can view", updated: "1 week ago", docs: ["License inventory", "Renewal calendar"], count: 22 },
   { id: "l2", typeId: "licenses", name: "Stock Media Rights", desc: "Image and video licenses with usage rights.", scope: "shared", access: "Product & Design", role: "Can edit", updated: "3 days ago", docs: ["Rights ledger", "Expiry tracker"], count: 9 },
+  // Venues
+  { id: "vn1", typeId: "venues", name: "Marina Bay Expo Hall", desc: "Large convention space with preferred rates and contacts.", scope: "workspace", access: "All members", role: "Can view", updated: "5 hours ago", docs: ["Rate card", "Floor plan"], count: 15 },
+  { id: "vn2", typeId: "venues", name: "Raffles Ballroom", desc: "Hotel ballroom for D&D and gala events; AV restrictions noted.", scope: "shared", access: "Shared by Maya", role: "Can edit", updated: "Yesterday", docs: ["Contract", "AV notes"], count: 6 },
 ];
 
 export const SCOPE_TABS: [Scope, string][] = [
@@ -100,7 +104,19 @@ export function loadStacksState(): StacksState | null {
     if (!Array.isArray(parsed.stackTypes) || !Array.isArray(parsed.substacks)) {
       return null;
     }
-    return parsed;
+    // Merge in any default entries added since the state was persisted.
+    const typeIds = new Set(parsed.stackTypes.map((t) => t.id));
+    const substackIds = new Set(parsed.substacks.map((s) => s.id));
+    return {
+      stackTypes: [
+        ...parsed.stackTypes,
+        ...STACK_TYPES.filter((t) => !typeIds.has(t.id)),
+      ],
+      substacks: [
+        ...parsed.substacks,
+        ...INITIAL_SUBSTACKS.filter((s) => !substackIds.has(s.id)),
+      ],
+    };
   } catch {
     return null;
   }

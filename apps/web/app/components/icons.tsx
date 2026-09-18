@@ -29,6 +29,8 @@ const PATHS: Record<string, string> = {
   shield: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z",
   folder:
     "M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z",
+  "map-pin":
+    "M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0zM12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z",
   sidebar: "M3 3h18v18H3V3zM9 3v18",
   lock: "M6 11V8a6 6 0 1 1 12 0v3M5 11h14v10H5V11Z",
 };
