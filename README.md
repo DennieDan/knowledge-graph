@@ -168,8 +168,10 @@ pnpm --filter api db:ingest -- --organization-id UUID whatsapp --user-email me@e
 pnpm --filter api db:ingest -- --organization-id UUID drive --user-email me@example.com --file-id ID
 ```
 
-Ingestion stores chunks without embeddings; run `db:reembed` afterwards to fill
-them in.
+Chunks are embedded as they are created, so a document is searchable as soon as
+it is ingested. Pass `--no-embed` to store them unembedded (useful for bulk
+backfills) and run `db:reembed` afterwards. Embedding only runs when the content
+actually changed, so re-ingesting never loads the encoder.
 
 ### Embeddings
 

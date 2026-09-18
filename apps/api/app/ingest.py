@@ -1,7 +1,5 @@
-"""Turn connector data into documents, versions, and chunks.
-
-Chunks are stored without embeddings; `python -m scripts.reembed` fills them in.
-"""
+"""Turn connector data into documents, versions, and chunks."""
+from collections.abc import Sequence
 from dataclasses import dataclass
 from hashlib import sha256
 from uuid import UUID
@@ -10,6 +8,8 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .chunking import chunk_text
+from .config import get_settings
+from .embeddings import embed_passages
 from .models import Chunk, Document, DocumentVersion
 
 
@@ -52,12 +52,23 @@ def _document_for(session: Session, organization_id: UUID, document: SourceDocum
     return existing
 
 
+def embed_chunks(chunks: Sequence[Chunk]) -> None:
+    """Attach vectors from the configured model. Loads the encoder, so it is slow."""
+    if not chunks:
+        return
+    model = get_settings().embedding_model
+    for chunk, vector in zip(chunks, embed_passages(chunk.text for chunk in chunks)):
+        chunk.embedding = vector
+        chunk.embedding_model = model
+
+
 def ingest_document(
-    session: Session, organization_id: UUID, document: SourceDocument
+    session: Session, organization_id: UUID, document: SourceDocument, embed: bool = True
 ) -> DocumentVersion | None:
     """Store a new revision and its chunks, or return None when the content is unchanged.
 
     Earlier revisions keep their chunks so retrieval against them stays valid.
+    With embed=False the chunks are left for `python -m scripts.reembed`.
     The caller commits.
     """
     content = document.content.strip()
@@ -83,10 +94,13 @@ def ingest_document(
     )
     session.add(version)
     session.flush()
-    session.add_all(
+    chunks = [
         Chunk(document_version_id=version.id, position=position, text=text)
         for position, text in enumerate(chunk_text(content))
-    )
+    ]
+    if embed:
+        embed_chunks(chunks)
+    session.add_all(chunks)
     session.flush()
     return version
 

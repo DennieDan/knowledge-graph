@@ -9,10 +9,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.chunking import chunk_text
+from app.config import get_settings
 from app.database import get_engine
 from app.drive import UnsupportedFileType, fetch_file_text
 from app.ingest import SourceDocument, content_hash, ingest_document
-from app.models import Chunk, Document, DocumentVersion, Organization, User, WhatsappChat, WhatsappConnection, WhatsappMessage
+from app.models import EMBEDDING_DIMENSIONS, Chunk, Document, DocumentVersion, Organization, User, WhatsappChat, WhatsappConnection, WhatsappMessage
 from app.sources import whatsapp_chat_document
 
 
@@ -100,6 +101,9 @@ class IngestDocumentTests(unittest.TestCase):
         self.transaction.rollback()
         self.connection.close()
 
+    def ingest(self, content: str, title: str = "Notes", embed: bool = False):
+        return ingest_document(self.session, self.organization.id, self.document(content, title), embed)
+
     def document(self, content: str, title: str = "Notes") -> SourceDocument:
         return SourceDocument(
             source="google_drive",
@@ -110,7 +114,7 @@ class IngestDocumentTests(unittest.TestCase):
         )
 
     def test_first_ingest_creates_a_document_version_and_chunks(self):
-        version = ingest_document(self.session, self.organization.id, self.document("alpha\n\nbeta"))
+        version = self.ingest("alpha\n\nbeta")
         self.assertEqual(1, version.revision)
         self.assertEqual(content_hash("alpha\n\nbeta"), version.content_hash)
         chunks = self.session.scalars(
@@ -121,16 +125,16 @@ class IngestDocumentTests(unittest.TestCase):
         self.assertIsNone(chunks[0].embedding_model)
 
     def test_unchanged_content_does_not_create_a_revision(self):
-        ingest_document(self.session, self.organization.id, self.document("alpha"))
-        self.assertIsNone(ingest_document(self.session, self.organization.id, self.document("alpha")))
+        self.ingest("alpha")
+        self.assertIsNone(self.ingest("alpha"))
         self.assertEqual(
             1,
             len(self.session.scalars(select(DocumentVersion)).all()),
         )
 
     def test_changed_content_adds_a_revision_and_keeps_the_old_chunks(self):
-        first = ingest_document(self.session, self.organization.id, self.document("alpha"))
-        second = ingest_document(self.session, self.organization.id, self.document("beta", title="Renamed"))
+        first = self.ingest("alpha")
+        second = self.ingest("beta", title="Renamed")
         self.assertEqual(2, second.revision)
         self.assertEqual(first.document_id, second.document_id)
         self.assertEqual(
@@ -141,8 +145,23 @@ class IngestDocumentTests(unittest.TestCase):
         self.assertEqual("Renamed", document.title)
 
     def test_empty_content_is_skipped(self):
-        self.assertIsNone(ingest_document(self.session, self.organization.id, self.document("  \n ")))
+        self.assertIsNone(self.ingest("  \n "))
         self.assertEqual([], self.session.scalars(select(Document)).all())
+
+    def test_chunks_are_embedded_on_ingest(self):
+        vector = [0.1] * EMBEDDING_DIMENSIONS
+        with patch("app.ingest.embed_passages", return_value=[vector]) as embed:
+            version = self.ingest("alpha", embed=True)
+        self.assertEqual(["alpha"], list(embed.call_args.args[0]))
+        chunk = self.session.scalar(select(Chunk).where(Chunk.document_version_id == version.id))
+        self.assertEqual(vector, list(chunk.embedding))
+        self.assertEqual(get_settings().embedding_model, chunk.embedding_model)
+
+    def test_unchanged_content_does_not_load_the_encoder(self):
+        self.ingest("alpha")
+        with patch("app.ingest.embed_passages") as embed:
+            self.assertIsNone(self.ingest("alpha", embed=True))
+        embed.assert_not_called()
 
     def test_whatsapp_chat_round_trips_into_chunks(self):
         user = User(email=f"ingest-{uuid4()}@example.com")
@@ -163,7 +182,9 @@ class IngestDocumentTests(unittest.TestCase):
         self.session.add(message)
         self.session.flush()
 
-        version = ingest_document(self.session, self.organization.id, whatsapp_chat_document(chat, [message]))
+        version = ingest_document(
+            self.session, self.organization.id, whatsapp_chat_document(chat, [message]), embed=False
+        )
         chunk = self.session.scalar(select(Chunk).where(Chunk.document_version_id == version.id))
         self.assertIn("selamat pagi", chunk.text)
 
