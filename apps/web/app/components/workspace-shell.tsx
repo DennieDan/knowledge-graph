@@ -272,6 +272,25 @@ export default function WorkspaceShell() {
                 </>
               )}
             </nav>
+
+            <div className={styles.topAuth}>
+              {me ? (
+                <>
+                  <span className={styles.avatar}>{initials(me)}</span>
+                  <button
+                    type="button"
+                    className={styles.signOut}
+                    onClick={() => logout().then(() => setMe(null))}
+                  >
+                    Sign out
+                  </button>
+                </>
+              ) : (
+                <a href={loginUrl} className={styles.topSignIn}>
+                  Sign in with Google
+                </a>
+              )}
+            </div>
           </header>
 
           {activeNav === "sources" && (

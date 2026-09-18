@@ -280,6 +280,28 @@
   white-space: nowrap;
 }
 
+.topAuth {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.topSignIn {
+  border: 1px solid var(--cp-border);
+  border-radius: 7px;
+  padding: 6px 12px;
+  background: var(--cp-canvas);
+  color: var(--cp-ink);
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.topSignIn:hover {
+  background: var(--cp-hover);
+}
+
 .hiddenView {
   display: none;
 }
