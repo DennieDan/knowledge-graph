@@ -1,0 +1,306 @@
+/* Search view — adapts the previous search workspace content into the crosspod shell. */
+
+.searchShell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  flex: 1;
+  min-height: 0;
+  align-items: start;
+}
+
+.icon {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+
+/* ---- Main column ---- */
+
+.content {
+  min-width: 0;
+  padding: 28px 28px 36px;
+}
+
+.title {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.6px;
+  line-height: 1.3;
+  margin: 0;
+}
+
+.subtitle {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.muted {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  font-size: 12px;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.searchBar {
+  display: flex;
+  min-width: 200px;
+  max-width: 720px;
+  height: 44px;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: var(--md-sys-color-surface-container-high);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.searchBar:focus-within {
+  outline: 2px solid var(--md-sys-color-primary);
+  outline-offset: 1px;
+}
+
+.searchBar input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--md-sys-color-on-surface);
+}
+
+.searchBar input::placeholder {
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.check input {
+  appearance: none;
+  position: relative;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  margin: 0;
+  border: 2px solid var(--md-sys-color-on-surface-variant);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.check input:checked {
+  border-color: var(--md-sys-color-primary);
+  background: var(--md-sys-color-primary);
+}
+
+.check input:checked::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 0;
+  width: 5px;
+  height: 10px;
+  border: solid var(--md-sys-color-on-primary);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.check input:focus-visible {
+  outline: 2px solid var(--md-sys-color-primary);
+  outline-offset: 2px;
+}
+
+.visibility {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.summaryCard {
+  margin: 20px 0;
+  padding: 16px 20px;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: 16px;
+  background: var(--md-sys-color-surface-container-low);
+}
+
+.cardOverline {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--md-sys-color-primary);
+}
+
+.cardTitle {
+  margin-top: 2px;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.summaryCard p {
+  margin-top: 6px;
+  font-size: 14px;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.cardActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.btnTonal {
+  height: 40px;
+  padding: 0 24px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.btnTonal:disabled {
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 12%,
+    transparent
+  );
+  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
+  cursor: default;
+}
+
+.results {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.result {
+  display: block;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: 16px;
+  background: var(--md-sys-color-surface-container-lowest);
+  text-align: left;
+  cursor: pointer;
+}
+
+.result:hover {
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 4%,
+    var(--md-sys-color-surface-container-lowest)
+  );
+}
+
+.result[data-selected="true"] {
+  border-color: var(--md-sys-color-primary);
+  background: var(--md-sys-color-primary-container);
+}
+
+.result:focus-visible,
+.btnTonal:focus-visible {
+  outline: 2px solid var(--md-sys-color-primary);
+  outline-offset: 2px;
+}
+
+.resultTitle {
+  display: block;
+  font-weight: 500;
+}
+
+.resultMeta {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.resultText {
+  display: block;
+  margin-top: 6px;
+  font-size: 14px;
+  color: var(--md-sys-color-on-surface);
+}
+
+/* ---- Detail panel ---- */
+
+.detail {
+  min-width: 0;
+  padding: 24px 20px;
+  border-left: 1px solid var(--cp-border);
+  overflow-wrap: anywhere;
+  position: sticky;
+  top: 56px;
+}
+
+.sectionLabel {
+  display: block;
+  margin: 0 0 12px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.detail p {
+  margin-top: 8px;
+  font-size: 14px;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.detailList {
+  margin-top: 16px;
+}
+
+.detailList dt {
+  margin-top: 14px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.detailList dd {
+  margin: 4px 0 0;
+  font-size: 14px;
+}
+
+.detail > .muted {
+  margin-top: 20px;
+}
+
+@media (max-width: 900px) {
+  .searchShell {
+    grid-template-columns: 1fr;
+  }
+
+  .detail {
+    border-left: 0;
+    border-top: 1px solid var(--cp-border);
+    position: static;
+  }
+}
