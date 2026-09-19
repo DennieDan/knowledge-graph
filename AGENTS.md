@@ -63,4 +63,5 @@
   - **Production Jobs** — work orders, schedules, progress, and blockers
   - **Specifications & Revisions** — drawings, requirements, revision history
   - **Conversations** — WhatsApp/email changes, approvals, and commitments
+  - **PICs** — people responsible for each task or decision
   
