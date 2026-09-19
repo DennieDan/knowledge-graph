@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -11,7 +12,11 @@ from .database import get_session
 from .models import GoogleAccount, User
 
 DRIVE_FILES_URL = "https://www.googleapis.com/drive/v3/files"
-# Editor files come out of files.export; everything else is downloaded verbatim,
+FOLDER_MIME = "application/vnd.google-apps.folder"
+# Cap tree/ancestor listings so a huge Drive can't stall the picker.
+MAX_LIST_PAGES = 10
+# Editor files come out of files.export; everything else is downloaded
+# verbatim,
 # so binary formats (PDF, images) are rejected rather than indexed as mojibake.
 EXPORTABLE_MIME_TYPES = {
     "application/vnd.google-apps.document": "text/plain",
@@ -23,13 +28,24 @@ DOWNLOADABLE_MIME_TYPES = {"application/json", "application/xml"}
 router = APIRouter(prefix="/drive", tags=["drive"])
 
 
-def _drive_get(url: str, params: dict, access_token: str, timeout: int = 15) -> httpx.Response:
+def _drive_get(
+    url: str, params: dict, access_token: str, timeout: int = 15
+) -> httpx.Response:
     try:
-        resp = httpx.get(url, params=params, headers={"Authorization": f"Bearer {access_token}"}, timeout=timeout)
+        resp = httpx.get(
+            url,
+            params=params,
+            headers={"Authorization": f"Bearer {access_token}"},
+            timeout=timeout,
+        )
     except httpx.HTTPError as exc:
-        raise HTTPException(status_code=502, detail="drive_request_failed") from exc
+        raise HTTPException(
+            status_code=502, detail="drive_request_failed"
+        ) from exc
     if resp.status_code == 401:
-        raise HTTPException(status_code=409, detail="google_token_revoked_relink_required")
+        raise HTTPException(
+            status_code=409, detail="google_token_revoked_relink_required"
+        )
     if resp.status_code >= 400:
         raise HTTPException(status_code=502, detail="drive_request_failed")
     return resp
@@ -40,16 +56,22 @@ class UnsupportedFileType(Exception):
 
 
 def ensure_access_token(account: GoogleAccount, session: Session) -> str:
-    """Return a usable access token, refreshing it when it is about to expire."""
+    """Return a usable access token, refreshing it when about to expire."""
     if not account.access_token:
-        raise HTTPException(status_code=409, detail="google_account_not_linked")
+        raise HTTPException(
+            status_code=409, detail="google_account_not_linked"
+        )
     expires_soon = (
         account.access_token_expires_at is None
-        or account.access_token_expires_at <= datetime.now(timezone.utc) + timedelta(seconds=60)
+        or account.access_token_expires_at
+        <= datetime.now(timezone.utc) + timedelta(seconds=60)
     )
     if expires_soon:
         if not account.refresh_token:
-            raise HTTPException(status_code=409, detail="google_token_expired_relink_required")
+            raise HTTPException(
+                status_code=409,
+                detail="google_token_expired_relink_required",
+            )
         refresh_access_token(account, session)
     return account.access_token
 
@@ -57,7 +79,10 @@ def ensure_access_token(account: GoogleAccount, session: Session) -> str:
 def fetch_file_metadata(access_token: str, file_id: str) -> dict:
     return _drive_get(
         f"{DRIVE_FILES_URL}/{file_id}",
-        {"fields": "id,name,mimeType,modifiedTime,webViewLink", "supportsAllDrives": "true"},
+        {
+            "fields": "id,name,mimeType,modifiedTime,webViewLink",
+            "supportsAllDrives": "true",
+        },
         access_token,
     ).json()
 
@@ -66,7 +91,10 @@ def fetch_file_text(access_token: str, file: dict) -> str:
     """Download a Drive file as text, exporting Google editor files first."""
     mime_type = file.get("mimeType", "")
     export_as = EXPORTABLE_MIME_TYPES.get(mime_type)
-    if export_as is None and not (mime_type.startswith("text/") or mime_type in DOWNLOADABLE_MIME_TYPES):
+    if export_as is None and not (
+        mime_type.startswith("text/")
+        or mime_type in DOWNLOADABLE_MIME_TYPES
+    ):
         raise UnsupportedFileType(mime_type)
 
     url = f"{DRIVE_FILES_URL}/{file['id']}"
@@ -93,14 +121,98 @@ def refresh_access_token(account: GoogleAccount, session: Session) -> None:
         timeout=10,
     )
     if resp.status_code != 200:
-        raise HTTPException(status_code=409, detail="google_token_revoked_relink_required")
+        raise HTTPException(
+            status_code=409,
+            detail="google_token_revoked_relink_required",
+        )
     token = resp.json()
     account.access_token = token["access_token"]
     if token.get("expires_in"):
-        account.access_token_expires_at = datetime.now(timezone.utc) + timedelta(seconds=int(token["expires_in"]))
+        account.access_token_expires_at = datetime.now(
+            timezone.utc
+        ) + timedelta(seconds=int(token["expires_in"]))
     if token.get("refresh_token"):
         account.refresh_token = token["refresh_token"]
     session.commit()
+
+
+def get_drive_account(user: User, session: Session) -> GoogleAccount:
+    account = session.scalar(
+        select(GoogleAccount).where(GoogleAccount.user_id == user.id)
+    )
+    if account is None:
+        raise HTTPException(
+            status_code=409, detail="google_account_not_linked"
+        )
+
+    expires_soon = (
+        account.access_token_expires_at is None
+        or account.access_token_expires_at
+        <= datetime.now(timezone.utc) + timedelta(seconds=60)
+    )
+    if expires_soon:
+        if not account.refresh_token:
+            raise HTTPException(
+                status_code=409,
+                detail="google_token_expired_relink_required",
+            )
+        refresh_access_token(account, session)
+    return account
+
+
+def drive_get(account: GoogleAccount, params: dict[str, str | int]) -> dict:
+    try:
+        resp = httpx.get(
+            DRIVE_FILES_URL,
+            params=params,
+            headers={"Authorization": f"Bearer {account.access_token}"},
+            timeout=15,
+        )
+    except httpx.HTTPError as exc:
+        raise HTTPException(
+            status_code=502, detail="drive_request_failed"
+        ) from exc
+    if resp.status_code == 401:
+        raise HTTPException(
+            status_code=409,
+            detail="google_token_revoked_relink_required",
+        )
+    if resp.status_code >= 400:
+        raise HTTPException(status_code=502, detail="drive_request_failed")
+    return resp.json()
+
+
+def list_all_items(account: GoogleAccount, fields: str, q: str) -> list[dict]:
+    items: list[dict] = []
+    page_token: str | None = None
+    for _ in range(MAX_LIST_PAGES):
+        params: dict[str, str | int] = {
+            "pageSize": 1000,
+            "fields": fields,
+            "q": q,
+            "supportsAllDrives": "true",
+            "includeItemsFromAllDrives": "true",
+            "corpora": "allDrives",
+        }
+        if page_token:
+            params["pageToken"] = page_token
+        data = drive_get(account, params)
+        items.extend(data.get("files", []))
+        page_token = data.get("nextPageToken")
+        if not page_token:
+            break
+    return items
+
+
+def shared_item_ids(account: GoogleAccount) -> set[str] | None:
+    """Ids the user explicitly shared; None means unrestricted (share all).
+
+    An unconfigured account (share_all IS NULL) shares nothing — access
+    defaults fail closed until the user makes a choice in the picker.
+    """
+    if account.share_all is True:
+        return None
+    return set(account.shared_file_ids or [])
 
 
 @router.get("/files")
@@ -110,19 +222,110 @@ def list_files(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    account = session.scalar(select(GoogleAccount).where(GoogleAccount.user_id == user.id))
-    if account is None:
-        raise HTTPException(status_code=409, detail="google_account_not_linked")
-    access_token = ensure_access_token(account, session)
+    account = get_drive_account(user, session)
 
     params: dict[str, str | int] = {
         "pageSize": page_size,
-        "fields": "files(id,name,mimeType,modifiedTime,webViewLink),nextPageToken",
+        "fields": (
+            "files(id,name,mimeType,modifiedTime,webViewLink,parents),"
+            "nextPageToken"
+        ),
         "orderBy": "modifiedTime desc",
         "supportsAllDrives": "true",
         "includeItemsFromAllDrives": "true",
     }
     if page_token:
         params["pageToken"] = page_token
+    data = drive_get(account, params)
 
-    return _drive_get(DRIVE_FILES_URL, params, access_token).json()
+    selected = shared_item_ids(account)
+    if selected is not None:
+        # Resolve ancestors via the folder map so a file inside a shared
+        # folder counts as shared even when nested several levels deep.
+        folders = list_all_items(
+            account,
+            fields="files(id,parents),nextPageToken",
+            q=f"mimeType = '{FOLDER_MIME}' and trashed = false",
+        )
+        parents_of = {f["id"]: f.get("parents") or [] for f in folders}
+
+        def is_shared(file: dict) -> bool:
+            if file["id"] in selected:
+                return True
+            stack = list(file.get("parents") or [])
+            seen: set[str] = set()
+            while stack:
+                pid = stack.pop()
+                if pid in seen:
+                    continue
+                seen.add(pid)
+                if pid in selected:
+                    return True
+                stack.extend(parents_of.get(pid, []))
+            return False
+
+        data["files"] = [f for f in data["files"] if is_shared(f)]
+
+    return data
+
+
+@router.get("/tree")
+def drive_tree(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    account = get_drive_account(user, session)
+    files = list_all_items(
+        account,
+        fields="files(id,name,mimeType,parents,modifiedTime),nextPageToken",
+        q="trashed = false",
+    )
+    return {"files": files}
+
+
+class SelectionIn(BaseModel):
+    share_all: bool
+    file_ids: list[str] = []
+
+
+@router.get("/selection")
+def get_selection(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    account = session.scalar(
+        select(GoogleAccount).where(GoogleAccount.user_id == user.id)
+    )
+    if account is None:
+        raise HTTPException(
+            status_code=409, detail="google_account_not_linked"
+        )
+    configured = account.share_all is not None
+    return {
+        "configured": configured,
+        "share_all": bool(account.share_all),
+        "file_ids": account.shared_file_ids or [],
+    }
+
+
+@router.put("/selection")
+def put_selection(
+    body: SelectionIn,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    account = session.scalar(
+        select(GoogleAccount).where(GoogleAccount.user_id == user.id)
+    )
+    if account is None:
+        raise HTTPException(
+            status_code=409, detail="google_account_not_linked"
+        )
+    account.share_all = body.share_all
+    account.shared_file_ids = [] if body.share_all else body.file_ids
+    session.commit()
+    return {
+        "configured": True,
+        "share_all": account.share_all,
+        "file_ids": account.shared_file_ids,
+    }

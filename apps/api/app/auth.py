@@ -108,7 +108,12 @@ def google_callback(request: Request, session: Session = Depends(get_session)):
     session.commit()
 
     request.session["user_id"] = str(user.id)
-    return RedirectResponse(settings.web_origin)
+    # First-time link (or a user who never picked files) lands on the Drive
+    # picker so they choose what to share; returning configured users go home.
+    target = settings.web_origin
+    if account.share_all is None:
+        target += "/?drive=setup"
+    return RedirectResponse(target)
 
 
 @router.get("/me")

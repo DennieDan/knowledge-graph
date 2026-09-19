@@ -25,6 +25,20 @@ export interface DriveFileList {
   nextPageToken?: string;
 }
 
+export interface DriveTreeItem {
+  id: string;
+  name: string;
+  mimeType: string;
+  parents?: string[];
+  modifiedTime?: string;
+}
+
+export interface DriveSelection {
+  configured: boolean;
+  share_all: boolean;
+  file_ids: string[];
+}
+
 export async function getMe(): Promise<Me | null> {
   const res = await fetch(`${API_URL}/auth/me`, { credentials: "include" });
   if (res.status === 401) return null;
@@ -36,6 +50,24 @@ export async function listDriveFiles(): Promise<DriveFileList> {
   const res = await fetch(`${API_URL}/drive/files`, { credentials: "include" });
   if (!res.ok) throw new Error(`GET /drive/files failed: ${res.status}`);
   return res.json();
+}
+
+export function driveTree(): Promise<{ files: DriveTreeItem[] }> {
+  return apiFetch("/drive/tree");
+}
+
+export function getDriveSelection(): Promise<DriveSelection> {
+  return apiFetch("/drive/selection");
+}
+
+export function putDriveSelection(
+  shareAll: boolean,
+  fileIds: string[],
+): Promise<DriveSelection> {
+  return apiFetch("/drive/selection", {
+    method: "PUT",
+    body: JSON.stringify({ share_all: shareAll, file_ids: fileIds }),
+  });
 }
 
 export async function logout(): Promise<void> {

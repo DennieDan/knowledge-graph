@@ -23,7 +23,10 @@ def get_encoder() -> "SentenceTransformer":
     encoder.max_seq_length = MAX_SEQUENCE_LENGTH
     dimensions = encoder.get_embedding_dimension()
     if dimensions != EMBEDDING_DIMENSIONS:
-        raise ValueError(f"{settings.embedding_model} emits {dimensions} dimensions; the chunks column stores {EMBEDDING_DIMENSIONS}")
+        raise ValueError(
+            f"{settings.embedding_model} emits {dimensions} dimensions; "
+            f"the chunks column stores {EMBEDDING_DIMENSIONS}"
+        )
     return encoder
 
 

@@ -1,0 +1,23 @@
+.overlay {
+  background: rgba(216, 219, 224, 0.9);
+  backdrop-filter: blur(2px);
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  padding: 32px 16px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow-y: auto;
+}
+
+.dialog {
+  background: var(--cp-canvas);
+  border: 1px solid var(--cp-border);
+  border-radius: 13px;
+  width: 100%;
+  max-width: 580px;
+  padding: 25px;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.08);
+  margin-top: 40px;
+}

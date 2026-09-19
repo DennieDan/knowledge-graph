@@ -1,6 +1,15 @@
 :root {
   color-scheme: light;
 
+  /* crosspod tokens */
+  --cp-canvas: #ffffff;
+  --cp-surface: #f6f7f8;
+  --cp-hover: #eceef0;
+  --cp-border: #dadde1;
+  --cp-muted: #6b6f76;
+  --cp-ink: #171717;
+  --cp-danger: #ad3c2c;
+
   /* Material Design 3 tokens — palette: #353535, #3c6e71, #ffffff, #d9d9d9, #284b63 */
   --md-sys-color-primary: #3c6e71;
   --md-sys-color-on-primary: #ffffff;
@@ -35,9 +44,11 @@ body {
 }
 
 body {
-  font-family: "Roboto", system-ui, -apple-system, "Segoe UI", sans-serif;
-  color: var(--md-sys-color-on-surface);
-  background: var(--md-sys-color-surface);
+  font-family: var(--font-inter), "Inter", Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--cp-ink);
+  background: var(--cp-canvas);
   -webkit-font-smoothing: antialiased;
 }
 

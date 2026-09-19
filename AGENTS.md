@@ -28,3 +28,31 @@
   #3c6e71, #ffffff, #d9d9d9, #284b63).
 - Components live in `apps/web/app/components/` as
   `<name>.tsx` + `<name>.module.css`.
+
+## AI-Human working style
+
+- Whenever given a prompt, agent is able to ask clarifying questions before implementing task (this is optional)
+
+## Product domain
+
+- Target users: **Singapore SMEs**, starting with the **event organisers &
+  production houses** vertical (incl. MICE: conferences, exhibitions, D&D).
+  WhatsApp + Google Drive are the primary knowledge sources; PDPA
+  compliance (consent, retention, access audit) shapes ingestion.
+- **Stacks** are the core entity model — typed collections that ingested
+  items get filed/linked into (e.g. a WhatsApp thread is filed under its
+  Event). The decided set of 10 Stacks:
+  - **Clients** — corporate accounts; links to their past events
+  - **Events** — master entity; pipeline: pitching → confirmed →
+    planning → live → debrief → invoiced
+  - **Meetings** — client briefs, WIPs, site recce notes
+  - **Vendors** — suppliers (AV, catering, staging); rates + reliability
+  - **Contacts** — people: staff and external, with roles
+  - **Proposals** — quotes/pitches, costing versions, win/loss
+  - **Finance Documents** — invoices, budgets, contracts (InvoiceNow later)
+  - **Conversations** — imported WhatsApp threads as first-class records
+  - **Crew** — freelancers/event crew: roles, rates, availability
+  - **Licenses** — permits per event (PEL/SPF, SCDF TCOUP, AEL/IMDA,
+    liquor, NEA food stalls, LTA road closures); expiry/status tracking
+  - **Venues** — event venues; contracts, rates, availability
+  

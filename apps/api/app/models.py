@@ -35,8 +35,16 @@ class GoogleAccount(Base):
     access_token: Mapped[Optional[str]] = mapped_column(Text)
     access_token_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     refresh_token: Mapped[Optional[str]] = mapped_column(Text)
+    # Granular sharing: share_all NULL means the user hasn't configured access
+    # yet, which fails closed (nothing is shared) until they choose. When
+    # share_all is False, shared_file_ids holds file/folder ids; a folder id
+    # shares its whole subtree, including files added later.
+    share_all: Mapped[Optional[bool]] = mapped_column(Boolean)
+    shared_file_ids: Mapped[Optional[list]] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 class WhatsappConnection(Base):
@@ -49,7 +57,9 @@ class WhatsappConnection(Base):
     phone_number: Mapped[Optional[str]] = mapped_column(String(32))
     status: Mapped[str] = mapped_column(String(32), default="STARTING")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 class WhatsappChat(Base):
@@ -68,7 +78,9 @@ class WhatsappChat(Base):
     import_error: Mapped[Optional[str]] = mapped_column(Text)
     message_count: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 class WhatsappMessage(Base):
@@ -130,7 +142,9 @@ class Chunk(Base):
         CheckConstraint("(embedding IS NULL) = (embedding_model IS NULL)", name="embedding_has_model"),
     )
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-    document_version_id: Mapped[UUID] = mapped_column(ForeignKey("document_versions.id", ondelete="CASCADE"), index=True)
+    document_version_id: Mapped[UUID] = mapped_column(
+        ForeignKey("document_versions.id", ondelete="CASCADE"), index=True
+    )
     position: Mapped[int] = mapped_column(Integer)
     text: Mapped[str] = mapped_column(Text)
     embedding: Mapped[Optional[list[float]]] = mapped_column(Vector(EMBEDDING_DIMENSIONS))
