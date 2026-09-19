@@ -10,6 +10,7 @@
     "check-types": ".venv/bin/python -m compileall -q app",
     "db:migrate": ".venv/bin/python -m alembic upgrade head",
     "db:check": ".venv/bin/python -m alembic check",
+    "db:ingest": ".venv/bin/python -m scripts.ingest",
     "db:reembed": ".venv/bin/python -m scripts.reembed",
     "test": ".venv/bin/python -m unittest discover -s tests -v"
   }
