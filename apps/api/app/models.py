@@ -36,9 +36,9 @@ class GoogleAccount(Base):
     access_token_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     refresh_token: Mapped[Optional[str]] = mapped_column(Text)
     # Granular sharing: share_all NULL means the user hasn't configured access
-    # yet (treated as full access for backwards compatibility). When share_all
-    # is False, shared_file_ids holds file/folder ids; a folder id shares its
-    # whole subtree, including files added later.
+    # yet, which fails closed (nothing is shared) until they choose. When
+    # share_all is False, shared_file_ids holds file/folder ids; a folder id
+    # shares its whole subtree, including files added later.
     share_all: Mapped[Optional[bool]] = mapped_column(Boolean)
     shared_file_ids: Mapped[Optional[list]] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

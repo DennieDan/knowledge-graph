@@ -44,7 +44,7 @@ export default function DrivePicker({ onClose }: { onClose: () => void }) {
   const [items, setItems] = useState<DriveTreeItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [shareAll, setShareAll] = useState(true);
+  const [shareAll, setShareAll] = useState(false);
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
@@ -52,7 +52,9 @@ export default function DrivePicker({ onClose }: { onClose: () => void }) {
     Promise.all([driveTree(), getDriveSelection()])
       .then(([tree, sel]) => {
         setItems(tree.files);
-        setShareAll(sel.share_all);
+        // Unconfigured means the user hasn't chosen yet — fail closed
+        // rather than pre-ticking "Share entire Google Drive".
+        setShareAll(sel.configured && sel.share_all);
         setChecked(new Set(sel.file_ids));
       })
       .catch((e) =>

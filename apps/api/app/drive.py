@@ -98,10 +98,14 @@ def list_all_items(account: GoogleAccount, fields: str, q: str) -> list[dict]:
 
 
 def shared_item_ids(account: GoogleAccount) -> set[str] | None:
-    """Ids the user explicitly shared; None means unrestricted (share all / unconfigured)."""
-    if account.share_all is False:
-        return set(account.shared_file_ids or [])
-    return None
+    """Ids the user explicitly shared; None means unrestricted (share all).
+
+    An unconfigured account (share_all IS NULL) shares nothing — access
+    defaults fail closed until the user makes a choice in the picker.
+    """
+    if account.share_all is True:
+        return None
+    return set(account.shared_file_ids or [])
 
 
 @router.get("/files")
@@ -185,7 +189,7 @@ def get_selection(
     configured = account.share_all is not None
     return {
         "configured": configured,
-        "share_all": account.share_all if configured else True,
+        "share_all": bool(account.share_all),
         "file_ids": account.shared_file_ids or [],
     }
 
