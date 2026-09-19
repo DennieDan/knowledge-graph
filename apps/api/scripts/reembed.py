@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.database import get_engine
-from app.embeddings import embed_passages
+from app.ingest import embed_chunks
 from app.models import Chunk
 
 
@@ -33,9 +33,7 @@ def reembed(batch_size: int, dry_run: bool) -> int:
             batch = stale_chunks(session, model, batch_size)
             if not batch:
                 break
-            for chunk, vector in zip(batch, embed_passages(chunk.text for chunk in batch)):
-                chunk.embedding = vector
-                chunk.embedding_model = model
+            embed_chunks(batch)
             session.commit()
             total += len(batch)
             print(f"embedded {total}/{pending}", flush=True)

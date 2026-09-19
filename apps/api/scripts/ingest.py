@@ -5,7 +5,8 @@ Run from apps/api with the virtual environment active:
     python -m scripts.ingest --organization-id UUID whatsapp --user-email me@example.com
     python -m scripts.ingest --organization-id UUID drive --user-email me@example.com --file-id ID
 
-Chunks land without embeddings; follow with `python -m scripts.reembed`.
+Chunks are embedded as they are created; --no-embed defers that to
+`python -m scripts.reembed`.
 """
 import argparse
 import sys
@@ -39,10 +40,12 @@ def report(session: Session, label: str, version) -> None:
     if version is None:
         print(f"{label}: unchanged")
     else:
-        print(f"{label}: revision {version.revision}, {chunk_count(session, version)} chunk(s)")
+        print(f"{label}: revision {version.revision}, {chunk_count(session, version)} chunk(s)", flush=True)
 
 
-def ingest_whatsapp(session: Session, organization_id: UUID, email: str, chat_jids: list[str]) -> None:
+def ingest_whatsapp(
+    session: Session, organization_id: UUID, email: str, chat_jids: list[str], embed: bool
+) -> None:
     user = require_user(session, email)
     connection = session.scalar(select(WhatsappConnection).where(WhatsappConnection.user_id == user.id))
     if connection is None:
@@ -56,12 +59,14 @@ def ingest_whatsapp(session: Session, organization_id: UUID, email: str, chat_ji
         statement = statement.where(WhatsappChat.chat_jid.in_(chat_jids))
     for chat in session.scalars(statement):
         messages = session.scalars(select(WhatsappMessage).where(WhatsappMessage.chat_id == chat.id)).all()
-        version = ingest_document(session, organization_id, whatsapp_chat_document(chat, messages))
+        version = ingest_document(session, organization_id, whatsapp_chat_document(chat, messages), embed)
         session.commit()
         report(session, chat.name or chat.chat_jid, version)
 
 
-def ingest_drive(session: Session, organization_id: UUID, email: str, file_ids: list[str]) -> None:
+def ingest_drive(
+    session: Session, organization_id: UUID, email: str, file_ids: list[str], embed: bool
+) -> None:
     user = require_user(session, email)
     account = session.scalar(select(GoogleAccount).where(GoogleAccount.user_id == user.id))
     if account is None:
@@ -75,7 +80,7 @@ def ingest_drive(session: Session, organization_id: UUID, email: str, file_ids: 
         except UnsupportedFileType as exc:
             print(f"{file.get('name', file_id)}: skipped ({exc})")
             continue
-        version = ingest_document(session, organization_id, drive_file_document(file, text))
+        version = ingest_document(session, organization_id, drive_file_document(file, text), embed)
         session.commit()
         report(session, file.get("name", file_id), version)
 
@@ -83,6 +88,12 @@ def ingest_drive(session: Session, organization_id: UUID, email: str, file_ids: 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--organization-id", type=UUID, required=True)
+    parser.add_argument(
+        "--no-embed",
+        dest="embed",
+        action="store_false",
+        help="store chunks unembedded and leave them to scripts.reembed",
+    )
     subparsers = parser.add_subparsers(dest="source", required=True)
 
     whatsapp = subparsers.add_parser("whatsapp", help="ingest imported chats as transcripts")
@@ -97,9 +108,13 @@ def main() -> int:
     with Session(get_engine()) as session:
         require_organization(session, arguments.organization_id)
         if arguments.source == "whatsapp":
-            ingest_whatsapp(session, arguments.organization_id, arguments.user_email, arguments.chat_jid)
+            ingest_whatsapp(
+                session, arguments.organization_id, arguments.user_email, arguments.chat_jid, arguments.embed
+            )
         else:
-            ingest_drive(session, arguments.organization_id, arguments.user_email, arguments.file_id)
+            ingest_drive(
+                session, arguments.organization_id, arguments.user_email, arguments.file_id, arguments.embed
+            )
     return 0
 
 
