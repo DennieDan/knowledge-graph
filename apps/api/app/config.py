@@ -4,6 +4,8 @@ from pathlib import Path
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.models import EMBEDDING_MODEL
+
 
 API_ROOT = Path(__file__).resolve().parents[1]
 if API_ROOT.name == "dist":
@@ -30,6 +32,10 @@ class Settings(BaseSettings):
     waha_webhook_url: str | None = None
     # Shared secret sent by WAHA as X-Webhook-Token and verified on receipt.
     waha_webhook_secret: SecretStr | None = None
+    # Self-hosted encoder; must emit EMBEDDING_DIMENSIONS-wide vectors.
+    embedding_model: str = EMBEDDING_MODEL
+    embedding_device: str | None = None
+    embedding_batch_size: int = 32
 
 
 @lru_cache

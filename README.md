@@ -140,12 +140,35 @@ ownership alone does not enforce access control. Add permission checks before
 exposing private document retrieval to users. Future search must restrict both
 organization/access and embedding model before ranking.
 
-The initial vector column has **384 dimensions**, provisionally matching
-[`sentence-transformers/all-MiniLM-L6-v2`](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2).
-No model is downloaded or called in this setup. Confirm the model before ingestion;
-changing dimensions requires a migration, and changing models requires re-embedding.
+The vector column has **384 dimensions**, matching
+[`intfloat/multilingual-e5-small`](https://huggingface.co/intfloat/multilingual-e5-small) —
+self-hosted on CPU, MIT-licensed, and the model
+[the survey recommends](docs/research/embedding-model.md) for mixed English/Chinese/Malay
+content. Changing dimensions requires a migration; changing models requires re-embedding.
 Search initially uses exact cosine distance; no approximate vector index is needed
 for the foundation checks. [pgvector documentation](https://github.com/pgvector/pgvector)
+
+### Embeddings
+
+`app/embeddings.py` loads the encoder lazily on first use (weights download from
+Hugging Face, ~470 MB, cached in `~/.cache/huggingface`) and returns normalized
+384-dimensional vectors, so cosine distance is a dot product. E5 is asymmetric:
+stored chunk text goes through `embed_passages` (`passage: ` prefix) and search
+text through `embed_query` (`query: ` prefix); mixing them up degrades retrieval.
+Input is truncated at 512 tokens.
+
+`EMBEDDING_MODEL` and `EMBEDDING_DIMENSIONS` in `app/models.py` are the schema
+contract; `EMBEDDING_MODEL`, `EMBEDDING_DEVICE`, and `EMBEDDING_BATCH_SIZE` in
+`.env` override the runtime encoder, and startup fails if the configured model's
+width does not match the column.
+
+Vectors from different models must never be compared, so after a model change
+backfill the chunks left on the old one:
+
+```sh
+pnpm --filter api db:reembed -- --dry-run   # count stale chunks
+pnpm --filter api db:reembed
+```
 
 Run from `apps/api` with the virtual environment active:
 
