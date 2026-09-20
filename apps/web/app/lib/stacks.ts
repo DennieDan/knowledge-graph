@@ -111,9 +111,9 @@ export const SUBSTACK_DETAILS: Record<string, SubstackDetail> = {
   },
   "conv-group-abc": {
     conversation: [
-      { id: "msg-1", date: "10 Sep 1PM", author: "Acme Engineering", message: "Should we move forward with Plan B?", summary: "Customer asks to proceed with the revised production plan.", sourceIds: ["att-items"] },
-      { id: "msg-2", date: "10 Sep 1PM", author: "Anna Tan", message: "Meet us at SFF. I’ve attached the revised requirements and launch schedule.", summary: "Revised requirements shared; launch remains scheduled for 18 Sep.", sourceIds: ["att-prd", "att-meeting"] },
-      { id: "msg-3", date: "10 Sep 1PM", author: "Acme Engineering", message: "Confirmed. Please move forward with Plan B.", summary: "Customer confirms Plan B.", sourceIds: ["att-prd"] },
+      { id: "msg-3", date: "13 Sep · 4:20 PM", author: "Acme Engineering", message: "Plan B approved and ready for production", summary: "Acme Engineering confirmed that the team should proceed with Plan B. The approval covers the revised quantity of 240 units and the updated production sequence. Anna acknowledged the decision and will coordinate the handoff to production while keeping the 18 September delivery target unchanged.", sourceIds: ["att-prd"] },
+      { id: "msg-2", date: "12 Sep · 2:05 PM", author: "Anna Tan", message: "Requirements and launch schedule updated", summary: "Anna shared the revised product requirements and meeting notes after the planning review. The group aligned on the latest bracket specification, confirmed that no material substitution is required, and retained 18 September as the customer-facing launch and delivery date.", sourceIds: ["att-prd", "att-meeting"] },
+      { id: "msg-1", date: "10 Sep · 1:00 PM", author: "Acme Engineering", message: "Production approach changed to Plan B", summary: "The customer raised concerns about the original production approach and asked whether Plan B could reduce scheduling risk. The discussion compared both approaches, referenced the annotated item image, and concluded that Plan B was the safer route pending final customer approval.", sourceIds: ["att-items"] },
     ],
     sources: [
       { id: "att-items", substackId: "file-items", name: "items.jpg", type: "Files", origin: "Drive", updated: "13 Sep", note: "Annotated item reference" },
