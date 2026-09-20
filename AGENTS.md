@@ -52,11 +52,10 @@
   compliance (consent, retention, access control, and audit history) shapes
   ingestion.
 - **Stacks** are the core entity model—typed collections into which ingested
-  information is filed and linked. The initial 10 Stacks are:
+  information is filed and linked. The initial 12 Stacks are:
   - **Sales Orders** — customer POs, line items, quantities, revisions, dates
   - **Clients** — customer companies, terms, locations, and account history
   - **Items** — products, SKUs, materials, specifications, and customer codes
-  - **Deliveries** — schedules, partial fulfilments, packing lists, and PODs
   - **Invoices** — sales invoices, GST, payments, credit notes, and InvoiceNow
   - **Suppliers** — material/service vendors, lead times, prices, performance
   - **Supplier Orders** — purchases placed with suppliers or subcontractors
@@ -64,4 +63,6 @@
   - **Specifications & Revisions** — drawings, requirements, revision history
   - **Conversations** — WhatsApp/email changes, approvals, and commitments
   - **PICs** — people responsible for each task or decision
+  - **Meetings** — meeting notes, action items, and follow-ups
+  - **Files** — documents, drawings, images, and attachments
   
