@@ -51,6 +51,17 @@
 - WhatsApp, email, PDFs, and Google Drive are primary knowledge sources. PDPA
   compliance (consent, retention, access control, and audit history) shapes
   ingestion.
+- The platform supports two distinct account types: **Personal** and
+  **Company/Organization**.
+  - A Company/Organization account must be backed by Google Workspace. It has
+    one administrator role, assigned to a single user, while every person uses
+    their own user account.
+  - Within a Company/Organization account, a user's own Stacks correspond to
+    their Google Workspace **My Drive**. Other Google **Shared Drives** appear
+    as separate Workspaces listed horizontally.
+  - Users cannot connect an individual Google account to a Company/Organization
+    account. They must create and use a separate Personal account for their
+    individual Google account.
 - **Stacks** are the core entity model—typed collections into which ingested
   information is filed and linked. The initial 12 Stacks are:
   - **Sales Orders** — customer POs, line items, quantities, revisions, dates
@@ -66,3 +77,16 @@
   - **Meetings** — meeting notes, action items, and follow-ups
   - **Files** — documents, drawings, images, and attachments
   
+
+## Enhanced Features (not in MVP)
+**Company/Organization**. Either type can be created directly by uploading
+  files and must work without connecting to or depending on Google.
+  - Google Drive and Google Workspace are optional integrations, not account
+    creation requirements or the platform's system of record.
+  - A Company/Organization account has one administrator role, assigned to a
+    single user, while every person uses their own user account.
+  - Without Google, uploaded files and the Stacks created from them belong to
+    the relevant Personal or Company/Organization workspace.
+  - When Google Workspace is connected to a Company/Organization account, a
+    user's own Stacks correspond to their Google Workspace **My Drive**. Other
+    Google **Shared Drives** appear as separate Workspaces listed horizontally.
