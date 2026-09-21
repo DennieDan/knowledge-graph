@@ -93,6 +93,23 @@ class AccountDriveTests(unittest.TestCase):
         self.assertEqual(accepted.status_code, 200)
         self.assertEqual(accepted.json()["role"], "member")
 
+    def test_duplicate_company_domain_rejected(self):
+        self.session.add(Organization(name="Acme", account_type="company", google_domain="acme.example"))
+        self.session.flush()
+        response = self.client.post("/accounts", json={"account_type": "company", "name": "Outra"})
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["detail"], "company_domain_taken")
+
+    def test_workspace_user_auto_joins_existing_company_on_me(self):
+        self.session.add(Organization(name="Acme", account_type="company", google_domain="acme.example"))
+        self.session.flush()
+        response = self.client.get("/auth/me")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()["accounts"]), 1)
+        self.assertEqual(response.json()["accounts"][0]["role"], "member")
+        self.assertEqual(response.json()["accounts"][0]["account_type"], "company")
+        self.assertFalse(response.json()["needs_account"])
+
     def create_drive_context(self, kind="my_drive"):
         organization = Organization(
             name="Acme",

@@ -31,7 +31,10 @@ export default function AccountOnboarding({ me, inviteToken, onCreated }: { me: 
       await createAccount(type, name || undefined);
       onCreated();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "account_creation_failed");
+      const detail = reason instanceof Error ? reason.message : "account_creation_failed";
+      setError(detail === "company_domain_taken"
+        ? "Já existe uma workspace para este domínio. Peça um convite ao administrador."
+        : detail);
       setSaving(false);
     }
   };

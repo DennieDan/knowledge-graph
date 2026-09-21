@@ -65,8 +65,17 @@ def create_account(
     identity = identity_for(user, session)
     if body.account_type not in {"personal", "company"}:
         raise HTTPException(status_code=422, detail="invalid_account_type")
-    if body.account_type == "company" and not identity.hosted_domain:
-        raise HTTPException(status_code=422, detail="workspace_account_required")
+    if body.account_type == "company":
+        if not identity.hosted_domain:
+            raise HTTPException(status_code=422, detail="workspace_account_required")
+        existing_company = session.scalar(
+            select(Organization).where(
+                Organization.account_type == "company",
+                Organization.google_domain == identity.hosted_domain,
+            )
+        )
+        if existing_company is not None:
+            raise HTTPException(status_code=409, detail="company_domain_taken")
     if body.account_type == "personal":
         existing = session.scalar(
             select(OrganizationMembership)

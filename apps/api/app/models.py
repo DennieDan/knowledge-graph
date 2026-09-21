@@ -56,6 +56,7 @@ class Organization(Base):
     __table_args__ = (
         CheckConstraint("account_type IN ('personal','company')", name="valid_account_type"),
         CheckConstraint("account_type = 'personal' OR google_domain IS NOT NULL", name="company_has_google_domain"),
+        Index("uq_company_google_domain", "google_domain", unique=True, postgresql_where=text("account_type = 'company'")),
     )
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     name: Mapped[str] = mapped_column(String(255))
