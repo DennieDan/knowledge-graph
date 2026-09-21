@@ -107,6 +107,10 @@ export function activateAccount(accountId: string): Promise<{ active_account_id:
   return apiFetch(`/accounts/${accountId}/activate`, { method: "POST" });
 }
 
+export function convertToCompany(accountId: string): Promise<Account> {
+  return apiFetch(`/accounts/${accountId}/convert-to-company`, { method: "POST" });
+}
+
 export function acceptInvitation(token: string): Promise<Account> {
   return apiFetch(`/invitations/${encodeURIComponent(token)}/accept`, { method: "POST" });
 }

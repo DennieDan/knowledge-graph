@@ -5,6 +5,7 @@ from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
@@ -109,6 +110,35 @@ class AccountDriveTests(unittest.TestCase):
         self.assertEqual(response.json()["accounts"][0]["role"], "member")
         self.assertEqual(response.json()["accounts"][0]["account_type"], "company")
         self.assertFalse(response.json()["needs_account"])
+
+    def test_personal_account_converts_to_company(self):
+        account = self.client.post("/accounts", json={"account_type": "personal"}).json()
+        response = self.client.post(f"/accounts/{account['id']}/convert-to-company")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["account_type"], "company")
+        self.assertEqual(response.json()["google_domain"], "acme.example")
+        self.assertEqual(response.json()["role"], "admin")
+
+    def test_company_creation_absorbs_existing_domain_users(self):
+        other = User(email="colleague@acme.example")
+        self.session.add(other)
+        self.session.flush()
+        other_identity = GoogleIdentity(user_id=other.id, google_sub=f"sub-{uuid4()}", email=other.email, hosted_domain="acme.example")
+        self.session.add(other_identity)
+        personal = Organization(name="Other personal", account_type="personal", created_by_user_id=other.id)
+        self.session.add(personal)
+        self.session.flush()
+        self.session.add(OrganizationMembership(organization_id=personal.id, user_id=other.id, role="admin"))
+        self.session.flush()
+        company = self.client.post("/accounts", json={"account_type": "company", "name": "Acme"}).json()
+        membership = self.session.scalar(
+            select(OrganizationMembership).where(
+                OrganizationMembership.organization_id == company["id"],
+                OrganizationMembership.user_id == other.id,
+            )
+        )
+        self.assertIsNotNone(membership)
+        self.assertEqual(membership.role, "member")
 
     def create_drive_context(self, kind="my_drive"):
         organization = Organization(

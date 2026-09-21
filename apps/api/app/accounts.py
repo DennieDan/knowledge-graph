@@ -97,6 +97,59 @@ def create_account(
     session.flush()
     membership = OrganizationMembership(organization_id=organization.id, user_id=user.id, role="admin")
     session.add(membership)
+    session.flush()
+    if body.account_type == "company":
+        _absorb_domain_members(organization, session)
+    session.commit()
+    request.session["organization_id"] = str(organization.id)
+    return account_json(organization, membership)
+
+
+def _absorb_domain_members(organization: Organization, session: Session) -> None:
+    """Auto-join every user whose Google identity shares the company domain."""
+    if not organization.google_domain:
+        return
+    identities = session.scalars(
+        select(GoogleIdentity).where(GoogleIdentity.hosted_domain == organization.google_domain)
+    ).all()
+    existing = set(session.scalars(
+        select(OrganizationMembership.user_id).where(
+            OrganizationMembership.organization_id == organization.id
+        )
+    ))
+    for identity in identities:
+        if identity.user_id not in existing:
+            session.add(OrganizationMembership(
+                organization_id=organization.id, user_id=identity.user_id, role="member"
+            ))
+
+
+@router.post("/accounts/{organization_id}/convert-to-company")
+def convert_to_company(
+    organization_id: UUID,
+    request: Request,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    membership = membership_for(organization_id, user, session)
+    organization = session.get(Organization, organization_id)
+    if membership.role != "admin":
+        raise HTTPException(status_code=403, detail="admin_required")
+    if organization is None or organization.account_type != "personal":
+        raise HTTPException(status_code=422, detail="personal_account_required")
+    identity = identity_for(user, session)
+    if not identity.hosted_domain:
+        raise HTTPException(status_code=422, detail="workspace_account_required")
+    if session.scalar(
+        select(Organization).where(
+            Organization.account_type == "company",
+            Organization.google_domain == identity.hosted_domain,
+        )
+    ):
+        raise HTTPException(status_code=409, detail="company_domain_taken")
+    organization.account_type = "company"
+    organization.google_domain = identity.hosted_domain
+    _absorb_domain_members(organization, session)
     session.commit()
     request.session["organization_id"] = str(organization.id)
     return account_json(organization, membership)

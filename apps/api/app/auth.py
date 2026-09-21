@@ -129,22 +129,22 @@ def me(request: Request, user: User = Depends(get_current_user), session: Sessio
     memberships = session.scalars(
         select(OrganizationMembership).where(OrganizationMembership.user_id == user.id).order_by(OrganizationMembership.created_at)
     ).all()
-    # Domain auto-join: a Workspace user with no accounts is added as a member
-    # of the company that owns their hosted domain, if one exists.
-    if not memberships and identity is not None and identity.hosted_domain:
+    # Domain auto-join: a Workspace user is always a member of the company
+    # that owns their hosted domain, if one exists.
+    if identity is not None and identity.hosted_domain:
         company = session.scalar(
             select(Organization).where(
                 Organization.account_type == "company",
                 Organization.google_domain == identity.hosted_domain,
             )
         )
-        if company is not None:
+        if company is not None and all(m.organization_id != company.id for m in memberships):
             membership = OrganizationMembership(
                 organization_id=company.id, user_id=user.id, role="member"
             )
             session.add(membership)
             session.commit()
-            memberships = [membership]
+            memberships = [*memberships, membership]
             request.session["organization_id"] = str(company.id)
     organizations = {
         organization.id: organization

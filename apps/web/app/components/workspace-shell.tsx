@@ -21,7 +21,7 @@ import {
   type StackType,
   type Substack,
 } from "../lib/stacks";
-import { acceptInvitation, activateAccount, getMe, loginUrl, logout, type Me } from "../lib/api";
+import { acceptInvitation, activateAccount, convertToCompany, getMe, loginUrl, logout, type Me } from "../lib/api";
 import styles from "./workspace-shell.module.css";
 
 type NavId = "stacks" | "sources" | "search" | "maintenance";
@@ -240,6 +240,10 @@ export default function WorkspaceShell() {
             </div>
             {activeAccount?.account_type === "company" && activeAccount.role === "admin" && (
               <button type="button" className={styles.inviteMembers} onClick={() => setMembersOpen(true)}>Invite members</button>
+            )}
+            {activeAccount?.account_type === "personal" && me.hosted_domain &&
+             !me.accounts.some((a) => a.account_type === "company" && a.google_domain === me.hosted_domain) && (
+              <button type="button" className={styles.inviteMembers} onClick={() => convertToCompany(activeAccount.id).then(refreshMe)}>Convert to company</button>
             )}
           </div>
 
