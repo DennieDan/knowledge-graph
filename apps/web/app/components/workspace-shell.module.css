@@ -78,6 +78,26 @@
   font-size: 13px;
 }
 
+.workspaceRow select {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.inviteMembers {
+  margin: 0 10px;
+  padding: 3px 0;
+  border: 0;
+  background: transparent;
+  color: var(--cp-muted);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
 .avatar {
   width: 28px;
   height: 28px;

@@ -164,7 +164,7 @@ export default function SearchView({ me }: { me: Me | null }) {
           ))}
         </div>
 
-        {me?.drive_linked && <DriveFiles />}
+        {me?.drive_linked && me.active_account_id && <DriveFiles accountId={me.active_account_id} />}
       </div>
 
       <aside className={styles.detail} aria-live="polite">

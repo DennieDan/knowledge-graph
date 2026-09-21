@@ -22,6 +22,8 @@ class SourceDocument:
     title: str
     content: str
     source_uri: str | None = None
+    drive_workspace_id: UUID | None = None
+    owner_user_id: UUID | None = None
 
 
 def content_hash(content: str) -> str:
@@ -43,12 +45,16 @@ def _document_for(session: Session, organization_id: UUID, document: SourceDocum
             external_id=document.external_id,
             title=document.title,
             source_uri=document.source_uri,
+            drive_workspace_id=document.drive_workspace_id,
+            owner_user_id=document.owner_user_id,
         )
         session.add(existing)
         session.flush()
         return existing
     existing.title = document.title
     existing.source_uri = document.source_uri
+    existing.drive_workspace_id = document.drive_workspace_id
+    existing.owner_user_id = document.owner_user_id
     return existing
 
 

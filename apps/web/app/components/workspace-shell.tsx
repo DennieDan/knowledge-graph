@@ -9,6 +9,8 @@ import StacksView from "./stacks-view";
 import SubstackDetail from "./substack-detail";
 import WhatsAppConnect from "./whatsapp-connect";
 import DrivePicker from "./drive-picker";
+import AccountOnboarding from "./account-onboarding";
+import CompanyMembers from "./company-members";
 import { CreateStackModal, CreateSubstackModal } from "./stack-modals";
 import {
   INITIAL_SUBSTACKS,
@@ -19,7 +21,7 @@ import {
   type StackType,
   type Substack,
 } from "../lib/stacks";
-import { getMe, loginUrl, logout, type Me } from "../lib/api";
+import { acceptInvitation, activateAccount, getMe, loginUrl, logout, type Me } from "../lib/api";
 import styles from "./workspace-shell.module.css";
 
 type NavId = "stacks" | "sources" | "search" | "maintenance";
@@ -70,37 +72,50 @@ export default function WorkspaceShell() {
   const [modal, setModal] = useState<ModalState>(null);
   const [notice, setNotice] = useState("");
   const [me, setMe] = useState<Me | null>(null);
+  const [authLoaded, setAuthLoaded] = useState(false);
   const [waOpen, setWaOpen] = useState(false);
   const [driveOpen, setDriveOpen] = useState(false);
+  const [membersOpen, setMembersOpen] = useState(false);
+  const [inviteToken, setInviteToken] = useState<string | null>(null);
   const driveSetupPending = useRef(false);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refreshMe = useCallback(() => {
     getMe()
       .then(setMe)
-      .catch(() => setMe(null));
+      .catch(() => setMe(null))
+      .finally(() => setAuthLoaded(true));
   }, []);
 
   useEffect(() => {
     refreshMe();
   }, [refreshMe]);
 
-  // The OAuth callback appends ?drive=setup when the account hasn't chosen
-  // what to share yet — open the picker once the session resolves.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("drive") === "setup") {
+    if (params.get("drive") === "connected") {
       driveSetupPending.current = true;
       window.history.replaceState(null, "", window.location.pathname);
     }
-  }, []);
+    const invite = params.get("invite");
+    setInviteToken(invite);
+    if (invite && me) {
+      acceptInvitation(invite)
+        .then(() => {
+          window.history.replaceState(null, "", window.location.pathname);
+          refreshMe();
+        })
+        .catch((reason) => setNotice(reason instanceof Error ? reason.message : "Invitation could not be accepted."));
+    }
+  }, [me, refreshMe]);
 
   useEffect(() => {
     if (driveSetupPending.current && me) {
       driveSetupPending.current = false;
-      if (me.drive_linked) setDriveOpen(true);
+      refreshMe();
+      setDriveOpen(true);
     }
-  }, [me]);
+  }, [me, refreshMe]);
 
   // Restore locally persisted stacks after hydration.
   useEffect(() => {
@@ -166,6 +181,10 @@ export default function WorkspaceShell() {
     setRecentIds((current) => [id, ...current.filter((recentId) => recentId !== id)].slice(0, 5));
   };
 
+  if (!authLoaded) return null;
+  if (!me || me.needs_account) return <AccountOnboarding me={me} inviteToken={inviteToken} onCreated={refreshMe} />;
+
+  const activeAccount = me.accounts.find((account) => account.id === me.active_account_id) ?? me.accounts[0] ?? null;
   const activeType = selectedType
     ? stackTypes.find((t) => t.id === selectedType)
     : null;
@@ -210,9 +229,18 @@ export default function WorkspaceShell() {
           <div>
             <div className={styles.sectionLabel}>Workspace</div>
             <div className={styles.workspaceRow}>
-              <span className={styles.avatar}>S</span>
-              <span>Studio North</span>
+              <span className={styles.avatar}>{activeAccount?.name[0]?.toUpperCase() ?? "W"}</span>
+              <select
+                value={activeAccount?.id ?? ""}
+                aria-label="Active account"
+                onChange={(event) => activateAccount(event.target.value).then(refreshMe)}
+              >
+                {me.accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
+              </select>
             </div>
+            {activeAccount?.account_type === "company" && activeAccount.role === "admin" && (
+              <button type="button" className={styles.inviteMembers} onClick={() => setMembersOpen(true)}>Invite members</button>
+            )}
           </div>
 
           <nav aria-label="Application">
@@ -344,6 +372,7 @@ export default function WorkspaceShell() {
           {activeNav === "sources" && (
             <SourcesView
               me={me}
+              activeAccount={activeAccount}
               onManageWhatsApp={() => setWaOpen(true)}
               onManageDrive={() => setDriveOpen(true)}
             />
@@ -421,9 +450,15 @@ export default function WorkspaceShell() {
         />
       )}
 
-      {driveOpen && (
+      {driveOpen && activeAccount && (
         <Modal onClose={() => setDriveOpen(false)}>
-          <DrivePicker onClose={() => setDriveOpen(false)} />
+          <DrivePicker accountId={activeAccount.id} onClose={() => setDriveOpen(false)} />
+        </Modal>
+      )}
+
+      {membersOpen && activeAccount?.account_type === "company" && activeAccount.google_domain && (
+        <Modal onClose={() => setMembersOpen(false)}>
+          <CompanyMembers accountId={activeAccount.id} domain={activeAccount.google_domain} onClose={() => setMembersOpen(false)} />
         </Modal>
       )}
     </div>

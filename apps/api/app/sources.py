@@ -1,5 +1,6 @@
 """Connector-specific normalizers producing SourceDocument values."""
 from collections.abc import Iterable
+from uuid import UUID
 
 from .ingest import SourceDocument
 from .models import WhatsappChat, WhatsappMessage
@@ -39,11 +40,18 @@ def whatsapp_chat_document(chat: WhatsappChat, messages: Iterable[WhatsappMessag
     )
 
 
-def drive_file_document(file: dict, text: str) -> SourceDocument:
+def drive_file_document(
+    file: dict,
+    text: str,
+    workspace_id: UUID | None = None,
+    owner_user_id: UUID | None = None,
+) -> SourceDocument:
     return SourceDocument(
         source=DRIVE_SOURCE,
         external_id=file["id"],
         title=file.get("name") or file["id"],
         content=text,
         source_uri=file.get("webViewLink"),
+        drive_workspace_id=workspace_id,
+        owner_user_id=owner_user_id,
     )

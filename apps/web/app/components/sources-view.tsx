@@ -1,6 +1,6 @@
 "use client";
 
-import { loginUrl, type Me } from "../lib/api";
+import { driveConnectUrl, loginUrl, type Account, type Me } from "../lib/api";
 import Icon from "./icons";
 import styles from "./sources.module.css";
 
@@ -29,10 +29,12 @@ function StatePill({ state }: { state: SourceState }) {
 
 export default function SourcesView({
   me,
+  activeAccount,
   onManageWhatsApp,
   onManageDrive,
 }: {
   me: Me | null;
+  activeAccount: Account | null;
   onManageWhatsApp: () => void;
   onManageDrive: () => void;
 }) {
@@ -59,20 +61,22 @@ export default function SourcesView({
         <div className={styles.connCard}>
           <p className={styles.connName}>Google Drive</p>
           <div className={styles.connRow}>
-            <span className={me?.drive_linked ? styles.pillDark : styles.pillLight}>
-              {me?.drive_linked ? "Connected" : "Not linked"}
+            <span className={activeAccount?.drive_linked ? styles.pillDark : styles.pillLight}>
+              {activeAccount?.drive_linked ? "Connected" : "Not linked"}
             </span>
-            {me?.drive_linked && (
-              <span className={styles.connMeta}>Google account</span>
+            {activeAccount?.drive_linked && (
+              <span className={styles.connMeta}>{activeAccount.name}</span>
             )}
           </div>
           <div className={styles.connAction}>
-            {me?.drive_linked ? (
+            {activeAccount?.drive_linked ? (
               <button type="button" onClick={onManageDrive}>
                 <Icon name="settings" size={13} /> Manage access
               </button>
+            ) : me && activeAccount ? (
+              <a href={driveConnectUrl(activeAccount.id)}>Connect Drive</a>
             ) : (
-              <a href={loginUrl}>{me ? "Link Drive" : "Sign in to link"}</a>
+              <a href={loginUrl}>Sign in to connect</a>
             )}
           </div>
         </div>

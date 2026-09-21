@@ -1,14 +1,12 @@
 from datetime import datetime
-from uuid import UUID, uuid4
 from typing import Optional
+from uuid import UUID, uuid4
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-# Changing dimensions requires a migration and re-embedding existing chunks;
-# changing the model requires re-embedding (scripts/reembed.py).
 EMBEDDING_DIMENSIONS = 384
 EMBEDDING_MODEL = "intfloat/multilingual-e5-small"
 
@@ -26,6 +24,18 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class GoogleIdentity(Base):
+    __tablename__ = "google_identities"
+    __table_args__ = (UniqueConstraint("user_id"), Index("ix_google_identities_user_id", "user_id", unique=True))
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    google_sub: Mapped[str] = mapped_column(String(255), unique=True)
+    email: Mapped[str] = mapped_column(String(320))
+    hosted_domain: Mapped[Optional[str]] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
 class GoogleAccount(Base):
     __tablename__ = "google_accounts"
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
@@ -35,21 +45,113 @@ class GoogleAccount(Base):
     access_token: Mapped[Optional[str]] = mapped_column(Text)
     access_token_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     refresh_token: Mapped[Optional[str]] = mapped_column(Text)
-    # Granular sharing: share_all NULL means the user hasn't configured access
-    # yet, which fails closed (nothing is shared) until they choose. When
-    # share_all is False, shared_file_ids holds file/folder ids; a folder id
-    # shares its whole subtree, including files added later.
     share_all: Mapped[Optional[bool]] = mapped_column(Boolean)
     shared_file_ids: Mapped[Optional[list]] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class Organization(Base):
+    __tablename__ = "organizations"
+    __table_args__ = (
+        CheckConstraint("account_type IN ('personal','company')", name="valid_account_type"),
+        CheckConstraint("account_type = 'personal' OR google_domain IS NOT NULL", name="company_has_google_domain"),
     )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    name: Mapped[str] = mapped_column(String(255))
+    account_type: Mapped[str] = mapped_column(String(20), default="personal")
+    google_domain: Mapped[Optional[str]] = mapped_column(String(255))
+    created_by_user_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class OrganizationMembership(Base):
+    __tablename__ = "organization_memberships"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "user_id"),
+        CheckConstraint("role IN ('admin','member')", name="valid_membership_role"),
+        Index("uq_company_admin", "organization_id", unique=True, postgresql_where=text("role = 'admin'")),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    role: Mapped[str] = mapped_column(String(20))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class OrganizationInvitation(Base):
+    __tablename__ = "organization_invitations"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "email", "status"),
+        CheckConstraint("status IN ('pending','accepted','revoked','expired')", name="valid_invitation_status"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    email: Mapped[str] = mapped_column(String(320))
+    invited_by_user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    status: Mapped[str] = mapped_column(String(20), default="pending")
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class DriveConnection(Base):
+    __tablename__ = "drive_connections"
+    __table_args__ = (UniqueConstraint("organization_id", "user_id"),)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    google_identity_id: Mapped[UUID] = mapped_column(ForeignKey("google_identities.id", ondelete="CASCADE"))
+    scopes: Mapped[str] = mapped_column(Text)
+    access_token: Mapped[Optional[str]] = mapped_column(Text)
+    access_token_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    refresh_token: Mapped[Optional[str]] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(20), default="connected")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class DriveWorkspace(Base):
+    __tablename__ = "drive_workspaces"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "kind", "google_drive_id", "owner_user_id"),
+        CheckConstraint("kind IN ('my_drive','shared_drive')", name="valid_drive_workspace_kind"),
+        Index("uq_shared_drive_workspace", "organization_id", "google_drive_id", unique=True, postgresql_where=text("kind = 'shared_drive'")),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(20))
+    google_drive_id: Mapped[str] = mapped_column(String(255))
+    name: Mapped[str] = mapped_column(String(255))
+    owner_user_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    status: Mapped[str] = mapped_column(String(20), default="active")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class DriveWorkspaceConnection(Base):
+    __tablename__ = "drive_workspace_connections"
+    __table_args__ = (UniqueConstraint("workspace_id", "connection_id"),)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("drive_workspaces.id", ondelete="CASCADE"), index=True)
+    connection_id: Mapped[UUID] = mapped_column(ForeignKey("drive_connections.id", ondelete="CASCADE"), index=True)
+    status: Mapped[str] = mapped_column(String(20), default="active")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class DriveSelection(Base):
+    __tablename__ = "drive_selections"
+    __table_args__ = (UniqueConstraint("workspace_id", "user_id"),)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("drive_workspaces.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    share_all: Mapped[bool] = mapped_column(Boolean, default=False)
+    selected_file_ids: Mapped[list] = mapped_column(JSONB, default=list)
+    configured: Mapped[bool] = mapped_column(Boolean, default=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 class WhatsappConnection(Base):
-    # User-scoped by design: imported chats belong to the person, never to an
-    # organization.
     __tablename__ = "whatsapp_connections"
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True, index=True)
@@ -57,9 +159,7 @@ class WhatsappConnection(Base):
     phone_number: Mapped[Optional[str]] = mapped_column(String(32))
     status: Mapped[str] = mapped_column(String(32), default="STARTING")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
-    )
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 class WhatsappChat(Base):
@@ -78,9 +178,7 @@ class WhatsappChat(Base):
     import_error: Mapped[Optional[str]] = mapped_column(Text)
     message_count: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
-    )
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 class WhatsappMessage(Base):
@@ -100,18 +198,13 @@ class WhatsappMessage(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
-class Organization(Base):
-    __tablename__ = "organizations"
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-    name: Mapped[str] = mapped_column(String(255))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-
-
 class Document(Base):
     __tablename__ = "documents"
     __table_args__ = (UniqueConstraint("organization_id", "source", "external_id"),)
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    drive_workspace_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("drive_workspaces.id", ondelete="SET NULL"), index=True)
+    owner_user_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
     title: Mapped[str] = mapped_column(Text)
     source: Mapped[str] = mapped_column(String(100))
     external_id: Mapped[Optional[str]] = mapped_column(Text)
@@ -142,9 +235,7 @@ class Chunk(Base):
         CheckConstraint("(embedding IS NULL) = (embedding_model IS NULL)", name="embedding_has_model"),
     )
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-    document_version_id: Mapped[UUID] = mapped_column(
-        ForeignKey("document_versions.id", ondelete="CASCADE"), index=True
-    )
+    document_version_id: Mapped[UUID] = mapped_column(ForeignKey("document_versions.id", ondelete="CASCADE"), index=True)
     position: Mapped[int] = mapped_column(Integer)
     text: Mapped[str] = mapped_column(Text)
     embedding: Mapped[Optional[list[float]]] = mapped_column(Vector(EMBEDDING_DIMENSIONS))

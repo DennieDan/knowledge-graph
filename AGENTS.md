@@ -21,6 +21,36 @@
 - `packages/ui`, `packages/eslint-config`, `packages/typescript-config` —
   shared workspace packages (`@repo/*`)
 
+## Deployment checklist
+
+When this app is deployed, the following configuration must be completed.
+Remind the user of these items when deployment is set up:
+
+- **Google OAuth redirect URIs.** The OAuth web client must have both:
+  - `https://your-api-domain/auth/google/callback` — identity sign-in
+  - `https://your-api-domain/drive/callback` — Drive authorization
+
+- **API environment variables.** On the production API host, set:
+  - `GOOGLE_REDIRECT_URI=https://your-api-domain/auth/google/callback`
+  - `GOOGLE_DRIVE_REDIRECT_URI=https://your-api-domain/drive/callback`
+  - `WEB_ORIGIN=https://your-web-domain`
+  - `SESSION_SECRET` — a strong random value (`openssl rand -hex 32`)
+  - `DATABASE_URL` — the production Postgres connection string
+
+- **Web environment variables.** On the production web host, set:
+  - `NEXT_PUBLIC_API_URL=https://your-api-domain`
+
+- **Session cookie.** `apps/api/app/main.py` currently sets `https_only=False`
+  on the session cookie. Before production, set it to `True` so the session
+  cookie is only sent over HTTPS.
+
+- **OAuth app verification.** `drive.readonly` is a restricted Google scope.
+  The Google Auth Platform app must be submitted for verification before
+  non-test users can grant Drive access in production.
+
+- **Database.** Run `pnpm db:migrate` in `apps/api` against the production
+  database before serving traffic.
+
 ## Conventions
 
 - UI follows Material Design 3. Color tokens live in

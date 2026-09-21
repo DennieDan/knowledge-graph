@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     google_client_id: SecretStr
     google_client_secret: SecretStr
     google_redirect_uri: str = "http://localhost:8000/auth/google/callback"
+    google_drive_redirect_uri: str = "http://localhost:8000/drive/callback"
     session_secret: SecretStr
     web_origin: str = "http://localhost:3000"
     waha_base_url: str = "http://localhost:3100"
