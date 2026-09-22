@@ -24,6 +24,7 @@ import {
 import {
   acceptInvitation,
   activateAccount,
+  confirmAllSubstacks,
   confirmSubstackContent,
   convertToCompany,
   createSubstack,
@@ -191,6 +192,19 @@ export default function WorkspaceShell() {
         showNotice("Workspace analysis queued.");
       })
       .catch((reason) => showNotice(reason instanceof Error ? reason.message : "Analysis could not be started."))
+      .finally(() => setAnalysisBusy(false));
+  };
+
+  const handleConfirmAll = () => {
+    if (!activeAccount || analysisBusy) return;
+    setAnalysisBusy(true);
+    confirmAllSubstacks(activeAccount.id)
+      .then(({ confirmed }) => {
+        refreshSubstacks();
+        if (selectedSubstackId) ensureDetail(selectedSubstackId);
+        showNotice(`Confirmed ${confirmed} proposed ${confirmed === 1 ? "record" : "records"}.`);
+      })
+      .catch((reason) => showNotice(reason instanceof Error ? reason.message : "Proposals could not be confirmed."))
       .finally(() => setAnalysisBusy(false));
   };
 
@@ -415,9 +429,24 @@ export default function WorkspaceShell() {
                   {activeType && (
                     <>
                       <Icon name="chevron-right" size={13} />
-                      <span className={styles.crumbActive}>
-                        {activeType.name}
-                      </span>
+                      {selectedSubstack ? (
+                        <>
+                          <button
+                            onClick={() => setSelectedSubstackId(null)}
+                            className={styles.crumbBtn}
+                          >
+                            {activeType.name}
+                          </button>
+                          <Icon name="chevron-right" size={13} />
+                          <span className={styles.crumbActive}>
+                            {selectedSubstack.name}
+                          </span>
+                        </>
+                      ) : (
+                        <span className={styles.crumbActive}>
+                          {activeType.name}
+                        </span>
+                      )}
                     </>
                   )}
                 </>
@@ -490,6 +519,7 @@ export default function WorkspaceShell() {
                 analysisRuns={analysisRuns}
                 analysisBusy={analysisBusy}
                 onAnalyze={handleAnalyze}
+                onConfirmAll={handleConfirmAll}
                 onRetryAnalysis={handleRetryAnalysis}
                 onScopeChange={setScope}
                 onSelectType={(typeId) => {

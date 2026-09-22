@@ -336,6 +336,37 @@ def confirm_substack(
     return _substack_json(session, substack, user)
 
 
+@router.post("/accounts/{organization_id}/substacks/confirm-all")
+def confirm_all(
+    organization_id: UUID,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Dev helper: confirm every substack's latest proposed content."""
+    membership_for(organization_id, user, session)
+    substacks = session.scalars(
+        select(Substack).where(Substack.organization_id == organization_id)
+    ).all()
+    confirmed_count = 0
+    for substack in substacks:
+        proposed = session.scalar(
+            select(SubstackContent)
+            .where(SubstackContent.substack_id == substack.id, SubstackContent.status == "proposed")
+            .order_by(SubstackContent.revision.desc())
+            .limit(1)
+        )
+        if proposed is not None:
+            _confirm_content(session, substack, proposed)
+            confirmed_count += 1
+        elif substack.status != "confirmed" or substack.review_state in ("pending", "pending_update"):
+            substack.status = "confirmed"
+            if substack.review_state in ("pending", "pending_update"):
+                substack.review_state = "clean"
+            confirmed_count += 1
+    session.commit()
+    return {"confirmed": confirmed_count}
+
+
 @router.post("/accounts/{organization_id}/stacks/file-all")
 def file_all(
     organization_id: UUID,

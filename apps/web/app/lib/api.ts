@@ -292,6 +292,10 @@ export function confirmSubstackContent(id: string, contentId: string): Promise<A
   return apiFetch(`/substacks/${id}/contents/${contentId}/confirm`, { method: "POST" });
 }
 
+export function confirmAllSubstacks(accountId: string): Promise<{ confirmed: number }> {
+  return apiFetch(`/accounts/${accountId}/substacks/confirm-all`, { method: "POST" });
+}
+
 export interface AnalysisRun {
   id: string;
   scope: "mine" | "workspace";

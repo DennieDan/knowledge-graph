@@ -6,6 +6,7 @@ const PATHS: Record<string, string> = {
   activity: "M22 12h-4l-3 9L9 3l-3 9H2",
   plus: "M12 5v14M5 12h14",
   x: "M18 6L6 18M6 6l12 12",
+  check: "M20 6L9 17l-5-5",
   "arrow-right": "M5 12h14M12 5l7 7-7 7",
   "arrow-left": "M19 12H5M12 19l-7-7 7-7",
   "chevron-right": "M9 18l6-6-6-6",

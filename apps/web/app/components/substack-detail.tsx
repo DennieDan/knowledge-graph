@@ -37,6 +37,9 @@ export default function SubstackDetail({ substack, stackTypes, detail, details, 
   const previewSources = relatedPreviewId && details[relatedPreviewId] ? details[relatedPreviewId].sources : sources;
   const visibleSources = hoveredSourceIds ? previewSources.filter((source) => hoveredSourceIds.includes(source.id)) : previewSources;
   const related = detail?.related ?? [];
+  const [relatedTypeFilter, setRelatedTypeFilter] = useState<Set<string>>(new Set());
+  const relatedTypes = useMemo(() => [...new Set(related.map((item) => item.typeId))], [related]);
+  const visibleRelated = related.filter((item) => relatedTypeFilter.size === 0 || relatedTypeFilter.has(item.typeId));
   const displayed = showPending && detail?.pending ? detail.pending : detail;
 
   const matchingSegments = useMemo(
@@ -119,8 +122,28 @@ export default function SubstackDetail({ substack, stackTypes, detail, details, 
         )}
 
         <section className={`${styles.related} ${relatedOpen ? "" : styles.relatedClosed}`}>
-          <button className={styles.relatedToggle} onClick={() => setRelatedOpen((open) => !open)} aria-expanded={relatedOpen}><span>Related <small>{related.length}</small></span><Icon name="chevron-down" /></button>
-          {relatedOpen && <div className={styles.relatedGrid}>{related.map((item) => {
+          <button className={styles.relatedToggle} onClick={() => setRelatedOpen((open) => !open)} aria-expanded={relatedOpen}><span>Related <small>{relatedTypeFilter.size > 0 ? `${visibleRelated.length}/${related.length}` : related.length}</small></span><Icon name="chevron-down" /></button>
+          {relatedOpen && relatedTypes.length > 1 && (
+            <div className={styles.relatedFilters} role="group" aria-label="Filter related by stack type">
+              {relatedTypes.map((typeId) => (
+                <button
+                  key={typeId}
+                  type="button"
+                  aria-pressed={relatedTypeFilter.has(typeId)}
+                  onClick={() => setRelatedTypeFilter((current) => {
+                    const next = new Set(current);
+                    if (next.has(typeId)) next.delete(typeId);
+                    else next.add(typeId);
+                    return next;
+                  })}
+                  className={`${styles.relatedChip} ${relatedTypeFilter.has(typeId) ? styles.relatedChipActive : ""}`}
+                >
+                  {stackTypes.find((candidate) => candidate.id === typeId)?.name ?? typeId}
+                </button>
+              ))}
+            </div>
+          )}
+          {relatedOpen && <div className={styles.relatedGrid}>{visibleRelated.map((item) => {
             const relatedType = stackTypes.find((candidate) => candidate.id === item.typeId);
             return <button key={item.id} onClick={() => onOpen(item.id)} onMouseEnter={() => { setRelatedPreviewId(item.id); setHoveredSourceIds(null); onEnsureDetail(item.id); }} onMouseLeave={() => setRelatedPreviewId(null)}><span>{relatedType?.name}</span><strong>{item.name}</strong></button>;
           })}</div>}

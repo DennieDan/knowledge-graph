@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Icon from "./icons";
 import type { AnalysisRun } from "../lib/api";
 import styles from "./stacks.module.css";
@@ -10,6 +11,8 @@ import {
   type StackType,
   type Substack,
 } from "../lib/stacks";
+
+const ROLE_FILTERS = ["Proposed", "Confirmed", "Update available", "Needs review"];
 
 function TypeTile({
   type,
@@ -114,6 +117,7 @@ export default function StacksView({
   analysisRuns,
   analysisBusy,
   onAnalyze,
+  onConfirmAll,
   onRetryAnalysis,
   onScopeChange,
   onSelectType,
@@ -132,6 +136,7 @@ export default function StacksView({
   analysisRuns: AnalysisRun[];
   analysisBusy: boolean;
   onAnalyze: () => void;
+  onConfirmAll: () => void;
   onRetryAnalysis: (runId: string) => void;
   onScopeChange: (scope: Scope) => void;
   onSelectType: (typeId: string | null) => void;
@@ -145,11 +150,23 @@ export default function StacksView({
     : null;
   const activeRun = analysisRuns.find((run) => ["queued", "embedding", "discovering", "generating"].includes(run.status));
   const failedRun = analysisRuns.find((run) => run.status === "failed" || run.status === "partial");
+  const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
+
+  useEffect(() => setStatusFilter(new Set()), [selectedType]);
+
+  const toggleStatus = (role: string) =>
+    setStatusFilter((current) => {
+      const next = new Set(current);
+      if (next.has(role)) next.delete(role);
+      else next.add(role);
+      return next;
+    });
 
   const filteredSubstacks = substacks.filter(
     (ss) =>
       (selectedType ? ss.typeId === selectedType : true) &&
       inScope(ss, scope) &&
+      (statusFilter.size === 0 || statusFilter.has(ss.role)) &&
       (ss.name + " " + ss.desc)
         .toLowerCase()
         .includes(searchVal.toLowerCase()),
@@ -218,9 +235,14 @@ export default function StacksView({
             <Icon name="plus" /> Add to {activeType.name}
           </button>
         ) : (
-          <button onClick={onAnalyze} disabled={analysisBusy || Boolean(activeRun)} className={styles.primaryBtn}>
-            <Icon name="activity" /> {activeRun ? "Analyzing…" : "Analyze workspace"}
-          </button>
+          <div className={styles.heroActions}>
+            <button onClick={onConfirmAll} disabled={analysisBusy} className={styles.ghostBtn}>
+              <Icon name="check" /> Confirm all
+            </button>
+            <button onClick={onAnalyze} disabled={analysisBusy || Boolean(activeRun)} className={styles.primaryBtn}>
+              <Icon name="activity" /> {activeRun ? "Analyzing…" : "Analyze workspace"}
+            </button>
+          </div>
         )}
       </div>
 
@@ -279,6 +301,23 @@ export default function StacksView({
           </button>
         )}
       </div>
+
+      {/* Status filter (multi-select) */}
+      {activeType && (
+        <div className={styles.filterRow} role="group" aria-label="Filter by status">
+          {ROLE_FILTERS.map((role) => (
+            <button
+              key={role}
+              type="button"
+              aria-pressed={statusFilter.has(role)}
+              onClick={() => toggleStatus(role)}
+              className={`${styles.filterChip} ${statusFilter.has(role) ? styles.filterChipActive : ""}`}
+            >
+              {role}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Level 1: stack type tiles */}
       {!activeType &&

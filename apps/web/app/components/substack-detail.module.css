@@ -39,6 +39,10 @@
 .relatedClosed { padding-top: 20px; }
 .relatedToggle { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 10px 2px; border: 0; background: transparent; font-size: 16px; font-weight: 600; cursor: pointer; }
 .relatedToggle small { margin-left: 10px; color: var(--cp-muted); font-weight: 400; }
+.relatedFilters { display: flex; flex-wrap: wrap; gap: 8px; padding: 2px 0 10px; }
+.relatedChip { padding: 4px 11px; border: 1px solid var(--cp-border); border-radius: 999px; background: var(--cp-surface); color: var(--cp-muted); font-family: inherit; font-size: 12px; line-height: 1.4; cursor: pointer; }
+.relatedChip:hover { color: var(--cp-ink); border-color: var(--cp-muted); }
+.relatedChipActive { border-color: var(--md-sys-color-primary); background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container); font-weight: 500; }
 .relatedGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding: 3px 0 18px; }
 .relatedGrid button { min-height: 70px; padding: 12px; border: 1px solid transparent; border-radius: 7px; background: var(--cp-hover); text-align: left; cursor: pointer; }
 .relatedGrid button:hover { border-color: var(--md-sys-color-primary); background: var(--md-sys-color-primary-container); }
