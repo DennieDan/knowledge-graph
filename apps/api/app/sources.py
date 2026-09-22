@@ -29,7 +29,7 @@ def _line(message: WhatsappMessage) -> str | None:
     return f"{timestamp} {_speaker(message)}: {body}"
 
 
-def whatsapp_chat_document(chat: WhatsappChat, messages: Iterable[WhatsappMessage]) -> SourceDocument:
+def whatsapp_chat_document(chat: WhatsappChat, messages: Iterable[WhatsappMessage], owner_user_id: UUID | None = None) -> SourceDocument:
     """Render a chat as a chronological transcript, one message per line."""
     lines = [line for line in (_line(message) for message in sorted(messages, key=lambda m: m.sent_at)) if line]
     return SourceDocument(
@@ -37,6 +37,7 @@ def whatsapp_chat_document(chat: WhatsappChat, messages: Iterable[WhatsappMessag
         external_id=chat.chat_jid,
         title=chat.name or chat.chat_jid,
         content="\n".join(lines),
+        owner_user_id=owner_user_id,
     )
 
 

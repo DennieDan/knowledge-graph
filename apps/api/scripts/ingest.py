@@ -56,7 +56,7 @@ def ingest_whatsapp(session: Session, organization_id: UUID, email: str, chat_ji
         statement = statement.where(WhatsappChat.chat_jid.in_(chat_jids))
     for chat in session.scalars(statement):
         messages = session.scalars(select(WhatsappMessage).where(WhatsappMessage.chat_id == chat.id)).all()
-        version = ingest_document(session, organization_id, whatsapp_chat_document(chat, messages))
+        version = ingest_document(session, organization_id, whatsapp_chat_document(chat, messages, connection.user_id))
         session.commit()
         report(session, chat.name or chat.chat_jid, version)
 

@@ -189,7 +189,10 @@ export function whatsappPairing(phoneNumber: string): Promise<{ code: string }> 
 }
 export function whatsappDisconnect(): Promise<{ status: string }> { return apiFetch("/whatsapp/connect", { method: "DELETE" }) }
 export function whatsappChats(): Promise<WhatsappChatItem[]> { return apiFetch("/whatsapp/chats") }
-export function whatsappImport(chatIds: string[]): Promise<{ queued: string[] }> {
-  return apiFetch("/whatsapp/imports", { method: "POST", body: JSON.stringify({ chat_ids: chatIds }) });
+export function whatsappImport(chatIds: string[], organizationId?: string): Promise<{ queued: string[] }> {
+  return apiFetch("/whatsapp/imports", {
+    method: "POST",
+    body: JSON.stringify({ chat_ids: chatIds, organization_id: organizationId }),
+  });
 }
 export function whatsappImports(): Promise<WhatsappImportItem[]> { return apiFetch("/whatsapp/imports") }

@@ -36,9 +36,11 @@ function formatDate(iso: string | null): string {
 export default function WhatsAppConnect({
   onClose,
   onChanged,
+  accountId,
 }: {
   onClose: () => void;
   onChanged: () => void;
+  accountId?: string;
 }) {
   const [step, setStep] = useState<Step>("link");
   const [status, setStatus] = useState("STARTING");
@@ -139,7 +141,7 @@ export default function WhatsAppConnect({
   const startImport = async () => {
     setError(null);
     try {
-      await whatsappImport([...selected]);
+      await whatsappImport([...selected], accountId);
       setImports(await whatsappImports());
       setStep("importing");
     } catch (e) {

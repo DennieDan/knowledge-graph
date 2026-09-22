@@ -192,6 +192,8 @@ class WhatsappChat(Base):
     name: Mapped[Optional[str]] = mapped_column(Text)
     chat_type: Mapped[str] = mapped_column(String(32), default="contact")
     last_message_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    organization_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("organizations.id", ondelete="SET NULL"), index=True)
+    pending_ingest: Mapped[bool] = mapped_column(Boolean, default=False)
     import_status: Mapped[str] = mapped_column(String(20), default="none")
     import_error: Mapped[Optional[str]] = mapped_column(Text)
     message_count: Mapped[int] = mapped_column(Integer, default=0)
