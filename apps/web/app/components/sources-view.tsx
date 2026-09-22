@@ -40,23 +40,34 @@ export default function SourcesView({
   onManageDrive: () => void;
 }) {
   const [syncMsg, setSyncMsg] = useState("");
-  const [syncing, setSyncing] = useState(false);
+  const [syncState, setSyncState] = useState<{ done: number; total: number } | null>(null);
+  const syncing = syncState !== null;
 
   const handleSync = async () => {
     if (!activeAccount || syncing) return;
-    setSyncing(true);
     setSyncMsg("");
+    setSyncState({ done: 0, total: 0 });
     try {
       const workspaces = await listDriveWorkspaces(activeAccount.id);
-      const results = await Promise.all(workspaces.map((workspace) => syncDriveWorkspace(workspace.id)));
-      const ingested = results.reduce((total, result) => total + result.ingested, 0);
-      const synced = results.reduce((total, result) => total + result.synced, 0);
-      const errors = results.flatMap((result) => result.errors);
-      setSyncMsg(errors.length > 0 ? `Synced ${synced} files, ingested ${ingested} · ${errors.length} error(s)` : `Synced ${synced} files, ingested ${ingested}`);
+      setSyncState({ done: 0, total: workspaces.length });
+      let synced = 0, ingested = 0;
+      const errors: string[] = [];
+      for (const [index, workspace] of workspaces.entries()) {
+        const result = await syncDriveWorkspace(workspace.id);
+        synced += result.synced;
+        ingested += result.ingested;
+        errors.push(...result.errors);
+        setSyncState({ done: index + 1, total: workspaces.length });
+      }
+      if (workspaces.length === 0) {
+        setSyncMsg("No Drive workspaces to sync.");
+      } else {
+        setSyncMsg(errors.length > 0 ? `Synced ${synced} files, ingested ${ingested} · ${errors.length} error(s)` : `Synced ${synced} files, ingested ${ingested}`);
+      }
     } catch (reason) {
       setSyncMsg(reason instanceof Error ? reason.message : "Sync failed.");
     } finally {
-      setSyncing(false);
+      setSyncState(null);
     }
   };
 
@@ -96,8 +107,15 @@ export default function SourcesView({
                 <button type="button" onClick={onManageDrive}>
                   <Icon name="settings" size={13} /> Manage access
                 </button>
-                <button type="button" onClick={handleSync} disabled={syncing}>
-                  <Icon name="refresh-cw" size={13} /> {syncing ? "Syncing…" : "Sync now"}
+                <button type="button" onClick={handleSync} disabled={syncing} aria-busy={syncing}>
+                  <span className={syncing ? styles.spinning : undefined}>
+                    <Icon name="refresh-cw" size={13} />
+                  </span>
+                  {syncing
+                    ? syncState.total > 1
+                      ? `Syncing ${syncState.done}/${syncState.total}…`
+                      : "Syncing…"
+                    : "Sync now"}
                 </button>
               </>
             ) : me && activeAccount ? (
@@ -105,7 +123,7 @@ export default function SourcesView({
             ) : (
               <a href={loginUrl}>Sign in to connect</a>
             )}
-            {syncMsg && <span className={styles.connMeta}>{syncMsg}</span>}
+            {syncMsg && <span className={styles.connMeta} role="status" aria-live="polite">{syncMsg}</span>}
           </div>
         </div>
 
