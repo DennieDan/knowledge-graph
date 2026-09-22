@@ -1,6 +1,7 @@
 "use client";
 
-import { driveConnectUrl, loginUrl, type Account, type Me } from "../lib/api";
+import { useState } from "react";
+import { driveConnectUrl, listDriveWorkspaces, loginUrl, syncDriveWorkspace, type Account, type Me } from "../lib/api";
 import Icon from "./icons";
 import styles from "./sources.module.css";
 
@@ -38,6 +39,27 @@ export default function SourcesView({
   onManageWhatsApp: () => void;
   onManageDrive: () => void;
 }) {
+  const [syncMsg, setSyncMsg] = useState("");
+  const [syncing, setSyncing] = useState(false);
+
+  const handleSync = async () => {
+    if (!activeAccount || syncing) return;
+    setSyncing(true);
+    setSyncMsg("");
+    try {
+      const workspaces = await listDriveWorkspaces(activeAccount.id);
+      const results = await Promise.all(workspaces.map((workspace) => syncDriveWorkspace(workspace.id)));
+      const ingested = results.reduce((total, result) => total + result.ingested, 0);
+      const synced = results.reduce((total, result) => total + result.synced, 0);
+      const errors = results.flatMap((result) => result.errors);
+      setSyncMsg(errors.length > 0 ? `Synced ${synced} files, ingested ${ingested} · ${errors.length} error(s)` : `Synced ${synced} files, ingested ${ingested}`);
+    } catch (reason) {
+      setSyncMsg(reason instanceof Error ? reason.message : "Sync failed.");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   return (
     <div className={styles.page}>
       {/* Subtitle + Add source */}
@@ -70,14 +92,20 @@ export default function SourcesView({
           </div>
           <div className={styles.connAction}>
             {activeAccount?.drive_linked ? (
-              <button type="button" onClick={onManageDrive}>
-                <Icon name="settings" size={13} /> Manage access
-              </button>
+              <>
+                <button type="button" onClick={onManageDrive}>
+                  <Icon name="settings" size={13} /> Manage access
+                </button>
+                <button type="button" onClick={handleSync} disabled={syncing}>
+                  <Icon name="refresh-cw" size={13} /> {syncing ? "Syncing…" : "Sync now"}
+                </button>
+              </>
             ) : me && activeAccount ? (
               <a href={driveConnectUrl(activeAccount.id)}>Connect Drive</a>
             ) : (
               <a href={loginUrl}>Sign in to connect</a>
             )}
+            {syncMsg && <span className={styles.connMeta}>{syncMsg}</span>}
           </div>
         </div>
 

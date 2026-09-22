@@ -17,6 +17,7 @@ from .database import get_session
 from .filing import file_document, substack_for_document
 from .models import (
     STACK_TYPES,
+    ContentCitation,
     Document,
     DocumentVersion,
     DriveWorkspace,
@@ -74,10 +75,12 @@ def _source_json(session: Session, source: SubstackSource, current_substack_id: 
     )
     filed = substack_for_document(session, document)
     return {
-        "id": str(source.id),
+        # The document id is the source id: token source_ids reference it directly.
+        "id": str(document.id),
         "document_id": str(document.id),
         "substack_id": str(filed.id) if filed is not None and filed.id != current_substack_id else None,
         "name": document.title,
+        "type": "Conversations" if document.source == "whatsapp" else "Files",
         "origin": origin,
         "updated": (latest or document.created_at).isoformat() if (latest or document.created_at) else None,
         "role": source.role,
@@ -152,6 +155,26 @@ def substack_detail(
     sources = session.scalars(
         select(SubstackSource).where(SubstackSource.substack_id == substack.id)
     ).all()
+
+    # Attach the cited document ids to each segment/entry so the UI can filter
+    # the Sources panel on token hover. Entries are indexed after segments.
+    content_payload = dict(content.content) if content else {"segments": [], "entries": []}
+    if content is not None:
+        segment_documents: dict[int, set[str]] = {}
+        for segment_index, document_id in session.execute(
+            select(ContentCitation.segment_index, ContentCitation.document_id)
+            .where(ContentCitation.content_id == content.id)
+        ).all():
+            segment_documents.setdefault(segment_index, set()).add(str(document_id))
+        offset = len(content_payload.get("segments", []))
+        for index, item in enumerate(content_payload.get("segments", [])):
+            item["source_ids"] = sorted(segment_documents.get(index, set()))
+        for index, item in enumerate(content_payload.get("entries", [])):
+            item["source_ids"] = sorted(segment_documents.get(offset + index, set()))
+
+    # Related = explicit links both ways, plus substacks whose generated
+    # content cites this substack's evidence documents (e.g. a Files record
+    # sees every record built on its file).
     related_ids = {
         row[0]
         for row in session.execute(
@@ -161,6 +184,16 @@ def substack_detail(
             )
         ).all()
     }
+    document_ids = [source.document_id for source in sources]
+    if document_ids:
+        citing = session.scalars(
+            select(Substack.id)
+            .join(SubstackContent, SubstackContent.substack_id == Substack.id)
+            .join(ContentCitation, ContentCitation.content_id == SubstackContent.id)
+            .where(ContentCitation.document_id.in_(document_ids), Substack.id != substack.id)
+            .distinct()
+        ).all()
+        related_ids.update(citing)
     related = [
         {"id": str(other.id), "type_id": other.stack_type, "name": other.name}
         for other in session.scalars(
@@ -169,7 +202,7 @@ def substack_detail(
     ] if related_ids else []
     detail = _substack_json(session, substack, user)
     detail.update({
-        "content": content.content if content else {"segments": [], "entries": []},
+        "content": content_payload,
         "content_status": content.status if content else None,
         "sources": [_source_json(session, s, substack.id) for s in sources],
         "related": related,

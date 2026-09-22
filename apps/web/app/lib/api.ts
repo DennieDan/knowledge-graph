@@ -196,3 +196,94 @@ export function whatsappImport(chatIds: string[], organizationId?: string): Prom
   });
 }
 export function whatsappImports(): Promise<WhatsappImportItem[]> { return apiFetch("/whatsapp/imports") }
+
+// ── Stacks ──────────────────────────────────────────────────────────────
+
+export interface StackCount { type: string; count: number }
+
+export interface ApiSubstack {
+  id: string;
+  type_id: string;
+  name: string;
+  desc: string | null;
+  scope: "mine" | "workspace";
+  status: string;
+  updated_at: string | null;
+  count: number;
+  docs: string[];
+}
+
+export interface ApiSegment {
+  kind: "text" | "token" | "field";
+  value: string;
+  name?: string | null;
+  ref?: string | null;
+  citations: string[];
+  locator?: Record<string, unknown> | null;
+  source_ids?: string[];
+}
+
+export interface ApiConversationEntry {
+  date: string;
+  author: string;
+  message: string;
+  citations: string[];
+  locator?: Record<string, unknown> | null;
+  source_ids?: string[];
+}
+
+export interface ApiSubstackSource {
+  id: string;
+  document_id: string;
+  substack_id: string | null;
+  name: string;
+  type: string;
+  origin: string;
+  updated: string | null;
+  role: string;
+}
+
+export interface ApiSubstackDetail extends ApiSubstack {
+  content: { segments: ApiSegment[]; entries: ApiConversationEntry[] };
+  content_status: string | null;
+  sources: ApiSubstackSource[];
+  related: { id: string; type_id: string; name: string }[];
+}
+
+export function getStacks(accountId: string): Promise<StackCount[]> {
+  return apiFetch(`/accounts/${accountId}/stacks`);
+}
+
+export function getSubstacks(accountId: string, filter?: { type?: string; q?: string }): Promise<ApiSubstack[]> {
+  const params = new URLSearchParams();
+  if (filter?.type) params.set("type", filter.type);
+  if (filter?.q) params.set("q", filter.q);
+  const suffix = params.size ? `?${params}` : "";
+  return apiFetch(`/accounts/${accountId}/substacks${suffix}`);
+}
+
+export function getSubstackDetail(id: string): Promise<ApiSubstackDetail> {
+  return apiFetch(`/substacks/${id}`);
+}
+
+export function createSubstack(accountId: string, input: { stack_type: string; name: string; summary?: string }): Promise<ApiSubstack> {
+  return apiFetch(`/accounts/${accountId}/substacks`, { method: "POST", body: JSON.stringify(input) });
+}
+
+export function updateSubstack(id: string, patch: { name?: string; summary?: string }): Promise<ApiSubstack> {
+  return apiFetch(`/substacks/${id}`, { method: "PATCH", body: JSON.stringify(patch) });
+}
+
+export function confirmSubstack(id: string): Promise<ApiSubstack> {
+  return apiFetch(`/substacks/${id}/confirm`, { method: "POST" });
+}
+
+export function fileAllSubstacks(accountId: string): Promise<{ filed: number }> {
+  return apiFetch(`/accounts/${accountId}/stacks/file-all`, { method: "POST" });
+}
+
+export interface DriveSyncResult { synced: number; ingested: number; skipped: number; errors: string[] }
+
+export function syncDriveWorkspace(workspaceId: string): Promise<DriveSyncResult> {
+  return apiFetch(`/drive/workspaces/${workspaceId}/sync`, { method: "POST" });
+}

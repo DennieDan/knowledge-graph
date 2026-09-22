@@ -116,7 +116,6 @@ export default function StacksView({
   onToggleListMode,
   onOpenDetails,
   onAddItem,
-  onCreateStack,
 }: {
   stackTypes: StackType[];
   substacks: Substack[];
@@ -131,7 +130,6 @@ export default function StacksView({
   onToggleListMode: () => void;
   onOpenDetails: (ss: Substack) => void;
   onAddItem: (typeId: string) => void;
-  onCreateStack: () => void;
 }) {
   const activeType = selectedType
     ? stackTypes.find((t) => t.id === selectedType)
@@ -201,16 +199,12 @@ export default function StacksView({
           )}
         </div>
 
-        {activeType ? (
+        {activeType && (
           <button
             onClick={() => onAddItem(activeType.id)}
             className={styles.primaryBtn}
           >
             <Icon name="plus" /> Add to {activeType.name}
-          </button>
-        ) : (
-          <button onClick={onCreateStack} className={styles.primaryBtn}>
-            <Icon name="plus" /> Create stack
           </button>
         )}
       </div>
