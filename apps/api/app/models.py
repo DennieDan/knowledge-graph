@@ -261,3 +261,95 @@ class Chunk(Base):
     embedding: Mapped[Optional[list[float]]] = mapped_column(Vector(EMBEDDING_DIMENSIONS))
     embedding_model: Mapped[Optional[str]] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+STACK_TYPES = (
+    "sales-orders", "clients", "items", "invoices", "suppliers",
+    "supplier-orders", "production-jobs", "specifications",
+    "conversations", "pics", "meetings", "files",
+)
+
+
+class Substack(Base):
+    __tablename__ = "substacks"
+    __table_args__ = (
+        CheckConstraint("stack_type IN (" + ",".join(f"'{t}'" for t in STACK_TYPES) + ")", name="valid_stack_type"),
+        CheckConstraint("status IN ('proposed','confirmed')", name="valid_substack_status"),
+        CheckConstraint("created_by IN ('system','user')", name="valid_substack_created_by"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    stack_type: Mapped[str] = mapped_column(String(50))
+    name: Mapped[str] = mapped_column(Text)
+    summary: Mapped[Optional[str]] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(20), default="proposed")
+    owner_user_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    created_by: Mapped[str] = mapped_column(String(10), default="system")
+    created_by_user_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class SubstackSource(Base):
+    __tablename__ = "substack_sources"
+    __table_args__ = (
+        UniqueConstraint("substack_id", "document_id"),
+        CheckConstraint("role IN ('evidence','attachment')", name="valid_substack_source_role"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    substack_id: Mapped[UUID] = mapped_column(ForeignKey("substacks.id", ondelete="CASCADE"), index=True)
+    document_id: Mapped[UUID] = mapped_column(ForeignKey("documents.id", ondelete="CASCADE"), index=True)
+    role: Mapped[str] = mapped_column(String(20), default="evidence")
+
+
+class SubstackLink(Base):
+    __tablename__ = "substack_links"
+    __table_args__ = (UniqueConstraint("substack_id", "related_substack_id"),)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    substack_id: Mapped[UUID] = mapped_column(ForeignKey("substacks.id", ondelete="CASCADE"), index=True)
+    related_substack_id: Mapped[UUID] = mapped_column(ForeignKey("substacks.id", ondelete="CASCADE"), index=True)
+    reason: Mapped[Optional[str]] = mapped_column(Text)
+
+
+class SubstackContent(Base):
+    __tablename__ = "substack_contents"
+    __table_args__ = (
+        UniqueConstraint("substack_id", "revision"),
+        CheckConstraint("revision > 0", name="positive_content_revision"),
+        CheckConstraint("status IN ('proposed','confirmed','stale')", name="valid_content_status"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    substack_id: Mapped[UUID] = mapped_column(ForeignKey("substacks.id", ondelete="CASCADE"), index=True)
+    revision: Mapped[int] = mapped_column(Integer)
+    prompt_key: Mapped[str] = mapped_column(String(255))
+    prompt_version: Mapped[str] = mapped_column(String(50))
+    model: Mapped[str] = mapped_column(String(255))
+    content: Mapped[dict] = mapped_column(JSONB)
+    status: Mapped[str] = mapped_column(String(20), default="proposed")
+    inputs_fingerprint: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ContentCitation(Base):
+    __tablename__ = "content_citations"
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    content_id: Mapped[UUID] = mapped_column(ForeignKey("substack_contents.id", ondelete="CASCADE"), index=True)
+    segment_index: Mapped[int] = mapped_column(Integer)
+    chunk_id: Mapped[UUID] = mapped_column(ForeignKey("chunks.id", ondelete="CASCADE"))
+    document_id: Mapped[UUID] = mapped_column(ForeignKey("documents.id", ondelete="CASCADE"), index=True)
+    locator: Mapped[Optional[dict]] = mapped_column(JSONB)
+
+
+class GenerationRun(Base):
+    __tablename__ = "generation_runs"
+    __table_args__ = (CheckConstraint("status IN ('ok','error')", name="valid_generation_run_status"),)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    substack_id: Mapped[UUID] = mapped_column(ForeignKey("substacks.id", ondelete="CASCADE"), index=True)
+    prompt_key: Mapped[str] = mapped_column(String(255))
+    prompt_version: Mapped[str] = mapped_column(String(50))
+    model: Mapped[str] = mapped_column(String(255))
+    input_chunk_ids: Mapped[list] = mapped_column(JSONB, default=list)
+    output: Mapped[Optional[dict]] = mapped_column(JSONB)
+    status: Mapped[str] = mapped_column(String(10), default="ok")
+    error: Mapped[Optional[str]] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
