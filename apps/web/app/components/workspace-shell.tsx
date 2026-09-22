@@ -451,6 +451,7 @@ export default function WorkspaceShell() {
         <WhatsAppConnect
           onClose={() => setWaOpen(false)}
           onChanged={refreshMe}
+          accountId={activeAccount?.id}
         />
       )}
 

@@ -1,3 +1,4 @@
+import time
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -8,13 +9,17 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from . import waha_client
+from .accounts import membership_for
 from .auth import get_current_user
 from .config import get_settings
 from .database import get_engine, get_session
+from .ingest import ingest_document
 from .models import User, WhatsappChat, WhatsappConnection, WhatsappMessage
+from .sources import whatsapp_chat_document
 
 MESSAGES_PAGE_SIZE = 100
 CHATS_PAGE_SIZE = 100
+INGEST_DEBOUNCE_SECONDS = 30
 
 router = APIRouter(prefix="/whatsapp", tags=["whatsapp"])
 
@@ -25,6 +30,7 @@ class PairingRequest(BaseModel):
 
 class ImportRequest(BaseModel):
     chat_ids: list[str] = Field(min_length=1, max_length=50)
+    organization_id: UUID | None = None
 
 
 def get_connection(user: User, session: Session) -> WhatsappConnection | None:
@@ -112,6 +118,28 @@ def upsert_message(session: Session, chat: WhatsappChat, msg: dict) -> bool:
     return True
 
 
+def ingest_chat_transcript(session: Session, conn: WhatsappConnection, chat: WhatsappChat) -> None:
+    """Render the chat's messages into a transcript document owned by the importer."""
+    if chat.organization_id is None:
+        return
+    messages = session.scalars(select(WhatsappMessage).where(WhatsappMessage.chat_id == chat.id)).all()
+    ingest_document(session, chat.organization_id, whatsapp_chat_document(chat, messages, conn.user_id))
+
+
+def debounced_ingest(chat_id: UUID) -> None:
+    """Re-ingest a transcript once a webhook burst settles; pending_ingest coalesces messages."""
+    time.sleep(INGEST_DEBOUNCE_SECONDS)
+    with Session(get_engine()) as session:
+        chat = session.get(WhatsappChat, chat_id)
+        if chat is None or not chat.pending_ingest:
+            return
+        conn = session.get(WhatsappConnection, chat.connection_id)
+        chat.pending_ingest = False
+        if conn is not None and chat.import_status == "imported":
+            ingest_chat_transcript(session, conn, chat)
+        session.commit()
+
+
 def run_import(connection_id: UUID, chat_jids: list[str]) -> None:
     """Background import of full chat history; idempotent via wa_message_id."""
     with Session(get_engine()) as session:
@@ -140,6 +168,7 @@ def run_import(connection_id: UUID, chat_jids: list[str]) -> None:
                 chat.message_count = session.scalar(
                     select(func.count(WhatsappMessage.id)).where(WhatsappMessage.chat_id == chat.id)
                 ) or 0
+                ingest_chat_transcript(session, conn, chat)
             except httpx.HTTPError as exc:
                 chat.import_status = "failed"
                 chat.import_error = f"{type(exc).__name__}: {exc}"[:500]
@@ -256,6 +285,8 @@ def start_import(
     session: Session = Depends(get_session),
 ):
     conn = require_connection(user, session)
+    if body.organization_id is not None:
+        membership_for(body.organization_id, user, session)
     chats = session.scalars(
         select(WhatsappChat).where(
             WhatsappChat.connection_id == conn.id,
@@ -268,6 +299,8 @@ def start_import(
         raise HTTPException(status_code=404, detail=f"unknown_chats: {missing}")
     queued = []
     for chat in chats:
+        if body.organization_id is not None:
+            chat.organization_id = body.organization_id
         if chat.import_status != "importing":
             chat.import_status = "importing"
             chat.import_error = None
@@ -302,6 +335,7 @@ def import_status(user: User = Depends(get_current_user), session: Session = Dep
 @router.post("/webhooks")
 async def webhook(
     request: Request,
+    background_tasks: BackgroundTasks,
     x_webhook_token: str | None = Header(default=None),
     session: Session = Depends(get_session),
 ):
@@ -347,7 +381,11 @@ async def webhook(
                 sent_at = datetime.fromtimestamp(int(msg["timestamp"]), timezone.utc)
                 if chat.last_message_at is None or sent_at > chat.last_message_at:
                     chat.last_message_at = sent_at
+            schedule_ingest = not chat.pending_ingest and chat.organization_id is not None
+            chat.pending_ingest = schedule_ingest or chat.pending_ingest
             session.commit()
+            if schedule_ingest:
+                background_tasks.add_task(debounced_ingest, chat.id)
         return {"status": "ok"}
 
     return {"status": "ignored"}
