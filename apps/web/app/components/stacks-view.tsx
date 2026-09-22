@@ -84,8 +84,8 @@ function SubstackCard({
       {!listMode && <div className={styles.tileDesc}>{ss.desc}</div>}
       {!listMode && (
         <div className={styles.cardDocs}>
-          {ss.docs.map((d) => (
-            <div key={d} className={styles.cardDocRow}>
+          {ss.docs.map((d, i) => (
+            <div key={`${d}-${i}`} className={styles.cardDocRow}>
               <Icon name="file-text" />
               <span>{d}</span>
             </div>

@@ -118,7 +118,7 @@ export function toSubstack(row: ApiSubstack): Substack {
     role: row.review_state === "pending_update" ? "Update available" : row.review_state === "unsupported" ? "Needs review" : row.status === "confirmed" ? "Confirmed" : "Proposed",
     reviewState: row.review_state,
     updated: relativeTime(row.updated_at),
-    docs: row.docs,
+    docs: [...new Set(row.docs)],
     count: row.count,
   };
 }
