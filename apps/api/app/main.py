@@ -14,6 +14,7 @@ from .database import get_engine
 from .drive import router as drive_router
 from .drive_sync import router as drive_sync_router
 from .models import Base
+from .stacks import router as stacks_router
 from .whatsapp import router as whatsapp_router
 
 app = FastAPI(title="Knowledge Graph API")
@@ -39,6 +40,7 @@ app.include_router(accounts_router)
 app.include_router(drive_router)
 app.include_router(drive_sync_router)
 app.include_router(whatsapp_router)
+app.include_router(stacks_router)
 
 
 @app.get("/health")

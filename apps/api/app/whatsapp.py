@@ -13,7 +13,7 @@ from .accounts import membership_for
 from .auth import get_current_user
 from .config import get_settings
 from .database import get_engine, get_session
-from .ingest import ingest_document
+from .filing import ingest_and_file
 from .models import User, WhatsappChat, WhatsappConnection, WhatsappMessage
 from .sources import whatsapp_chat_document
 
@@ -123,7 +123,7 @@ def ingest_chat_transcript(session: Session, conn: WhatsappConnection, chat: Wha
     if chat.organization_id is None:
         return
     messages = session.scalars(select(WhatsappMessage).where(WhatsappMessage.chat_id == chat.id)).all()
-    ingest_document(session, chat.organization_id, whatsapp_chat_document(chat, messages, conn.user_id))
+    ingest_and_file(session, chat.organization_id, whatsapp_chat_document(chat, messages, conn.user_id))
 
 
 def debounced_ingest(chat_id: UUID) -> None:
