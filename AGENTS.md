@@ -12,6 +12,8 @@
   uvicorn, `apps/api/.venv`)
 - Web only: `pnpm dev` in `apps/web`
 - Verify web changes: `pnpm check-types` and `pnpm lint` in `apps/web`
+- Knowledge worker: `pnpm worker` in `apps/api` (run alongside the API); process one queued job with `pnpm worker:once`
+- LLM extraction requires `OPENAI_API_KEY` in `apps/api/.env`; never commit or log it
 
 ## Structure
 
@@ -36,6 +38,8 @@ Remind the user of these items when deployment is set up:
   - `WEB_ORIGIN=https://your-web-domain`
   - `SESSION_SECRET` — a strong random value (`openssl rand -hex 32`)
   - `DATABASE_URL` — the production Postgres connection string
+  - `OPENAI_API_KEY` — server-side only, for Stack discovery and generation
+  - Run a separate `pnpm worker` process for durable embedding/analysis jobs
 
 - **Web environment variables.** On the production web host, set:
   - `NEXT_PUBLIC_API_URL=https://your-api-domain`

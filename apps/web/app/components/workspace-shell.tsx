@@ -11,25 +11,41 @@ import WhatsAppConnect from "./whatsapp-connect";
 import DrivePicker from "./drive-picker";
 import AccountOnboarding from "./account-onboarding";
 import CompanyMembers from "./company-members";
-import { CreateStackModal, CreateSubstackModal } from "./stack-modals";
+import { CreateSubstackModal } from "./stack-modals";
 import {
-  INITIAL_SUBSTACKS,
   STACK_TYPES,
-  loadStacksState,
-  saveStacksState,
+  toSubstack,
+  toUiDetail,
   type Scope,
   type StackType,
   type Substack,
+  type UiSubstackDetail,
 } from "../lib/stacks";
-import { acceptInvitation, activateAccount, convertToCompany, getMe, loginUrl, logout, type Me } from "../lib/api";
+import {
+  acceptInvitation,
+  activateAccount,
+  confirmAllSubstacks,
+  confirmSubstackContent,
+  convertToCompany,
+  createSubstack,
+  getMe,
+  getSubstackDetail,
+  getSubstacks,
+  listAnalysis,
+  loginUrl,
+  logout,
+  retryAnalysis,
+  startAnalysis,
+  type AnalysisRun,
+  type Me,
+} from "../lib/api";
 import styles from "./workspace-shell.module.css";
 
 type NavId = "stacks" | "sources" | "search" | "maintenance";
 
 type ModalState =
   | null
-  | { kind: "createSubstack"; typeId: string }
-  | { kind: "createStack" };
+  | { kind: "createSubstack"; typeId: string };
 
 const NAV_ITEMS = [
   { icon: "search", label: "Search", id: "search" },
@@ -45,6 +61,12 @@ const FALLBACK_TYPE: StackType = {
   desc: "",
 };
 
+function analysisInProgress(run: AnalysisRun): boolean {
+  return ["queued", "embedding", "discovering", "generating"].includes(run.status)
+    || run.generation_queued > 0
+    || run.generation_running > 0;
+}
+
 function initials(me: Me): string {
   const name = me.display_name ?? me.email;
   return name
@@ -58,9 +80,9 @@ function initials(me: Me): string {
 export default function WorkspaceShell() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeNav, setActiveNav] = useState<NavId>("stacks");
-  const [stackTypes, setStackTypes] = useState<StackType[]>(STACK_TYPES);
-  const [substacks, setSubstacks] = useState<Substack[]>(INITIAL_SUBSTACKS);
-  const [hydrated, setHydrated] = useState(false);
+  const stackTypes = STACK_TYPES;
+  const [substacks, setSubstacks] = useState<Substack[]>([]);
+  const [details, setDetails] = useState<Record<string, UiSubstackDetail>>({});
   const [scope, setScope] = useState<Scope>("all");
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [selectedSubstackId, setSelectedSubstackId] = useState<string | null>(null);
@@ -76,6 +98,8 @@ export default function WorkspaceShell() {
   const [waOpen, setWaOpen] = useState(false);
   const [driveOpen, setDriveOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
+  const [analysisRuns, setAnalysisRuns] = useState<AnalysisRun[]>([]);
+  const [analysisBusy, setAnalysisBusy] = useState(false);
   const [inviteToken, setInviteToken] = useState<string | null>(null);
   const driveSetupPending = useRef(false);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -117,19 +141,45 @@ export default function WorkspaceShell() {
     }
   }, [me, refreshMe]);
 
-  // Restore locally persisted stacks after hydration.
-  useEffect(() => {
-    const stored = loadStacksState();
-    if (stored) {
-      setStackTypes(stored.stackTypes);
-      setSubstacks(stored.substacks);
-    }
-    setHydrated(true);
+  const activeAccount = me?.accounts.find((account) => account.id === me.active_account_id) ?? me?.accounts[0] ?? null;
+
+  const refreshSubstacks = useCallback(() => {
+    if (!activeAccount) return;
+    getSubstacks(activeAccount.id)
+      .then((rows) => setSubstacks(rows.map(toSubstack)))
+      .catch(() => setSubstacks([]));
+  }, [activeAccount]);
+
+  const ensureDetail = useCallback((id: string) => {
+    getSubstackDetail(id)
+      .then((row) => setDetails((prev) => ({ ...prev, [id]: toUiDetail(row) })))
+      .catch(() => undefined);
   }, []);
 
+  // Load substacks whenever the active account changes.
   useEffect(() => {
-    if (hydrated) saveStacksState({ stackTypes, substacks });
-  }, [stackTypes, substacks, hydrated]);
+    setSubstacks([]);
+    setDetails({});
+    setAnalysisRuns([]);
+    setSelectedSubstackId(null);
+    setSelectedType(null);
+    refreshSubstacks();
+    if (activeAccount) listAnalysis(activeAccount.id).then(setAnalysisRuns).catch(() => setAnalysisRuns([]));
+  }, [activeAccount, refreshSubstacks]);
+
+  useEffect(() => {
+    if (!activeAccount || !analysisRuns.some(analysisInProgress)) return;
+    const timer = window.setInterval(() => {
+      listAnalysis(activeAccount.id).then((runs) => {
+        setAnalysisRuns(runs);
+        if (!runs.some(analysisInProgress)) {
+          refreshSubstacks();
+          if (selectedSubstackId) ensureDetail(selectedSubstackId);
+        }
+      }).catch(() => undefined);
+    }, 2500);
+    return () => window.clearInterval(timer);
+  }, [activeAccount, analysisRuns, ensureDetail, refreshSubstacks, selectedSubstackId]);
 
   const closeModal = useCallback(() => setModal(null), []);
 
@@ -139,19 +189,59 @@ export default function WorkspaceShell() {
     noticeTimer.current = setTimeout(() => setNotice(""), 5000);
   };
 
-  const handleAddStack = (type: StackType) => {
-    setStackTypes((prev) => [...prev, type]);
-    showNotice(`"${type.name}" stack created.`);
-    setModal(null);
+  const handleAnalyze = () => {
+    if (!activeAccount || analysisBusy) return;
+    setAnalysisBusy(true);
+    startAnalysis(activeAccount.id)
+      .then((runs) => {
+        setAnalysisRuns(runs);
+        showNotice("Workspace analysis queued.");
+      })
+      .catch((reason) => showNotice(reason instanceof Error ? reason.message : "Analysis could not be started."))
+      .finally(() => setAnalysisBusy(false));
   };
 
-  const handleAddSubstack = (ss: Omit<Substack, "id">) => {
-    const newSS: Substack = { ...ss, id: "ss-" + Date.now() };
-    setSubstacks((prev) => [newSS, ...prev]);
-    showNotice(
-      `"${newSS.name}" added to ${stackTypes.find((t) => t.id === ss.typeId)?.name ?? ss.typeId}.`,
-    );
-    setModal(null);
+  const handleConfirmAll = () => {
+    if (!activeAccount || analysisBusy) return;
+    setAnalysisBusy(true);
+    confirmAllSubstacks(activeAccount.id)
+      .then(({ confirmed }) => {
+        refreshSubstacks();
+        if (selectedSubstackId) ensureDetail(selectedSubstackId);
+        showNotice(`Confirmed ${confirmed} proposed ${confirmed === 1 ? "record" : "records"}.`);
+      })
+      .catch((reason) => showNotice(reason instanceof Error ? reason.message : "Proposals could not be confirmed."))
+      .finally(() => setAnalysisBusy(false));
+  };
+
+  const handleRetryAnalysis = (runId: string) => {
+    setAnalysisBusy(true);
+    retryAnalysis(runId)
+      .then(({ run }) => setAnalysisRuns((runs) => [run, ...runs.filter((item) => item.id !== run.id)]))
+      .catch((reason) => showNotice(reason instanceof Error ? reason.message : "Analysis could not be retried."))
+      .finally(() => setAnalysisBusy(false));
+  };
+
+  const handleConfirmContent = (substackId: string, contentId: string) => {
+    confirmSubstackContent(substackId, contentId)
+      .then(() => {
+        refreshSubstacks();
+        ensureDetail(substackId);
+        showNotice("Proposed content confirmed.");
+      })
+      .catch((reason) => showNotice(reason instanceof Error ? reason.message : "Content could not be confirmed."));
+  };
+
+  const handleAddSubstack = (input: { name: string; desc: string }) => {
+    if (!activeAccount || modal?.kind !== "createSubstack") return;
+    const typeId = modal.typeId;
+    createSubstack(activeAccount.id, { stack_type: typeId, name: input.name, summary: input.desc })
+      .then((row) => {
+        setSubstacks((prev) => [toSubstack(row), ...prev]);
+        showNotice(`"${row.name}" added to ${stackTypes.find((t) => t.id === typeId)?.name ?? typeId}.`);
+        setModal(null);
+      })
+      .catch((reason) => showNotice(reason instanceof Error ? reason.message : "Substack could not be created."));
   };
 
   const openSubstack = (id: string) => {
@@ -161,6 +251,7 @@ export default function WorkspaceShell() {
     setSelectedType(target.typeId);
     setSelectedSubstackId(id);
     setSearchVal("");
+    ensureDetail(id);
     setRecentIds((current) => [id, ...current.filter((recentId) => recentId !== id)].slice(0, 5));
     setDetailHistory((current) => {
       const next = [...current.slice(0, historyIndex + 1), id];
@@ -178,13 +269,13 @@ export default function WorkspaceShell() {
     setHistoryIndex(nextIndex);
     setSelectedSubstackId(id);
     setSelectedType(target.typeId);
+    ensureDetail(id);
     setRecentIds((current) => [id, ...current.filter((recentId) => recentId !== id)].slice(0, 5));
   };
 
   if (!authLoaded) return null;
   if (!me || me.needs_account) return <AccountOnboarding me={me} inviteToken={inviteToken} onCreated={refreshMe} />;
 
-  const activeAccount = me.accounts.find((account) => account.id === me.active_account_id) ?? me.accounts[0] ?? null;
   const activeType = selectedType
     ? stackTypes.find((t) => t.id === selectedType)
     : null;
@@ -344,9 +435,24 @@ export default function WorkspaceShell() {
                   {activeType && (
                     <>
                       <Icon name="chevron-right" size={13} />
-                      <span className={styles.crumbActive}>
-                        {activeType.name}
-                      </span>
+                      {selectedSubstack ? (
+                        <>
+                          <button
+                            onClick={() => setSelectedSubstackId(null)}
+                            className={styles.crumbBtn}
+                          >
+                            {activeType.name}
+                          </button>
+                          <Icon name="chevron-right" size={13} />
+                          <span className={styles.crumbActive}>
+                            {selectedSubstack.name}
+                          </span>
+                        </>
+                      ) : (
+                        <span className={styles.crumbActive}>
+                          {activeType.name}
+                        </span>
+                      )}
                     </>
                   )}
                 </>
@@ -397,12 +503,15 @@ export default function WorkspaceShell() {
               <SubstackDetail
                 substack={selectedSubstack}
                 stackTypes={stackTypes}
-                substacks={substacks}
+                detail={selectedSubstack ? details[selectedSubstack.id] ?? null : null}
+                details={details}
                 canGoBack={historyIndex > 0}
                 canGoForward={historyIndex < detailHistory.length - 1}
                 onBack={() => moveThroughHistory(-1)}
                 onForward={() => moveThroughHistory(1)}
                 onOpen={openSubstack}
+                onEnsureDetail={ensureDetail}
+                onConfirmContent={(contentId) => handleConfirmContent(selectedSubstack.id, contentId)}
               />
             ) : (
               <StacksView
@@ -413,6 +522,11 @@ export default function WorkspaceShell() {
                 searchVal={searchVal}
                 listMode={listMode}
                 notice={notice}
+                analysisRuns={analysisRuns}
+                analysisBusy={analysisBusy}
+                onAnalyze={handleAnalyze}
+                onConfirmAll={handleConfirmAll}
+                onRetryAnalysis={handleRetryAnalysis}
                 onScopeChange={setScope}
                 onSelectType={(typeId) => {
                   setSelectedType(typeId);
@@ -422,7 +536,6 @@ export default function WorkspaceShell() {
                 onToggleListMode={() => setListMode((v) => !v)}
                 onOpenDetails={(ss) => openSubstack(ss.id)}
                 onAddItem={(typeId) => setModal({ kind: "createSubstack", typeId })}
-                onCreateStack={() => setModal({ kind: "createStack" })}
               />
             )}
           </div>
@@ -441,12 +554,6 @@ export default function WorkspaceShell() {
           />
         </Modal>
       )}
-      {modal?.kind === "createStack" && (
-        <Modal onClose={closeModal}>
-          <CreateStackModal onClose={closeModal} onSubmit={handleAddStack} />
-        </Modal>
-      )}
-
       {waOpen && (
         <WhatsAppConnect
           onClose={() => setWaOpen(false)}

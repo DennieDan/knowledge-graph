@@ -13,6 +13,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from .embedding_jobs import enqueue_version_embedding
 from .generation import mark_stale_for_document, run_generation
 from .ingest import SourceDocument, ingest_document
 from .models import Document, DocumentVersion, Substack, SubstackSource
@@ -75,6 +76,7 @@ def ingest_and_file(session: Session, organization_id: UUID, source_document: So
         file_document(session, document)
         for substack_id in mark_stale_for_document(session, document.id):
             stale = session.get(Substack, substack_id)
-            if stale is not None:
+            if stale is not None and stale.stack_type in ("files", "conversations"):
                 run_generation(session, stale)
+        enqueue_version_embedding(session, version, document)
     return version

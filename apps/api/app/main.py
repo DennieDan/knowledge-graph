@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
 
 from .accounts import router as accounts_router
+from .analysis_api import router as analysis_router
 from .auth import router as auth_router
 from .config import get_settings
 from .database import get_engine
@@ -37,6 +38,7 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(accounts_router)
+app.include_router(analysis_router)
 app.include_router(drive_router)
 app.include_router(drive_sync_router)
 app.include_router(whatsapp_router)

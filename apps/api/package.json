@@ -12,6 +12,8 @@
     "db:check": ".venv/bin/python -m alembic check",
     "db:ingest": ".venv/bin/python -m scripts.ingest",
     "db:reembed": ".venv/bin/python -m scripts.reembed",
+    "worker": ".venv/bin/python -m scripts.worker",
+    "worker:once": ".venv/bin/python -m scripts.worker --once",
     "test": ".venv/bin/python -m unittest discover -s tests -v"
   }
 }

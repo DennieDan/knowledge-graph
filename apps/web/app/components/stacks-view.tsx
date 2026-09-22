@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Icon from "./icons";
+import type { AnalysisRun } from "../lib/api";
 import styles from "./stacks.module.css";
 import {
   SCOPE_TABS,
@@ -9,6 +11,8 @@ import {
   type StackType,
   type Substack,
 } from "../lib/stacks";
+
+const ROLE_FILTERS = ["Proposed", "Confirmed", "Update available", "Needs review"];
 
 function TypeTile({
   type,
@@ -83,8 +87,8 @@ function SubstackCard({
       {!listMode && <div className={styles.tileDesc}>{ss.desc}</div>}
       {!listMode && (
         <div className={styles.cardDocs}>
-          {ss.docs.map((d) => (
-            <div key={d} className={styles.cardDocRow}>
+          {ss.docs.map((d, i) => (
+            <div key={`${d}-${i}`} className={styles.cardDocRow}>
               <Icon name="file-text" />
               <span>{d}</span>
             </div>
@@ -110,13 +114,17 @@ export default function StacksView({
   searchVal,
   listMode,
   notice,
+  analysisRuns,
+  analysisBusy,
+  onAnalyze,
+  onConfirmAll,
+  onRetryAnalysis,
   onScopeChange,
   onSelectType,
   onSearchChange,
   onToggleListMode,
   onOpenDetails,
   onAddItem,
-  onCreateStack,
 }: {
   stackTypes: StackType[];
   substacks: Substack[];
@@ -125,22 +133,47 @@ export default function StacksView({
   searchVal: string;
   listMode: boolean;
   notice: string;
+  analysisRuns: AnalysisRun[];
+  analysisBusy: boolean;
+  onAnalyze: () => void;
+  onConfirmAll: () => void;
+  onRetryAnalysis: (runId: string) => void;
   onScopeChange: (scope: Scope) => void;
   onSelectType: (typeId: string | null) => void;
   onSearchChange: (value: string) => void;
   onToggleListMode: () => void;
   onOpenDetails: (ss: Substack) => void;
   onAddItem: (typeId: string) => void;
-  onCreateStack: () => void;
 }) {
   const activeType = selectedType
     ? stackTypes.find((t) => t.id === selectedType)
     : null;
+  const activeRun = analysisRuns.find((run) =>
+    ["queued", "embedding", "discovering", "generating"].includes(run.status)
+    || run.generation_queued > 0
+    || run.generation_running > 0,
+  );
+  const failedRun = analysisRuns.find((run) => (run.status === "failed" || run.status === "partial") && run.generation_queued === 0 && run.generation_running === 0);
+  const generationPercent = activeRun?.generation_total
+    ? Math.round(((activeRun.generation_completed + activeRun.generation_failed) / activeRun.generation_total) * 100)
+    : 0;
+  const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
+
+  useEffect(() => setStatusFilter(new Set()), [selectedType]);
+
+  const toggleStatus = (role: string) =>
+    setStatusFilter((current) => {
+      const next = new Set(current);
+      if (next.has(role)) next.delete(role);
+      else next.add(role);
+      return next;
+    });
 
   const filteredSubstacks = substacks.filter(
     (ss) =>
       (selectedType ? ss.typeId === selectedType : true) &&
       inScope(ss, scope) &&
+      (statusFilter.size === 0 || statusFilter.has(ss.role)) &&
       (ss.name + " " + ss.desc)
         .toLowerCase()
         .includes(searchVal.toLowerCase()),
@@ -209,11 +242,43 @@ export default function StacksView({
             <Icon name="plus" /> Add to {activeType.name}
           </button>
         ) : (
-          <button onClick={onCreateStack} className={styles.primaryBtn}>
-            <Icon name="plus" /> Create stack
-          </button>
+          <div className={styles.heroActions}>
+            <button onClick={onConfirmAll} disabled={analysisBusy} className={styles.ghostBtn}>
+              <Icon name="check" /> Confirm all
+            </button>
+            <button onClick={onAnalyze} disabled={analysisBusy || Boolean(activeRun)} className={styles.primaryBtn}>
+              <Icon name="activity" /> {activeRun ? "Analyzing…" : "Analyze workspace"}
+            </button>
+          </div>
         )}
       </div>
+
+      {!activeType && activeRun && (
+        <div className={styles.analysisStatus} role="status" aria-live="polite">
+          <div className={styles.analysisSummary}>
+            <strong>{activeRun.generation_total > 0 ? "Generating LLM reports" : activeRun.status === "queued" ? "Analysis queued" : `${activeRun.status[0]!.toUpperCase()}${activeRun.status.slice(1)} knowledge`}</strong>
+            <span>{activeRun.documents_processed}/{activeRun.documents_total} documents analyzed · {activeRun.chunks_embedded} chunks embedded · {activeRun.candidates_found} records found</span>
+          </div>
+          {activeRun.generation_total > 0 && (
+            <div className={styles.generationProgress}>
+              <div className={styles.progressLabels}>
+                <span>LLM content</span>
+                <strong>{activeRun.generation_completed}/{activeRun.generation_total} generated</strong>
+              </div>
+              <div className={styles.progressTrack} role="progressbar" aria-label="LLM content generation" aria-valuemin={0} aria-valuemax={activeRun.generation_total} aria-valuenow={activeRun.generation_completed + activeRun.generation_failed}>
+                <span style={{ width: `${generationPercent}%` }} />
+              </div>
+              <span>{activeRun.generation_running > 0 ? `${activeRun.generation_running} generating · ` : ""}{activeRun.generation_queued} queued{activeRun.generation_failed > 0 ? ` · ${activeRun.generation_failed} failed` : ""}</span>
+            </div>
+          )}
+        </div>
+      )}
+      {!activeType && !activeRun && failedRun && (
+        <div className={styles.analysisStatus} role="status">
+          <span>Analysis needs attention. {failedRun.failures} job{failedRun.failures === 1 ? "" : "s"} failed.</span>
+          <button onClick={() => onRetryAnalysis(failedRun.id)} disabled={analysisBusy}>Retry</button>
+        </div>
+      )}
 
       {/* Tabs */}
       <div role="tablist" aria-label="Scope filter" className={styles.tabs}>
@@ -257,6 +322,23 @@ export default function StacksView({
           </button>
         )}
       </div>
+
+      {/* Status filter (multi-select) */}
+      {activeType && (
+        <div className={styles.filterRow} role="group" aria-label="Filter by status">
+          {ROLE_FILTERS.map((role) => (
+            <button
+              key={role}
+              type="button"
+              aria-pressed={statusFilter.has(role)}
+              onClick={() => toggleStatus(role)}
+              className={`${styles.filterChip} ${statusFilter.has(role) ? styles.filterChipActive : ""}`}
+            >
+              {role}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Level 1: stack type tiles */}
       {!activeType &&

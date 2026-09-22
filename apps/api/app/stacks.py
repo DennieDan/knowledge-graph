@@ -17,6 +17,7 @@ from .database import get_session
 from .filing import file_document, substack_for_document
 from .models import (
     STACK_TYPES,
+    ContentCitation,
     Document,
     DocumentVersion,
     DriveWorkspace,
@@ -74,10 +75,12 @@ def _source_json(session: Session, source: SubstackSource, current_substack_id: 
     )
     filed = substack_for_document(session, document)
     return {
-        "id": str(source.id),
+        # The document id is the source id: token source_ids reference it directly.
+        "id": str(document.id),
         "document_id": str(document.id),
         "substack_id": str(filed.id) if filed is not None and filed.id != current_substack_id else None,
         "name": document.title,
+        "type": "Conversations" if document.source == "whatsapp" else "Files",
         "origin": origin,
         "updated": (latest or document.created_at).isoformat() if (latest or document.created_at) else None,
         "role": source.role,
@@ -95,6 +98,7 @@ def _substack_json(session: Session, substack: Substack, user: User) -> dict:
         "desc": substack.summary,
         "scope": "mine" if substack.owner_user_id == user.id else "workspace",
         "status": substack.status,
+        "review_state": substack.review_state,
         "updated_at": substack.updated_at.isoformat() if substack.updated_at else None,
         "count": len(sources),
         "docs": [_source_json(session, s, substack.id)["name"] for s in sources],
@@ -136,6 +140,47 @@ def list_substacks(
     return [_substack_json(session, substack, user) for substack in substacks]
 
 
+def _content_payload(session: Session, content: SubstackContent | None) -> dict:
+    payload = dict(content.content) if content else {"segments": [], "entries": []}
+    if content is None:
+        return payload
+    segment_documents: dict[int, set[str]] = {}
+    for segment_index, document_id in session.execute(
+        select(ContentCitation.segment_index, ContentCitation.document_id)
+        .where(ContentCitation.content_id == content.id)
+    ).all():
+        segment_documents.setdefault(segment_index, set()).add(str(document_id))
+    offset = len(payload.get("segments", []))
+    for index, item in enumerate(payload.get("segments", [])):
+        item["source_ids"] = sorted(segment_documents.get(index, set()))
+    for index, item in enumerate(payload.get("entries", [])):
+        item["source_ids"] = sorted(segment_documents.get(offset + index, set()))
+    payload["id"] = str(content.id)
+    payload["revision"] = content.revision
+    payload["status"] = content.status
+    return payload
+
+
+def _content_pair(session: Session, substack_id: UUID) -> tuple[SubstackContent | None, SubstackContent | None]:
+    confirmed = session.scalar(
+        select(SubstackContent)
+        .where(SubstackContent.substack_id == substack_id, SubstackContent.status == "confirmed")
+        .order_by(SubstackContent.revision.desc())
+        .limit(1)
+    )
+    proposed = session.scalar(
+        select(SubstackContent)
+        .where(SubstackContent.substack_id == substack_id, SubstackContent.status == "proposed")
+        .order_by(SubstackContent.revision.desc())
+        .limit(1)
+    )
+    if confirmed is None:
+        return proposed, None
+    if proposed is not None and proposed.revision > confirmed.revision:
+        return confirmed, proposed
+    return confirmed, None
+
+
 @router.get("/substacks/{substack_id}")
 def substack_detail(
     substack_id: UUID,
@@ -143,15 +188,18 @@ def substack_detail(
     session: Session = Depends(get_session),
 ):
     substack = _get_substack(substack_id, user, session)
-    content = session.scalar(
-        select(SubstackContent)
-        .where(SubstackContent.substack_id == substack.id)
-        .order_by(SubstackContent.revision.desc())
-        .limit(1)
-    )
+    content, pending = _content_pair(session, substack.id)
     sources = session.scalars(
         select(SubstackSource).where(SubstackSource.substack_id == substack.id)
     ).all()
+
+    # Attach the cited document ids to each segment/entry so the UI can filter
+    # the Sources panel on token hover. Entries are indexed after segments.
+    content_payload = _content_payload(session, content)
+
+    # Related = explicit links both ways, plus substacks whose generated
+    # content cites this substack's evidence documents (e.g. a Files record
+    # sees every record built on its file).
     related_ids = {
         row[0]
         for row in session.execute(
@@ -161,6 +209,16 @@ def substack_detail(
             )
         ).all()
     }
+    document_ids = [source.document_id for source in sources]
+    if document_ids:
+        citing = session.scalars(
+            select(Substack.id)
+            .join(SubstackContent, SubstackContent.substack_id == Substack.id)
+            .join(ContentCitation, ContentCitation.content_id == SubstackContent.id)
+            .where(ContentCitation.document_id.in_(document_ids), Substack.id != substack.id)
+            .distinct()
+        ).all()
+        related_ids.update(citing)
     related = [
         {"id": str(other.id), "type_id": other.stack_type, "name": other.name}
         for other in session.scalars(
@@ -169,8 +227,9 @@ def substack_detail(
     ] if related_ids else []
     detail = _substack_json(session, substack, user)
     detail.update({
-        "content": content.content if content else {"segments": [], "entries": []},
+        "content": content_payload,
         "content_status": content.status if content else None,
+        "pending_content": _content_payload(session, pending) if pending else None,
         "sources": [_source_json(session, s, substack.id) for s in sources],
         "related": related,
     })
@@ -217,6 +276,44 @@ def update_substack(
     return _substack_json(session, substack, user)
 
 
+def _confirm_content(session: Session, substack: Substack, content: SubstackContent) -> None:
+    latest_proposed = session.scalar(
+        select(SubstackContent)
+        .where(SubstackContent.substack_id == substack.id, SubstackContent.status == "proposed")
+        .order_by(SubstackContent.revision.desc())
+        .limit(1)
+    )
+    if content.status != "proposed" or latest_proposed is None or latest_proposed.id != content.id:
+        raise HTTPException(status_code=409, detail="content_not_current_proposal")
+    confirmed = session.scalars(
+        select(SubstackContent).where(
+            SubstackContent.substack_id == substack.id,
+            SubstackContent.status == "confirmed",
+        )
+    ).all()
+    for previous in confirmed:
+        previous.status = "superseded"
+    content.status = "confirmed"
+    substack.status = "confirmed"
+    substack.review_state = "clean"
+
+
+@router.post("/substacks/{substack_id}/contents/{content_id}/confirm")
+def confirm_content(
+    substack_id: UUID,
+    content_id: UUID,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    substack = _get_substack(substack_id, user, session)
+    content = session.get(SubstackContent, content_id)
+    if content is None or content.substack_id != substack.id:
+        raise HTTPException(status_code=404, detail="content_not_found")
+    _confirm_content(session, substack, content)
+    session.commit()
+    return _substack_json(session, substack, user)
+
+
 @router.post("/substacks/{substack_id}/confirm")
 def confirm_substack(
     substack_id: UUID,
@@ -224,17 +321,50 @@ def confirm_substack(
     session: Session = Depends(get_session),
 ):
     substack = _get_substack(substack_id, user, session)
-    substack.status = "confirmed"
-    latest = session.scalar(
+    proposed = session.scalar(
         select(SubstackContent)
-        .where(SubstackContent.substack_id == substack.id)
+        .where(SubstackContent.substack_id == substack.id, SubstackContent.status == "proposed")
         .order_by(SubstackContent.revision.desc())
         .limit(1)
     )
-    if latest is not None and latest.status == "proposed":
-        latest.status = "confirmed"
+    if proposed is not None:
+        _confirm_content(session, substack, proposed)
+    else:
+        substack.status = "confirmed"
+        substack.review_state = "clean"
     session.commit()
     return _substack_json(session, substack, user)
+
+
+@router.post("/accounts/{organization_id}/substacks/confirm-all")
+def confirm_all(
+    organization_id: UUID,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Dev helper: confirm every substack's latest proposed content."""
+    membership_for(organization_id, user, session)
+    substacks = session.scalars(
+        select(Substack).where(Substack.organization_id == organization_id)
+    ).all()
+    confirmed_count = 0
+    for substack in substacks:
+        proposed = session.scalar(
+            select(SubstackContent)
+            .where(SubstackContent.substack_id == substack.id, SubstackContent.status == "proposed")
+            .order_by(SubstackContent.revision.desc())
+            .limit(1)
+        )
+        if proposed is not None:
+            _confirm_content(session, substack, proposed)
+            confirmed_count += 1
+        elif substack.status != "confirmed" or substack.review_state in ("pending", "pending_update"):
+            substack.status = "confirmed"
+            if substack.review_state in ("pending", "pending_update"):
+                substack.review_state = "clean"
+            confirmed_count += 1
+    session.commit()
+    return {"confirmed": confirmed_count}
 
 
 @router.post("/accounts/{organization_id}/stacks/file-all")

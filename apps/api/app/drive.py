@@ -103,6 +103,25 @@ def fetch_file_metadata(access_token: str, file_id: str) -> dict:
     )
 
 
+def _decode_file_text(content: bytes, charset: str | None) -> str:
+    if content.startswith((b"\xff\xfe", b"\xfe\xff")):
+        return content.decode("utf-16")
+    sample = content[:4096]
+    # UTF-16 text has a NUL every other byte; plain text almost never has NULs.
+    if len(sample) > 16 and sample.count(b"\x00") > len(sample) // 8:
+        odd_nuls = sum(1 for i in range(1, len(sample), 2) if sample[i] == 0)
+        even_nuls = sum(1 for i in range(0, len(sample), 2) if sample[i] == 0)
+        encoding = "utf-16-le" if odd_nuls >= even_nuls else "utf-16-be"
+        try:
+            return content.decode(encoding)
+        except UnicodeDecodeError:
+            pass
+    try:
+        return content.decode(charset or "utf-8")
+    except (UnicodeDecodeError, LookupError):
+        return content.decode("utf-8", errors="replace")
+
+
 def fetch_file_text(access_token: str, file: dict) -> str:
     mime_type = file.get("mimeType", "")
     export_as = EXPORTABLE_MIME_TYPES.get(mime_type)
@@ -121,7 +140,7 @@ def fetch_file_text(access_token: str, file: dict) -> str:
         raise HTTPException(status_code=502, detail="drive_request_failed") from exc
     if response.status_code >= 400:
         raise HTTPException(status_code=502, detail="drive_request_failed")
-    return response.text
+    return _decode_file_text(response.content, response.charset_encoding)
 
 
 def list_pages(url: str, params: dict, access_token: str, key: str) -> list[dict]:
