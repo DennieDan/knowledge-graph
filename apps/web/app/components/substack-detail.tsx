@@ -16,6 +16,7 @@ interface Props {
   onForward: () => void;
   onOpen: (id: string) => void;
   onEnsureDetail: (id: string) => void;
+  onConfirmContent: (contentId: string) => void;
 }
 
 function HighlightedToken({ children, sourceIds, onHover }: { children: React.ReactNode; sourceIds: string[]; onHover: (ids: string[] | null) => void }) {
@@ -23,8 +24,9 @@ function HighlightedToken({ children, sourceIds, onHover }: { children: React.Re
   return <mark className={styles.highlightedToken} onMouseEnter={() => onHover(sourceIds)} onMouseLeave={() => onHover(null)}>{children}</mark>;
 }
 
-export default function SubstackDetail({ substack, stackTypes, detail, details, canGoBack, canGoForward, onBack, onForward, onOpen, onEnsureDetail }: Props) {
+export default function SubstackDetail({ substack, stackTypes, detail, details, canGoBack, canGoForward, onBack, onForward, onOpen, onEnsureDetail, onConfirmContent }: Props) {
   const [query, setQuery] = useState("");
+  const [showPending, setShowPending] = useState(false);
   const [hoveredSourceIds, setHoveredSourceIds] = useState<string[] | null>(null);
   const [relatedPreviewId, setRelatedPreviewId] = useState<string | null>(null);
   const [relatedOpen, setRelatedOpen] = useState(true);
@@ -35,14 +37,15 @@ export default function SubstackDetail({ substack, stackTypes, detail, details, 
   const previewSources = relatedPreviewId && details[relatedPreviewId] ? details[relatedPreviewId].sources : sources;
   const visibleSources = hoveredSourceIds ? previewSources.filter((source) => hoveredSourceIds.includes(source.id)) : previewSources;
   const related = detail?.related ?? [];
+  const displayed = showPending && detail?.pending ? detail.pending : detail;
 
   const matchingSegments = useMemo(
-    () => (detail?.segments ?? []).filter((segment) => `${segment.name ?? ""} ${segment.value}`.toLowerCase().includes(query.toLowerCase())),
-    [detail?.segments, query],
+    () => (displayed?.segments ?? []).filter((segment) => `${segment.name ?? ""} ${segment.value}`.toLowerCase().includes(query.toLowerCase())),
+    [displayed?.segments, query],
   );
   const topics = useMemo(
-    () => (detail?.conversation ?? []).filter((entry) => `${entry.date} ${entry.author} ${entry.message}`.toLowerCase().includes(query.toLowerCase())),
-    [detail?.conversation, query],
+    () => (displayed?.conversation ?? []).filter((entry) => `${entry.date} ${entry.author} ${entry.message}`.toLowerCase().includes(query.toLowerCase())),
+    [displayed?.conversation, query],
   );
 
   return (
@@ -56,6 +59,25 @@ export default function SubstackDetail({ substack, stackTypes, detail, details, 
           <h1>{substack.name}</h1><span>{type?.name ?? "Stack"}</span>
           <button className={styles.panelToggle} onClick={() => setPanelOpen((open) => !open)} aria-label={panelOpen ? "Close side panel" : "Open side panel"} aria-expanded={panelOpen}><Icon name="panel-right" size={18} /></button>
         </header>
+
+        {substack.reviewState === "unsupported" && (
+          <div className={styles.reviewBanner} role="status">
+            <span>This record no longer has enough current supporting evidence. Its last confirmed content remains available.</span>
+          </div>
+        )}
+        {detail?.pending && (
+          <div className={styles.reviewBanner} role="status">
+            <span>{showPending ? "Reviewing proposed update" : "A proposed update is ready for review"}</span>
+            <button onClick={() => setShowPending((value) => !value)}>{showPending ? "View current" : "Review update"}</button>
+            {showPending && detail.pending.id && <button className={styles.confirmButton} onClick={() => onConfirmContent(detail.pending!.id)}>Confirm update</button>}
+          </div>
+        )}
+        {!detail?.pending && detail?.status === "proposed" && detail.id && (
+          <div className={styles.reviewBanner} role="status">
+            <span>This AI-generated content is proposed and has not been confirmed.</span>
+            <button className={styles.confirmButton} onClick={() => onConfirmContent(detail.id)}>Confirm content</button>
+          </div>
+        )}
 
         <div className={styles.toolbar}>
           {isConversation && <span className={styles.sortLabel}>Most recent first</span>}
@@ -91,7 +113,7 @@ export default function SubstackDetail({ substack, stackTypes, detail, details, 
                 </p>
               </section>
             ) : (
-              <p className={styles.empty}>{detail.segments.length === 0 ? "No generated content yet." : "No matching content."}</p>
+              <p className={styles.empty}>{(displayed?.segments.length ?? 0) === 0 ? "No generated content yet." : "No matching content."}</p>
             )}
           </div>
         )}

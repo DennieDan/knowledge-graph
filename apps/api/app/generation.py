@@ -181,6 +181,10 @@ def mark_stale_for_document(session: Session, document_id: UUID) -> list[UUID]:
     ).all()
     substacks: dict[UUID, None] = {}
     for content in contents:
-        content.status = "stale"
+        substack = session.get(Substack, content.substack_id)
+        if substack is not None and substack.stack_type in ("sales-orders", "clients", "items"):
+            substack.review_state = "pending_update" if substack.status == "confirmed" else "pending"
+        else:
+            content.status = "stale"
         substacks[content.substack_id] = None
     return list(substacks)

@@ -270,12 +270,66 @@ STACK_TYPES = (
 )
 
 
+class AnalysisRun(Base):
+    __tablename__ = "analysis_runs"
+    __table_args__ = (
+        CheckConstraint("trigger IN ('ingest','manual','retry','backfill')", name="valid_analysis_trigger"),
+        CheckConstraint("status IN ('queued','embedding','discovering','generating','completed','partial','failed')", name="valid_analysis_status"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    owner_user_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    trigger: Mapped[str] = mapped_column(String(20), default="ingest")
+    status: Mapped[str] = mapped_column(String(20), default="queued")
+    documents_total: Mapped[int] = mapped_column(Integer, default=0)
+    documents_processed: Mapped[int] = mapped_column(Integer, default=0)
+    chunks_embedded: Mapped[int] = mapped_column(Integer, default=0)
+    candidates_found: Mapped[int] = mapped_column(Integer, default=0)
+    substacks_created: Mapped[int] = mapped_column(Integer, default=0)
+    substacks_updated: Mapped[int] = mapped_column(Integer, default=0)
+    failures: Mapped[int] = mapped_column(Integer, default=0)
+    error_summary: Mapped[Optional[str]] = mapped_column(Text)
+    input_fingerprint: Mapped[Optional[str]] = mapped_column(String(64))
+    config_version: Mapped[str] = mapped_column(String(50), default="core-v1")
+    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class KnowledgeJob(Base):
+    __tablename__ = "knowledge_jobs"
+    __table_args__ = (
+        CheckConstraint("kind IN ('embed_version','discover_document','generate_substack','reconcile_scope')", name="valid_knowledge_job_kind"),
+        CheckConstraint("status IN ('queued','running','succeeded','failed','cancelled')", name="valid_knowledge_job_status"),
+        Index("ix_knowledge_jobs_available", "status", "available_at"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    analysis_run_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("analysis_runs.id", ondelete="CASCADE"), index=True)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    owner_user_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(30))
+    payload: Mapped[dict] = mapped_column(JSONB, default=dict)
+    dedupe_key: Mapped[str] = mapped_column(String(255), unique=True)
+    status: Mapped[str] = mapped_column(String(20), default="queued")
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    max_attempts: Mapped[int] = mapped_column(Integer, default=4)
+    available_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    locked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    locked_by: Mapped[Optional[str]] = mapped_column(String(255))
+    last_error: Mapped[Optional[str]] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
 class Substack(Base):
     __tablename__ = "substacks"
     __table_args__ = (
         CheckConstraint("stack_type IN (" + ",".join(f"'{t}'" for t in STACK_TYPES) + ")", name="valid_stack_type"),
         CheckConstraint("status IN ('proposed','confirmed')", name="valid_substack_status"),
+        CheckConstraint("review_state IN ('clean','pending','pending_update','unsupported','generation_error')", name="valid_substack_review_state"),
         CheckConstraint("created_by IN ('system','user')", name="valid_substack_created_by"),
+        Index("uq_shared_substack_identity", "organization_id", "stack_type", "identity_key", unique=True, postgresql_where=text("owner_user_id IS NULL AND identity_key IS NOT NULL")),
+        Index("uq_private_substack_identity", "organization_id", "owner_user_id", "stack_type", "identity_key", unique=True, postgresql_where=text("owner_user_id IS NOT NULL AND identity_key IS NOT NULL")),
     )
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
@@ -283,7 +337,11 @@ class Substack(Base):
     name: Mapped[str] = mapped_column(Text)
     summary: Mapped[Optional[str]] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(20), default="proposed")
+    review_state: Mapped[str] = mapped_column(String(30), default="clean")
+    identity_key: Mapped[Optional[str]] = mapped_column(Text)
+    identity_kind: Mapped[Optional[str]] = mapped_column(String(50))
     owner_user_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    last_analysis_run_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("analysis_runs.id", ondelete="SET NULL"), index=True)
     created_by: Mapped[str] = mapped_column(String(10), default="system")
     created_by_user_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -302,6 +360,32 @@ class SubstackSource(Base):
     role: Mapped[str] = mapped_column(String(20), default="evidence")
 
 
+class EntityMention(Base):
+    __tablename__ = "entity_mentions"
+    __table_args__ = (
+        CheckConstraint("entity_type IN ('sales-orders','clients','items')", name="valid_entity_mention_type"),
+        CheckConstraint("status IN ('current','superseded')", name="valid_entity_mention_status"),
+        UniqueConstraint("document_version_id", "candidate_key"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    owner_user_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    document_id: Mapped[UUID] = mapped_column(ForeignKey("documents.id", ondelete="CASCADE"), index=True)
+    document_version_id: Mapped[UUID] = mapped_column(ForeignKey("document_versions.id", ondelete="CASCADE"), index=True)
+    entity_type: Mapped[str] = mapped_column(String(50))
+    identity_key: Mapped[Optional[str]] = mapped_column(Text)
+    identity_kind: Mapped[Optional[str]] = mapped_column(String(50))
+    candidate_key: Mapped[str] = mapped_column(String(64))
+    data: Mapped[dict] = mapped_column(JSONB)
+    cited_chunk_ids: Mapped[list] = mapped_column(JSONB, default=list)
+    substack_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("substacks.id", ondelete="SET NULL"), index=True)
+    prompt_key: Mapped[str] = mapped_column(String(255))
+    prompt_version: Mapped[str] = mapped_column(String(50))
+    model: Mapped[str] = mapped_column(String(255))
+    status: Mapped[str] = mapped_column(String(20), default="current")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class SubstackLink(Base):
     __tablename__ = "substack_links"
     __table_args__ = (UniqueConstraint("substack_id", "related_substack_id"),)
@@ -316,7 +400,7 @@ class SubstackContent(Base):
     __table_args__ = (
         UniqueConstraint("substack_id", "revision"),
         CheckConstraint("revision > 0", name="positive_content_revision"),
-        CheckConstraint("status IN ('proposed','confirmed','stale')", name="valid_content_status"),
+        CheckConstraint("status IN ('proposed','confirmed','superseded','stale','unsupported')", name="valid_content_status"),
     )
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     substack_id: Mapped[UUID] = mapped_column(ForeignKey("substacks.id", ondelete="CASCADE"), index=True)
@@ -349,6 +433,11 @@ class GenerationRun(Base):
     prompt_version: Mapped[str] = mapped_column(String(50))
     model: Mapped[str] = mapped_column(String(255))
     input_chunk_ids: Mapped[list] = mapped_column(JSONB, default=list)
+    input_fingerprint: Mapped[Optional[str]] = mapped_column(String(64))
+    retrieval_version: Mapped[Optional[str]] = mapped_column(String(50))
+    provider_request_id: Mapped[Optional[str]] = mapped_column(String(255))
+    input_tokens: Mapped[Optional[int]] = mapped_column(Integer)
+    output_tokens: Mapped[Optional[int]] = mapped_column(Integer)
     output: Mapped[Optional[dict]] = mapped_column(JSONB)
     status: Mapped[str] = mapped_column(String(10), default="ok")
     error: Mapped[Optional[str]] = mapped_column(Text)

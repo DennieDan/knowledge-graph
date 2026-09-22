@@ -208,6 +208,7 @@ export interface ApiSubstack {
   desc: string | null;
   scope: "mine" | "workspace";
   status: string;
+  review_state: "clean" | "pending" | "pending_update" | "unsupported" | "generation_error";
   updated_at: string | null;
   count: number;
   docs: string[];
@@ -243,9 +244,18 @@ export interface ApiSubstackSource {
   role: string;
 }
 
+export interface ApiSubstackContent {
+  id?: string;
+  revision?: number;
+  status?: string;
+  segments: ApiSegment[];
+  entries: ApiConversationEntry[];
+}
+
 export interface ApiSubstackDetail extends ApiSubstack {
-  content: { segments: ApiSegment[]; entries: ApiConversationEntry[] };
+  content: ApiSubstackContent;
   content_status: string | null;
+  pending_content: ApiSubstackContent | null;
   sources: ApiSubstackSource[];
   related: { id: string; type_id: string; name: string }[];
 }
@@ -276,6 +286,37 @@ export function updateSubstack(id: string, patch: { name?: string; summary?: str
 
 export function confirmSubstack(id: string): Promise<ApiSubstack> {
   return apiFetch(`/substacks/${id}/confirm`, { method: "POST" });
+}
+
+export function confirmSubstackContent(id: string, contentId: string): Promise<ApiSubstack> {
+  return apiFetch(`/substacks/${id}/contents/${contentId}/confirm`, { method: "POST" });
+}
+
+export interface AnalysisRun {
+  id: string;
+  scope: "mine" | "workspace";
+  trigger: string;
+  status: "queued" | "embedding" | "discovering" | "generating" | "completed" | "partial" | "failed";
+  documents_total: number;
+  documents_processed: number;
+  chunks_embedded: number;
+  candidates_found: number;
+  substacks_created: number;
+  substacks_updated: number;
+  failures: number;
+  error: string | null;
+}
+
+export function startAnalysis(accountId: string): Promise<AnalysisRun[]> {
+  return apiFetch(`/accounts/${accountId}/analysis`, { method: "POST" });
+}
+
+export function listAnalysis(accountId: string): Promise<AnalysisRun[]> {
+  return apiFetch(`/accounts/${accountId}/analysis`);
+}
+
+export function retryAnalysis(runId: string): Promise<{ queued: number; run: AnalysisRun }> {
+  return apiFetch(`/analysis/${runId}/retry`, { method: "POST" });
 }
 
 export function fileAllSubstacks(accountId: string): Promise<{ filed: number }> {

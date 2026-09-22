@@ -36,6 +36,36 @@
   text-decoration: none;
 }
 
+.primaryBtn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.analysisStatus {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: -8px 0 20px;
+  padding: 12px 14px;
+  border: 1px solid var(--cp-border);
+  border-radius: 8px;
+  background: var(--md-sys-color-surface-container-low);
+  font-size: 12px;
+}
+
+.analysisStatus span {
+  color: var(--cp-muted);
+}
+
+.analysisStatus button {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: var(--md-sys-color-primary);
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .ghostBtn {
   border: 0;
   background: transparent;

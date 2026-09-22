@@ -9,6 +9,10 @@
 .historyButtons button:hover:not(:disabled), .panelToggle:hover, .sourcesHeader button:hover { background: var(--cp-hover); }
 .historyButtons button:disabled { opacity: .25; cursor: default; }
 .panelToggle { margin-left: auto; color: var(--cp-muted); }
+.reviewBanner { display: flex; align-items: center; gap: 10px; margin-top: 16px; padding: 11px 13px; border: 1px solid var(--cp-border); border-radius: 8px; background: var(--md-sys-color-surface-container-low); font-size: 12px; }
+.reviewBanner span { flex: 1; }
+.reviewBanner button { border: 0; background: transparent; color: var(--md-sys-color-primary); font-weight: 600; cursor: pointer; }
+.reviewBanner .confirmButton { padding: 7px 10px; border-radius: 6px; background: var(--md-sys-color-primary); color: var(--md-sys-color-on-primary); }
 .toolbar { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin: 30px 0 14px; }
 .toolbar label { width: 240px; display: flex; align-items: center; gap: 7px; border: 1px solid var(--cp-border); border-radius: 7px; padding: 7px 9px; }
 .toolbar input { border: 0; outline: 0; width: 100%; background: transparent; font-size: 12px; }

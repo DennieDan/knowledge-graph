@@ -1,6 +1,7 @@
 "use client";
 
 import Icon from "./icons";
+import type { AnalysisRun } from "../lib/api";
 import styles from "./stacks.module.css";
 import {
   SCOPE_TABS,
@@ -110,6 +111,10 @@ export default function StacksView({
   searchVal,
   listMode,
   notice,
+  analysisRuns,
+  analysisBusy,
+  onAnalyze,
+  onRetryAnalysis,
   onScopeChange,
   onSelectType,
   onSearchChange,
@@ -124,6 +129,10 @@ export default function StacksView({
   searchVal: string;
   listMode: boolean;
   notice: string;
+  analysisRuns: AnalysisRun[];
+  analysisBusy: boolean;
+  onAnalyze: () => void;
+  onRetryAnalysis: (runId: string) => void;
   onScopeChange: (scope: Scope) => void;
   onSelectType: (typeId: string | null) => void;
   onSearchChange: (value: string) => void;
@@ -134,6 +143,8 @@ export default function StacksView({
   const activeType = selectedType
     ? stackTypes.find((t) => t.id === selectedType)
     : null;
+  const activeRun = analysisRuns.find((run) => ["queued", "embedding", "discovering", "generating"].includes(run.status));
+  const failedRun = analysisRuns.find((run) => run.status === "failed" || run.status === "partial");
 
   const filteredSubstacks = substacks.filter(
     (ss) =>
@@ -199,15 +210,32 @@ export default function StacksView({
           )}
         </div>
 
-        {activeType && (
+        {activeType ? (
           <button
             onClick={() => onAddItem(activeType.id)}
             className={styles.primaryBtn}
           >
             <Icon name="plus" /> Add to {activeType.name}
           </button>
+        ) : (
+          <button onClick={onAnalyze} disabled={analysisBusy || Boolean(activeRun)} className={styles.primaryBtn}>
+            <Icon name="activity" /> {activeRun ? "Analyzing…" : "Analyze workspace"}
+          </button>
         )}
       </div>
+
+      {!activeType && activeRun && (
+        <div className={styles.analysisStatus} role="status" aria-live="polite">
+          <strong>{activeRun.status === "queued" ? "Analysis queued" : `${activeRun.status[0]!.toUpperCase()}${activeRun.status.slice(1)} knowledge`}</strong>
+          <span>{activeRun.documents_processed}/{activeRun.documents_total} documents · {activeRun.chunks_embedded} chunks embedded · {activeRun.candidates_found} records found</span>
+        </div>
+      )}
+      {!activeType && !activeRun && failedRun && (
+        <div className={styles.analysisStatus} role="status">
+          <span>Analysis needs attention. {failedRun.failures} job{failedRun.failures === 1 ? "" : "s"} failed.</span>
+          <button onClick={() => onRetryAnalysis(failedRun.id)} disabled={analysisBusy}>Retry</button>
+        </div>
+      )}
 
       {/* Tabs */}
       <div role="tablist" aria-label="Scope filter" className={styles.tabs}>

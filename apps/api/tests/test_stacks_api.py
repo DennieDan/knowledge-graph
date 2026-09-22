@@ -16,6 +16,7 @@ from app.models import (
     Organization,
     OrganizationMembership,
     Substack,
+    SubstackContent,
     SubstackSource,
     User,
 )
@@ -103,6 +104,15 @@ class StacksApiTests(unittest.TestCase):
         self.assertEqual(1, len(rows))
         self.assertEqual("conversations", rows[0]["type_id"])
 
+    def test_analysis_can_be_started_and_listed(self):
+        self.ingest(owner=self.alice.id)
+        response = self.client.post(f"/accounts/{self.organization.id}/analysis")
+        self.assertEqual(200, response.status_code)
+        self.assertTrue(response.json())
+        listed = self.client.get(f"/accounts/{self.organization.id}/analysis")
+        self.assertEqual(200, listed.status_code)
+        self.assertTrue(any(run["scope"] == "mine" for run in listed.json()))
+
     def test_search_filters_by_name(self):
         self.ingest(owner=self.alice.id, title="PO2431.pdf")
         self.ingest(owner=self.alice.id, title="Rates.pdf")
@@ -117,6 +127,32 @@ class StacksApiTests(unittest.TestCase):
         resp = self.client.post(f"/substacks/{substack_id}/confirm")
         self.assertEqual(200, resp.status_code)
         self.assertEqual("confirmed", resp.json()["status"])
+
+    def test_confirm_specific_pending_revision_supersedes_previous_content(self):
+        self.ingest(owner=self.alice.id)
+        substack_id = UUID(self.list_substacks(self.alice)[0]["id"])
+        first = self.session.scalar(
+            select(SubstackContent)
+            .where(SubstackContent.substack_id == substack_id)
+            .order_by(SubstackContent.revision.desc())
+            .limit(1)
+        )
+        proposed = SubstackContent(
+            substack_id=substack_id,
+            revision=first.revision + 1,
+            prompt_key="files.describe.v1",
+            prompt_version="v1",
+            model="fake",
+            content={"segments": [], "entries": []},
+            status="proposed",
+            inputs_fingerprint="d" * 64,
+        )
+        self.session.add(proposed)
+        self.session.commit()
+        response = self.client.post(f"/substacks/{substack_id}/contents/{proposed.id}/confirm")
+        self.assertEqual(200, response.status_code)
+        self.assertEqual("confirmed", proposed.status)
+        self.assertEqual("superseded", first.status)
 
     def test_file_all_backfills_unfiled_documents(self):
         external_id = f"ext-{uuid4()}"

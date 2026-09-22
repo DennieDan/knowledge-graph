@@ -24,13 +24,18 @@ import {
 import {
   acceptInvitation,
   activateAccount,
+  confirmSubstackContent,
   convertToCompany,
   createSubstack,
   getMe,
   getSubstackDetail,
   getSubstacks,
+  listAnalysis,
   loginUrl,
   logout,
+  retryAnalysis,
+  startAnalysis,
+  type AnalysisRun,
   type Me,
 } from "../lib/api";
 import styles from "./workspace-shell.module.css";
@@ -86,6 +91,8 @@ export default function WorkspaceShell() {
   const [waOpen, setWaOpen] = useState(false);
   const [driveOpen, setDriveOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
+  const [analysisRuns, setAnalysisRuns] = useState<AnalysisRun[]>([]);
+  const [analysisBusy, setAnalysisBusy] = useState(false);
   const [inviteToken, setInviteToken] = useState<string | null>(null);
   const driveSetupPending = useRef(false);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -146,10 +153,26 @@ export default function WorkspaceShell() {
   useEffect(() => {
     setSubstacks([]);
     setDetails({});
+    setAnalysisRuns([]);
     setSelectedSubstackId(null);
     setSelectedType(null);
     refreshSubstacks();
-  }, [refreshSubstacks]);
+    if (activeAccount) listAnalysis(activeAccount.id).then(setAnalysisRuns).catch(() => setAnalysisRuns([]));
+  }, [activeAccount, refreshSubstacks]);
+
+  useEffect(() => {
+    if (!activeAccount || !analysisRuns.some((run) => ["queued", "embedding", "discovering", "generating"].includes(run.status))) return;
+    const timer = window.setInterval(() => {
+      listAnalysis(activeAccount.id).then((runs) => {
+        setAnalysisRuns(runs);
+        if (!runs.some((run) => ["queued", "embedding", "discovering", "generating"].includes(run.status))) {
+          refreshSubstacks();
+          if (selectedSubstackId) ensureDetail(selectedSubstackId);
+        }
+      }).catch(() => undefined);
+    }, 2500);
+    return () => window.clearInterval(timer);
+  }, [activeAccount, analysisRuns, ensureDetail, refreshSubstacks, selectedSubstackId]);
 
   const closeModal = useCallback(() => setModal(null), []);
 
@@ -157,6 +180,36 @@ export default function WorkspaceShell() {
     setNotice(msg);
     if (noticeTimer.current) clearTimeout(noticeTimer.current);
     noticeTimer.current = setTimeout(() => setNotice(""), 5000);
+  };
+
+  const handleAnalyze = () => {
+    if (!activeAccount || analysisBusy) return;
+    setAnalysisBusy(true);
+    startAnalysis(activeAccount.id)
+      .then((runs) => {
+        setAnalysisRuns(runs);
+        showNotice("Workspace analysis queued.");
+      })
+      .catch((reason) => showNotice(reason instanceof Error ? reason.message : "Analysis could not be started."))
+      .finally(() => setAnalysisBusy(false));
+  };
+
+  const handleRetryAnalysis = (runId: string) => {
+    setAnalysisBusy(true);
+    retryAnalysis(runId)
+      .then(({ run }) => setAnalysisRuns((runs) => [run, ...runs.filter((item) => item.id !== run.id)]))
+      .catch((reason) => showNotice(reason instanceof Error ? reason.message : "Analysis could not be retried."))
+      .finally(() => setAnalysisBusy(false));
+  };
+
+  const handleConfirmContent = (substackId: string, contentId: string) => {
+    confirmSubstackContent(substackId, contentId)
+      .then(() => {
+        refreshSubstacks();
+        ensureDetail(substackId);
+        showNotice("Proposed content confirmed.");
+      })
+      .catch((reason) => showNotice(reason instanceof Error ? reason.message : "Content could not be confirmed."));
   };
 
   const handleAddSubstack = (input: { name: string; desc: string }) => {
@@ -423,6 +476,7 @@ export default function WorkspaceShell() {
                 onForward={() => moveThroughHistory(1)}
                 onOpen={openSubstack}
                 onEnsureDetail={ensureDetail}
+                onConfirmContent={(contentId) => handleConfirmContent(selectedSubstack.id, contentId)}
               />
             ) : (
               <StacksView
@@ -433,6 +487,10 @@ export default function WorkspaceShell() {
                 searchVal={searchVal}
                 listMode={listMode}
                 notice={notice}
+                analysisRuns={analysisRuns}
+                analysisBusy={analysisBusy}
+                onAnalyze={handleAnalyze}
+                onRetryAnalysis={handleRetryAnalysis}
                 onScopeChange={setScope}
                 onSelectType={(typeId) => {
                   setSelectedType(typeId);

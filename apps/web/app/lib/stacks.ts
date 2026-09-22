@@ -1,4 +1,4 @@
-import type { ApiSubstack, ApiSubstackDetail } from "./api";
+import type { ApiSubstack, ApiSubstackContent, ApiSubstackDetail } from "./api";
 
 export type Scope = "all" | "mine" | "shared" | "workspace";
 
@@ -17,6 +17,7 @@ export interface Substack {
   scope: "mine" | "shared" | "workspace";
   access: string;
   role: string;
+  reviewState: "clean" | "pending" | "pending_update" | "unsupported" | "generation_error";
   updated: string;
   docs: string[];
   count: number;
@@ -50,9 +51,16 @@ export interface UiSegment {
   sourceIds: string[];
 }
 
-export interface UiSubstackDetail {
+export interface UiContentRevision {
+  id: string;
+  status: string;
+  revision: number;
   segments: UiSegment[];
   conversation: ConversationEntry[];
+}
+
+export interface UiSubstackDetail extends UiContentRevision {
+  pending: UiContentRevision | null;
   sources: DetailSource[];
   related: { id: string; typeId: string; name: string }[];
 }
@@ -107,33 +115,42 @@ export function toSubstack(row: ApiSubstack): Substack {
     desc: row.desc ?? "",
     scope: row.scope,
     access: row.scope === "mine" ? "Only me" : "All members",
-    role: row.status === "confirmed" ? "Confirmed" : "Proposed",
+    role: row.review_state === "pending_update" ? "Update available" : row.review_state === "unsupported" ? "Needs review" : row.status === "confirmed" ? "Confirmed" : "Proposed",
+    reviewState: row.review_state,
     updated: relativeTime(row.updated_at),
     docs: row.docs,
     count: row.count,
   };
 }
 
-export function toUiDetail(api: ApiSubstackDetail): UiSubstackDetail {
-  const segments = api.content?.segments ?? [];
-  const entries = api.content?.entries ?? [];
+function toContentRevision(content: ApiSubstackContent): UiContentRevision {
   return {
-    segments: segments.map((segment, index) => ({
-      id: `seg-${index}`,
+    id: content.id ?? "",
+    status: content.status ?? "",
+    revision: content.revision ?? 0,
+    segments: (content.segments ?? []).map((segment, index) => ({
+      id: `seg-${content.revision ?? 0}-${index}`,
       kind: segment.kind,
       value: segment.value,
       name: segment.name,
       ref: segment.ref,
       sourceIds: segment.source_ids ?? [],
     })),
-    conversation: entries.map((entry, index) => ({
-      id: `entry-${index}`,
+    conversation: (content.entries ?? []).map((entry, index) => ({
+      id: `entry-${content.revision ?? 0}-${index}`,
       date: formatEntryDate(entry.date),
       author: entry.author,
       message: entry.message,
       summary: "",
       sourceIds: entry.source_ids ?? [],
     })),
+  };
+}
+
+export function toUiDetail(api: ApiSubstackDetail): UiSubstackDetail {
+  return {
+    ...toContentRevision(api.content),
+    pending: api.pending_content ? toContentRevision(api.pending_content) : null,
     sources: api.sources.map((source) => ({
       // Hover matching keys on the cited document id; keep the source row id
       // only as a React key fallback via document_id uniqueness per substack.

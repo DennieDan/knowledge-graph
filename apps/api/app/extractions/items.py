@@ -1,0 +1,21 @@
+from pydantic import BaseModel, Field
+
+from .common import EntityReference, EvidenceConflict, EvidenceValue, OpenQuestion
+
+
+class ItemExtraction(BaseModel):
+    name: EvidenceValue
+    internal_sku: EvidenceValue = Field(default_factory=EvidenceValue)
+    customer_item_code: EvidenceValue = Field(default_factory=EvidenceValue)
+    client_identifier: EvidenceValue = Field(default_factory=EvidenceValue)
+    description: EvidenceValue = Field(default_factory=EvidenceValue)
+    unit: EvidenceValue = Field(default_factory=EvidenceValue)
+    material: EvidenceValue = Field(default_factory=EvidenceValue)
+    dimensions: EvidenceValue = Field(default_factory=EvidenceValue)
+    tolerances: EvidenceValue = Field(default_factory=EvidenceValue)
+    revision: EvidenceValue = Field(default_factory=EvidenceValue)
+    packaging: EvidenceValue = Field(default_factory=EvidenceValue)
+    lead_time: EvidenceValue = Field(default_factory=EvidenceValue)
+    references: list[EntityReference] = Field(default_factory=list)
+    conflicts: list[EvidenceConflict] = Field(default_factory=list)
+    open_questions: list[OpenQuestion] = Field(default_factory=list)
