@@ -152,6 +152,23 @@ class DriveSelection(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
+class DriveFile(Base):
+    __tablename__ = "drive_files"
+    __table_args__ = (UniqueConstraint("workspace_id", "file_id"),)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    workspace_id: Mapped[UUID] = mapped_column(ForeignKey("drive_workspaces.id", ondelete="CASCADE"), index=True)
+    file_id: Mapped[str] = mapped_column(Text)
+    name: Mapped[str] = mapped_column(Text)
+    mime_type: Mapped[str] = mapped_column(Text)
+    parents: Mapped[list] = mapped_column(JSONB, default=list)
+    modified_time: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    md5_checksum: Mapped[Optional[str]] = mapped_column(String(64))
+    web_view_link: Mapped[Optional[str]] = mapped_column(Text)
+    trashed: Mapped[bool] = mapped_column(Boolean, default=False)
+    last_synced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    ingested_modified_time: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+
 class WhatsappConnection(Base):
     __tablename__ = "whatsapp_connections"
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)

@@ -357,10 +357,27 @@ def refresh_workspaces(organization_id: UUID, user: User = Depends(get_current_u
     return list_workspaces(organization_id, user, session)
 
 
-def list_workspace_items(workspace: DriveWorkspace, connection: DriveConnection, session: Session, fields: str, q: str) -> list[dict]:
+def list_workspace_items(workspace: DriveWorkspace, connection: DriveConnection, session: Session, fields: str, q: str = "") -> list[dict]:
     params = workspace_params(workspace)
-    params.update({"pageSize": 1000, "fields": fields, "q": q})
+    params.update({"pageSize": 1000, "fields": fields})
+    if q:
+        params["q"] = q
     return list_pages(DRIVE_FILES_URL, params, ensure_access_token(connection, session), "files")
+
+
+def selection_covers(file: dict, selected: set[str], parents_of: dict[str, list[str]]) -> bool:
+    """True when the file or any ancestor folder was explicitly selected."""
+    stack = [file["id"], *(file.get("parents") or [])]
+    seen: set[str] = set()
+    while stack:
+        item_id = stack.pop()
+        if item_id in selected:
+            return True
+        if item_id in seen:
+            continue
+        seen.add(item_id)
+        stack.extend(parents_of.get(item_id, []))
+    return False
 
 
 @router.get("/drive/workspaces/{workspace_id}/tree")
@@ -427,19 +444,7 @@ def list_files(
         selected = set(selection.selected_file_ids)
         folders = list_workspace_items(workspace, connection, session, "files(id,parents),nextPageToken", f"mimeType = '{FOLDER_MIME}' and trashed = false")
         parents_of = {folder["id"]: folder.get("parents") or [] for folder in folders}
-        def included(file: dict) -> bool:
-            stack = [file["id"], *(file.get("parents") or [])]
-            seen: set[str] = set()
-            while stack:
-                item_id = stack.pop()
-                if item_id in selected:
-                    return True
-                if item_id in seen:
-                    continue
-                seen.add(item_id)
-                stack.extend(parents_of.get(item_id, []))
-            return False
-        data["files"] = [file for file in data.get("files", []) if included(file)]
+        data["files"] = [file for file in data.get("files", []) if selection_covers(file, selected, parents_of)]
     return data
 
 
