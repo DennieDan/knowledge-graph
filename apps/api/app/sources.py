@@ -9,7 +9,7 @@ WHATSAPP_SOURCE = "whatsapp"
 DRIVE_SOURCE = "google_drive"
 
 
-def _speaker(message: WhatsappMessage) -> str:
+def speaker_label(message: WhatsappMessage) -> str:
     if message.from_me:
         return "Me"
     if message.sender_name:
@@ -19,19 +19,19 @@ def _speaker(message: WhatsappMessage) -> str:
     return "Unknown"
 
 
-def _line(message: WhatsappMessage) -> str | None:
+def transcript_line(message: WhatsappMessage) -> str | None:
     body = (message.body or "").strip()
     if not body and message.has_media:
         body = f"[{message.msg_type}]"
     if not body:
         return None
     timestamp = message.sent_at.strftime("%Y-%m-%d %H:%M")
-    return f"{timestamp} {_speaker(message)}: {body}"
+    return f"{timestamp} {speaker_label(message)}: {body}"
 
 
 def whatsapp_chat_document(chat: WhatsappChat, messages: Iterable[WhatsappMessage], owner_user_id: UUID | None = None) -> SourceDocument:
     """Render a chat as a chronological transcript, one message per line."""
-    lines = [line for line in (_line(message) for message in sorted(messages, key=lambda m: m.sent_at)) if line]
+    lines = [line for line in (transcript_line(message) for message in sorted(messages, key=lambda m: m.sent_at)) if line]
     return SourceDocument(
         source=WHATSAPP_SOURCE,
         external_id=chat.chat_jid,
