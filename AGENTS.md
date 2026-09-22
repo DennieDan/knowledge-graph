@@ -35,24 +35,34 @@
 
 ## Product domain
 
-- Target users: **Singapore SMEs**, starting with the **event organisers &
-  production houses** vertical (incl. MICE: conferences, exhibitions, D&D).
-  WhatsApp + Google Drive are the primary knowledge sources; PDPA
-  compliance (consent, retention, access audit) shapes ingestion.
-- **Stacks** are the core entity model — typed collections that ingested
-  items get filed/linked into (e.g. a WhatsApp thread is filed under its
-  Event). The decided set of 10 Stacks:
-  - **Clients** — corporate accounts; links to their past events
-  - **Events** — master entity; pipeline: pitching → confirmed →
-    planning → live → debrief → invoiced
-  - **Meetings** — client briefs, WIPs, site recce notes
-  - **Vendors** — suppliers (AV, catering, staging); rates + reliability
-  - **Contacts** — people: staff and external, with roles
-  - **Proposals** — quotes/pitches, costing versions, win/loss
-  - **Finance Documents** — invoices, budgets, contracts (InvoiceNow later)
-  - **Conversations** — imported WhatsApp threads as first-class records
-  - **Crew** — freelancers/event crew: roles, rates, availability
-  - **Licenses** — permits per event (PEL/SPF, SCDF TCOUP, AEL/IMDA,
-    liquor, NEA food stalls, LTA road closures); expiry/status tracking
-  - **Venues** — event venues; contracts, rates, availability
+- Target users: **B2B suppliers and Singapore SMEs with 10–100 staff** whose
+  customers submit orders in inconsistent formats such as PO PDFs, WhatsApp
+  messages, scanned forms, email attachments, and Drive files. Primary users
+  are office administrators, sales coordinators, production planners, and
+  business owners.
+- Initial industries include precision engineering, manufacturing,
+  wholesale/distribution, food supply, and other order-driven B2B suppliers.
+  The core problems are duplicate manual entry, missed order changes, outdated
+  revisions, fragmented evidence, and operational knowledge held by only one
+  or two employees.
+- Product workflow: **read → confirm → ask**. Sources produce proposals with
+  evidence; people confirm them into checked records; users and authorized AI
+  assistants query confirmed records before source material.
+- WhatsApp, email, PDFs, and Google Drive are primary knowledge sources. PDPA
+  compliance (consent, retention, access control, and audit history) shapes
+  ingestion.
+- **Stacks** are the core entity model—typed collections into which ingested
+  information is filed and linked. The initial 12 Stacks are:
+  - **Sales Orders** — customer POs, line items, quantities, revisions, dates
+  - **Clients** — customer companies, terms, locations, and account history
+  - **Items** — products, SKUs, materials, specifications, and customer codes
+  - **Invoices** — sales invoices, GST, payments, credit notes, and InvoiceNow
+  - **Suppliers** — material/service vendors, lead times, prices, performance
+  - **Supplier Orders** — purchases placed with suppliers or subcontractors
+  - **Production Jobs** — work orders, schedules, progress, and blockers
+  - **Specifications & Revisions** — drawings, requirements, revision history
+  - **Conversations** — WhatsApp/email changes, approvals, and commitments
+  - **PICs** — people responsible for each task or decision
+  - **Meetings** — meeting notes, action items, and follow-ups
+  - **Files** — documents, drawings, images, and attachments
   

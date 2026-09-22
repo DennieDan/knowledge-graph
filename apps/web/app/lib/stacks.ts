@@ -20,80 +20,118 @@ export interface Substack {
   count: number;
 }
 
+export interface DetailSource {
+  id: string;
+  substackId: string;
+  name: string;
+  type: "Files" | "Conversations";
+  origin: string;
+  updated: string;
+  note: string;
+}
+
+export interface DetailToken {
+  id: string;
+  label: string;
+  value: string;
+  sourceIds: string[];
+}
+
+export interface ConversationEntry {
+  id: string;
+  date: string;
+  author: string;
+  message: string;
+  summary: string;
+  sourceIds: string[];
+}
+
+export interface SubstackDetail {
+  tokens?: DetailToken[];
+  conversation?: ConversationEntry[];
+  sources: DetailSource[];
+  relatedIds: string[];
+}
+
 export const STACK_TYPES: StackType[] = [
-  { id: "clients", name: "Clients", icon: "building-2", desc: "Client accounts, relationships, and key contacts." },
-  { id: "events", name: "Events", icon: "calendar", desc: "Events, schedules, and coordination details." },
-  { id: "meetings", name: "Meetings", icon: "users", desc: "Meeting notes, agendas, and action items." },
-  { id: "vendors", name: "Vendors", icon: "package", desc: "Vendor contracts, contacts, and orders." },
-  { id: "contacts", name: "Contacts", icon: "user", desc: "Individual contact records and history." },
-  { id: "proposals", name: "Proposals", icon: "file-text", desc: "Active and archived proposals and quotes." },
-  { id: "finance", name: "Finance Documents", icon: "receipt", desc: "Invoices, budgets, and financial records." },
-  { id: "conversations", name: "Conversations", icon: "message-circle", desc: "Ongoing threads and communication history." },
-  { id: "crew", name: "Crew", icon: "users", desc: "Team members, roles, and assignments." },
-  { id: "licenses", name: "Licenses", icon: "shield", desc: "Software, creative, and legal licenses." },
-  { id: "venues", name: "Venues", icon: "map-pin", desc: "Event venues — contracts, rates, and availability." },
+  { id: "sales-orders", name: "Sales Orders", icon: "receipt", desc: "Customer POs, line items, quantities, revisions, and dates." },
+  { id: "clients", name: "Clients", icon: "building-2", desc: "Customer companies, terms, locations, and account history." },
+  { id: "items", name: "Items", icon: "package", desc: "Products, SKUs, materials, specifications, and customer codes." },
+  { id: "invoices", name: "Invoices", icon: "file-text", desc: "Sales invoices, GST, payments, credit notes, and InvoiceNow." },
+  { id: "suppliers", name: "Suppliers", icon: "building-2", desc: "Material and service vendors, prices, lead times, and performance." },
+  { id: "supplier-orders", name: "Supplier Orders", icon: "receipt", desc: "Purchases placed with suppliers and subcontractors." },
+  { id: "production-jobs", name: "Production Jobs", icon: "settings", desc: "Work orders, schedules, progress, and blockers." },
+  { id: "specifications", name: "Specifications & Revisions", icon: "layers", desc: "Drawings, requirements, approvals, and revision history." },
+  { id: "conversations", name: "Conversations", icon: "message-circle", desc: "WhatsApp and email changes, approvals, and commitments." },
+  { id: "pics", name: "PICs", icon: "user", desc: "People responsible for each task or decision." },
+  { id: "meetings", name: "Meetings", icon: "users", desc: "Meeting notes, action items, and follow-ups." },
+  { id: "files", name: "Files", icon: "folder", desc: "Documents, drawings, images, and attachments." },
 ];
+
+const substack = (id: string, typeId: string, name: string, desc: string, updated: string, docs: string[]): Substack => ({
+  id, typeId, name, desc, scope: "workspace", access: "All members", role: "Can view", updated, docs, count: docs.length,
+});
 
 export const INITIAL_SUBSTACKS: Substack[] = [
-  // Clients
-  { id: "c1", typeId: "clients", name: "Acme Corp", desc: "End-to-end client relationship history and deliverables.", scope: "workspace", access: "Product & Design", role: "Can view", updated: "1 hour ago", docs: ["Client overview", "Kickoff notes"], count: 24 },
-  { id: "c2", typeId: "clients", name: "Meridian Studios", desc: "Ongoing partnership with contracts and project briefs.", scope: "shared", access: "Shared by Maya", role: "Can edit", updated: "3 hours ago", docs: ["Contract v2", "Project brief"], count: 11 },
-  { id: "c3", typeId: "clients", name: "Northfield Retail", desc: "Seasonal campaigns and account manager notes.", scope: "mine", access: "Only you", role: "Owner", updated: "Yesterday", docs: ["Campaign brief", "Account notes"], count: 8 },
-  // Events
-  { id: "e1", typeId: "events", name: "Product Launch Q4", desc: "All coordination, speakers, and run-of-show for the launch.", scope: "workspace", access: "All members", role: "Can view", updated: "2 min ago", docs: ["Run of show", "Speaker list"], count: 18 },
-  { id: "e2", typeId: "events", name: "Annual Offsite 2026", desc: "Planning docs, logistics, and attendee list.", scope: "mine", access: "Only you", role: "Owner", updated: "2 hours ago", docs: ["Logistics", "Agenda draft"], count: 7 },
-  { id: "e3", typeId: "events", name: "Design Summit", desc: "Workshop sessions, facilitators, and outcomes.", scope: "shared", access: "Shared by Alex", role: "Can view", updated: "Yesterday", docs: ["Session plan", "Outcomes"], count: 5 },
-  // Meetings
-  { id: "m1", typeId: "meetings", name: "Product Weekly", desc: "Weekly discussions, action items, and decisions.", scope: "shared", access: "Shared by Maya", role: "Can edit", updated: "18 min ago", docs: ["Weekly notes · Sep 17", "Sprint priorities"], count: 8 },
-  { id: "m2", typeId: "meetings", name: "Leadership Sync", desc: "Bi-weekly leadership sync notes and follow-ups.", scope: "workspace", access: "All members", role: "Can view", updated: "4 hours ago", docs: ["Sync notes", "Decision log"], count: 15 },
-  { id: "m3", typeId: "meetings", name: "Client Check-ins", desc: "Regular client touchpoints and status updates.", scope: "mine", access: "Only you", role: "Owner", updated: "Yesterday", docs: ["Check-in template", "Open items"], count: 6 },
-  // Vendors
-  { id: "v1", typeId: "vendors", name: "Printbase Co.", desc: "Print vendor POs, proofs, and delivery tracking.", scope: "mine", access: "Only you", role: "Owner", updated: "2 hours ago", docs: ["PO #1042", "Proof approvals"], count: 10 },
-  { id: "v2", typeId: "vendors", name: "Studio Freight", desc: "Logistics partner with rate cards and contacts.", scope: "shared", access: "Shared by Dan", role: "Can edit", updated: "Yesterday", docs: ["Rate card", "Contact list"], count: 4 },
-  // Contacts
-  { id: "co1", typeId: "contacts", name: "Maya Osei", desc: "Head of Design — primary creative contact.", scope: "shared", access: "Shared by team", role: "Can view", updated: "30 min ago", docs: ["Bio", "Project history"], count: 3 },
-  { id: "co2", typeId: "contacts", name: "Jordan Lee", desc: "Engineering lead — integration and delivery point.", scope: "workspace", access: "Product & Design", role: "Can view", updated: "Yesterday", docs: ["Contact notes"], count: 2 },
-  // Proposals
-  { id: "p1", typeId: "proposals", name: "Rebrand Proposal 2026", desc: "Full scope, timeline, and pricing for rebrand engagement.", scope: "mine", access: "Only you", role: "Owner", updated: "1 hour ago", docs: ["Scope doc", "Pricing sheet"], count: 6 },
-  { id: "p2", typeId: "proposals", name: "Event Production Bid", desc: "Vendor bid for Q4 event, including AV and logistics.", scope: "shared", access: "Shared by Alex", role: "Can view", updated: "2 days ago", docs: ["Bid deck", "Line items"], count: 9 },
-  // Finance
-  { id: "f1", typeId: "finance", name: "Q3 Invoices", desc: "All outgoing invoices for Q3, with payment status.", scope: "mine", access: "Only you", role: "Owner", updated: "3 hours ago", docs: ["Invoice #101", "Invoice #102"], count: 14 },
-  { id: "f2", typeId: "finance", name: "Annual Budget 2026", desc: "Departmental budgets and variance tracking.", scope: "workspace", access: "All members", role: "Can view", updated: "Yesterday", docs: ["Budget overview", "Variance sheet"], count: 5 },
-  // Conversations
-  { id: "cv1", typeId: "conversations", name: "Customer Insights", desc: "Themes from recent customer conversations.", scope: "shared", access: "Shared by Alex", role: "Can view", updated: "3 hours ago", docs: ["Interview synthesis", "Research highlights"], count: 19 },
-  { id: "cv2", typeId: "conversations", name: "Sales Thread — Meridian", desc: "Email thread history and negotiation notes.", scope: "mine", access: "Only you", role: "Owner", updated: "Yesterday", docs: ["Email archive", "Negotiation notes"], count: 7 },
-  // Crew
-  { id: "cr1", typeId: "crew", name: "Production Team", desc: "Crew roster, roles, and on-site contacts.", scope: "workspace", access: "All members", role: "Can view", updated: "2 days ago", docs: ["Roster", "Contact sheet"], count: 12 },
-  { id: "cr2", typeId: "crew", name: "Freelance Pool", desc: "Vetted freelancers, rates, and availability.", scope: "mine", access: "Only you", role: "Owner", updated: "4 days ago", docs: ["Freelancer list", "Rate reference"], count: 8 },
-  // Licenses
-  { id: "l1", typeId: "licenses", name: "Software Licenses", desc: "Active software subscriptions and renewal dates.", scope: "workspace", access: "All members", role: "Can view", updated: "1 week ago", docs: ["License inventory", "Renewal calendar"], count: 22 },
-  { id: "l2", typeId: "licenses", name: "Stock Media Rights", desc: "Image and video licenses with usage rights.", scope: "shared", access: "Product & Design", role: "Can edit", updated: "3 days ago", docs: ["Rights ledger", "Expiry tracker"], count: 9 },
-  // Venues
-  { id: "vn1", typeId: "venues", name: "Marina Bay Expo Hall", desc: "Large convention space with preferred rates and contacts.", scope: "workspace", access: "All members", role: "Can view", updated: "5 hours ago", docs: ["Rate card", "Floor plan"], count: 15 },
-  { id: "vn2", typeId: "venues", name: "Raffles Ballroom", desc: "Hotel ballroom for D&D and gala events; AV restrictions noted.", scope: "shared", access: "Shared by Maya", role: "Can edit", updated: "Yesterday", docs: ["Contract", "AV notes"], count: 6 },
+  substack("so-2431", "sales-orders", "PO2431", "Precision parts order for Acme Engineering.", "12 min ago", ["PO2431.pdf", "Group ABC"]),
+  substack("so-2432", "sales-orders", "PO2432", "Repeat order with revised delivery dates.", "1 hour ago", ["PO2432.pdf", "Order update.eml"]),
+  substack("cl-acme", "clients", "Acme Engineering", "Singapore precision engineering customer.", "Yesterday", ["Account overview.pdf"]),
+  substack("item-bracket", "items", "BRK-440 Bracket", "CNC-machined aluminium mounting bracket.", "2 days ago", ["BRK-440 drawing.pdf"]),
+  substack("inv-2431", "invoices", "INV-2026-081", "Invoice issued for PO2431.", "3 hours ago", ["INV-2026-081.pdf"]),
+  substack("sup-metal", "suppliers", "MetalWorks SG", "Aluminium stock supplier.", "4 days ago", ["Rate card.pdf"]),
+  substack("spo-881", "supplier-orders", "SPO881", "Aluminium 6061 stock purchase.", "Yesterday", ["SPO881.pdf"]),
+  substack("job-2431", "production-jobs", "JOB2431", "Production run for PO2431.", "28 min ago", ["Job traveller.pdf"]),
+  substack("spec-bracket", "specifications", "BRK-440 Rev C", "Current approved bracket specification.", "2 days ago", ["BRK-440-REV-C.pdf"]),
+  substack("conv-group-abc", "conversations", "Group ABC", "WhatsApp order updates with Acme Engineering.", "13 Sep", ["items.jpg", "PRD.docx", "Meeting_notes.docx"]),
+  substack("pic-anna", "pics", "Anna Tan", "Sales coordinator responsible for Acme Engineering.", "Today", ["Contact card"]),
+  substack("meet-production", "meetings", "Wednesday, Ideas Finalisation", "Production planning and order review.", "11 Sep", ["Meeting_notes.docx"]),
+  substack("file-po2431", "files", "PO2431.pdf", "Original purchase order received from Acme Engineering.", "13 Sep", ["PO2431.pdf"]),
+  substack("file-items", "files", "items.jpg", "Annotated product reference shared in WhatsApp.", "13 Sep", ["items.jpg"]),
+  substack("file-prd", "files", "PRD.docx", "Product requirements document.", "12 Sep", ["PRD.docx"]),
+  substack("file-meeting", "files", "Meeting_notes.docx", "Notes from the production review.", "11 Sep", ["Meeting_notes.docx"]),
 ];
 
-export const SCOPE_TABS: [Scope, string][] = [
-  ["all", "All Stacks"],
-  ["mine", "My Stacks"],
-  ["workspace", "Workspace"],
-  ["shared", "Shared with me"],
-];
+export const SUBSTACK_DETAILS: Record<string, SubstackDetail> = {
+  "so-2431": {
+    tokens: [
+      { id: "po", label: "PO number", value: "PO2431", sourceIds: ["src-po", "src-chat"] },
+      { id: "client", label: "Client", value: "Acme Engineering", sourceIds: ["src-po"] },
+      { id: "item", label: "Item", value: "BRK-440 Bracket", sourceIds: ["src-po", "src-chat"] },
+      { id: "qty", label: "Quantity", value: "240 units", sourceIds: ["src-chat"] },
+      { id: "delivery", label: "Delivery date", value: "18 Sep 2026", sourceIds: ["src-po", "src-chat"] },
+      { id: "status", label: "Status", value: "Confirmed", sourceIds: ["src-chat"] },
+      { id: "total", label: "Order total", value: "S$18,720.00", sourceIds: ["src-po"] },
+      { id: "pic", label: "PIC", value: "Anna Tan", sourceIds: ["src-chat"] },
+    ],
+    sources: [
+      { id: "src-po", substackId: "file-po2431", name: "PO2431.pdf", type: "Files", origin: "Google Drive", updated: "13 Sep", note: "Original customer purchase order" },
+      { id: "src-chat", substackId: "conv-group-abc", name: "Group ABC", type: "Conversations", origin: "WhatsApp", updated: "13 Sep", note: "Quantity and delivery confirmation" },
+    ],
+    relatedIds: ["cl-acme", "item-bracket", "job-2431", "inv-2431", "pic-anna"],
+  },
+  "conv-group-abc": {
+    conversation: [
+      { id: "msg-3", date: "13 Sep · 4:20 PM", author: "Acme Engineering", message: "Plan B approved and ready for production", summary: "Acme Engineering confirmed that the team should proceed with Plan B. The approval covers the revised quantity of 240 units and the updated production sequence. Anna acknowledged the decision and will coordinate the handoff to production while keeping the 18 September delivery target unchanged.", sourceIds: ["att-prd"] },
+      { id: "msg-2", date: "12 Sep · 2:05 PM", author: "Anna Tan", message: "Requirements and launch schedule updated", summary: "Anna shared the revised product requirements and meeting notes after the planning review. The group aligned on the latest bracket specification, confirmed that no material substitution is required, and retained 18 September as the customer-facing launch and delivery date.", sourceIds: ["att-prd", "att-meeting"] },
+      { id: "msg-1", date: "10 Sep · 1:00 PM", author: "Acme Engineering", message: "Production approach changed to Plan B", summary: "The customer raised concerns about the original production approach and asked whether Plan B could reduce scheduling risk. The discussion compared both approaches, referenced the annotated item image, and concluded that Plan B was the safer route pending final customer approval.", sourceIds: ["att-items"] },
+    ],
+    sources: [
+      { id: "att-items", substackId: "file-items", name: "items.jpg", type: "Files", origin: "Drive", updated: "13 Sep", note: "Annotated item reference" },
+      { id: "att-prd", substackId: "file-prd", name: "PRD.docx", type: "Files", origin: "Drive", updated: "12 Sep", note: "Launch date: 18 Sep" },
+      { id: "att-meeting", substackId: "file-meeting", name: "Meeting_notes.docx", type: "Files", origin: "Drive", updated: "11 Sep", note: "Schedule under review" },
+    ],
+    relatedIds: ["meet-production", "so-2431", "inv-2431"],
+  },
+};
+
+export const SCOPE_TABS: [Scope, string][] = [["all", "All Stacks"], ["mine", "My Stacks"], ["workspace", "Workspace"], ["shared", "Shared with me"]];
 
 export function inScope(ss: Substack, sc: Scope): boolean {
-  return (
-    sc === "all" ||
-    ss.scope === sc ||
-    (sc === "workspace" && ["Product & Design", "All members"].includes(ss.access))
-  );
+  return sc === "all" || ss.scope === sc || (sc === "workspace" && ["Product & Design", "All members"].includes(ss.access));
 }
 
-const STORAGE_KEY = "crosspod.stacks.v1";
-
-export interface StacksState {
-  stackTypes: StackType[];
-  substacks: Substack[];
-}
+const STORAGE_KEY = "crosspod.stacks.v2";
+export interface StacksState { stackTypes: StackType[]; substacks: Substack[]; }
 
 export function loadStacksState(): StacksState | null {
   if (typeof window === "undefined") return null;
@@ -101,31 +139,13 @@ export function loadStacksState(): StacksState | null {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as StacksState;
-    if (!Array.isArray(parsed.stackTypes) || !Array.isArray(parsed.substacks)) {
-      return null;
-    }
-    // Merge in any default entries added since the state was persisted.
+    if (!Array.isArray(parsed.stackTypes) || !Array.isArray(parsed.substacks)) return null;
     const typeIds = new Set(parsed.stackTypes.map((t) => t.id));
     const substackIds = new Set(parsed.substacks.map((s) => s.id));
-    return {
-      stackTypes: [
-        ...parsed.stackTypes,
-        ...STACK_TYPES.filter((t) => !typeIds.has(t.id)),
-      ],
-      substacks: [
-        ...parsed.substacks,
-        ...INITIAL_SUBSTACKS.filter((s) => !substackIds.has(s.id)),
-      ],
-    };
-  } catch {
-    return null;
-  }
+    return { stackTypes: [...parsed.stackTypes, ...STACK_TYPES.filter((t) => !typeIds.has(t.id))], substacks: [...parsed.substacks, ...INITIAL_SUBSTACKS.filter((s) => !substackIds.has(s.id))] };
+  } catch { return null; }
 }
 
 export function saveStacksState(state: StacksState): void {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    // Storage unavailable (private mode, quota) — keep state in memory only.
-  }
+  try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
 }

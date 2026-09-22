@@ -6,13 +6,10 @@ import Modal from "./modal";
 import SearchView from "./search-view";
 import SourcesView from "./sources-view";
 import StacksView from "./stacks-view";
+import SubstackDetail from "./substack-detail";
 import WhatsAppConnect from "./whatsapp-connect";
 import DrivePicker from "./drive-picker";
-import {
-  CreateStackModal,
-  CreateSubstackModal,
-  SubstackDetails,
-} from "./stack-modals";
+import { CreateStackModal, CreateSubstackModal } from "./stack-modals";
 import {
   INITIAL_SUBSTACKS,
   STACK_TYPES,
@@ -29,7 +26,6 @@ type NavId = "stacks" | "sources" | "search" | "maintenance";
 
 type ModalState =
   | null
-  | { kind: "details"; ss: Substack }
   | { kind: "createSubstack"; typeId: string }
   | { kind: "createStack" };
 
@@ -65,6 +61,10 @@ export default function WorkspaceShell() {
   const [hydrated, setHydrated] = useState(false);
   const [scope, setScope] = useState<Scope>("all");
   const [selectedType, setSelectedType] = useState<string | null>(null);
+  const [selectedSubstackId, setSelectedSubstackId] = useState<string | null>(null);
+  const [detailHistory, setDetailHistory] = useState<string[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [recentIds, setRecentIds] = useState<string[]>([]);
   const [searchVal, setSearchVal] = useState("");
   const [listMode, setListMode] = useState(false);
   const [modal, setModal] = useState<ModalState>(null);
@@ -139,14 +139,45 @@ export default function WorkspaceShell() {
     setModal(null);
   };
 
+  const openSubstack = (id: string) => {
+    const target = substacks.find((item) => item.id === id);
+    if (!target) return;
+    setActiveNav("stacks");
+    setSelectedType(target.typeId);
+    setSelectedSubstackId(id);
+    setSearchVal("");
+    setRecentIds((current) => [id, ...current.filter((recentId) => recentId !== id)].slice(0, 5));
+    setDetailHistory((current) => {
+      const next = [...current.slice(0, historyIndex + 1), id];
+      setHistoryIndex(next.length - 1);
+      return next;
+    });
+  };
+
+  const moveThroughHistory = (offset: number) => {
+    const nextIndex = historyIndex + offset;
+    const id = detailHistory[nextIndex];
+    if (!id) return;
+    const target = substacks.find((item) => item.id === id);
+    if (!target) return;
+    setHistoryIndex(nextIndex);
+    setSelectedSubstackId(id);
+    setSelectedType(target.typeId);
+    setRecentIds((current) => [id, ...current.filter((recentId) => recentId !== id)].slice(0, 5));
+  };
+
   const activeType = selectedType
     ? stackTypes.find((t) => t.id === selectedType)
+    : null;
+  const selectedSubstack = selectedSubstackId
+    ? substacks.find((item) => item.id === selectedSubstackId) ?? null
     : null;
 
   const selectNav = (id: NavId) => {
     setActiveNav(id);
     if (id !== "stacks") {
       setSelectedType(null);
+      setSelectedSubstackId(null);
       setSearchVal("");
     }
   };
@@ -208,16 +239,12 @@ export default function WorkspaceShell() {
 
           <div>
             <div className={styles.sectionLabel}>Recent Substacks</div>
-            {substacks.slice(0, 5).map((ss) => {
+            {recentIds.map((id) => substacks.find((item) => item.id === id)).filter((item): item is Substack => Boolean(item)).map((ss) => {
               const type = stackTypes.find((t) => t.id === ss.typeId);
               return (
                 <button
                   key={ss.id}
-                  onClick={() => {
-                    setActiveNav("stacks");
-                    setSelectedType(ss.typeId);
-                    setSearchVal("");
-                  }}
+                  onClick={() => openSubstack(ss.id)}
                   className={styles.recentBtn}
                 >
                   <span className={styles.recentIcon}>
@@ -275,6 +302,7 @@ export default function WorkspaceShell() {
                   <button
                     onClick={() => {
                       setSelectedType(null);
+                      setSelectedSubstackId(null);
                       setSearchVal("");
                     }}
                     className={`${styles.crumbBtn} ${selectedType ? "" : styles.crumbActive}`}
@@ -331,43 +359,44 @@ export default function WorkspaceShell() {
             </div>
           )}
 
-          <div
-            className={activeNav !== "stacks" ? styles.hiddenView : undefined}
-          >
-            <StacksView
-              stackTypes={stackTypes}
-              substacks={substacks}
-              scope={scope}
-              selectedType={selectedType}
-              searchVal={searchVal}
-              listMode={listMode}
-              notice={notice}
-              onScopeChange={setScope}
-              onSelectType={setSelectedType}
-              onSearchChange={setSearchVal}
-              onToggleListMode={() => setListMode((v) => !v)}
-              onOpenDetails={(ss) => setModal({ kind: "details", ss })}
-              onAddItem={(typeId) =>
-                setModal({ kind: "createSubstack", typeId })
-              }
-              onCreateStack={() => setModal({ kind: "createStack" })}
-            />
+          <div className={activeNav !== "stacks" ? styles.hiddenView : undefined}>
+            {selectedSubstack ? (
+              <SubstackDetail
+                substack={selectedSubstack}
+                stackTypes={stackTypes}
+                substacks={substacks}
+                canGoBack={historyIndex > 0}
+                canGoForward={historyIndex < detailHistory.length - 1}
+                onBack={() => moveThroughHistory(-1)}
+                onForward={() => moveThroughHistory(1)}
+                onOpen={openSubstack}
+              />
+            ) : (
+              <StacksView
+                stackTypes={stackTypes}
+                substacks={substacks}
+                scope={scope}
+                selectedType={selectedType}
+                searchVal={searchVal}
+                listMode={listMode}
+                notice={notice}
+                onScopeChange={setScope}
+                onSelectType={(typeId) => {
+                  setSelectedType(typeId);
+                  setSelectedSubstackId(null);
+                }}
+                onSearchChange={setSearchVal}
+                onToggleListMode={() => setListMode((v) => !v)}
+                onOpenDetails={(ss) => openSubstack(ss.id)}
+                onAddItem={(typeId) => setModal({ kind: "createSubstack", typeId })}
+                onCreateStack={() => setModal({ kind: "createStack" })}
+              />
+            )}
           </div>
         </main>
       </div>
 
       {/* Modals */}
-      {modal?.kind === "details" && (
-        <Modal onClose={closeModal}>
-          <SubstackDetails
-            ss={modal.ss}
-            type={
-              stackTypes.find((t) => t.id === modal.ss.typeId) ?? FALLBACK_TYPE
-            }
-            onClose={closeModal}
-          />
-        </Modal>
-      )}
       {modal?.kind === "createSubstack" && (
         <Modal onClose={closeModal}>
           <CreateSubstackModal
