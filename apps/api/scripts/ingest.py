@@ -16,7 +16,8 @@ from sqlalchemy.orm import Session
 
 from app.database import get_engine
 from app.drive import UnsupportedFileType, ensure_access_token, fetch_file_metadata, fetch_file_text
-from app.ingest import chunk_count, ingest_document
+from app.filing import ingest_and_file
+from app.ingest import chunk_count
 from app.models import DriveConnection, DriveWorkspace, Organization, User, WhatsappChat, WhatsappConnection, WhatsappMessage
 from app.sources import drive_file_document, whatsapp_chat_document
 
@@ -56,7 +57,7 @@ def ingest_whatsapp(session: Session, organization_id: UUID, email: str, chat_ji
         statement = statement.where(WhatsappChat.chat_jid.in_(chat_jids))
     for chat in session.scalars(statement):
         messages = session.scalars(select(WhatsappMessage).where(WhatsappMessage.chat_id == chat.id)).all()
-        version = ingest_document(session, organization_id, whatsapp_chat_document(chat, messages, connection.user_id))
+        version = ingest_and_file(session, organization_id, whatsapp_chat_document(chat, messages, connection.user_id))
         session.commit()
         report(session, chat.name or chat.chat_jid, version)
 
@@ -94,7 +95,7 @@ def ingest_drive(
             print(f"{file.get('name', file_id)}: skipped ({exc})")
             continue
         owner_user_id = user.id if workspace.kind == "my_drive" else None
-        version = ingest_document(
+        version = ingest_and_file(
             session,
             organization_id,
             drive_file_document(file, text, workspace.id, owner_user_id),

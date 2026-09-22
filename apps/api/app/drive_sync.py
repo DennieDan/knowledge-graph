@@ -26,7 +26,7 @@ from .drive import (
     selection_covers,
     workspace_context,
 )
-from .ingest import ingest_document
+from .filing import ingest_and_file
 from .models import DriveConnection, DriveFile, DriveSelection, DriveWorkspace, User
 from .sources import drive_file_document
 
@@ -127,7 +127,7 @@ def sync_workspace(session: Session, workspace: DriveWorkspace, connection: Driv
         except HTTPException as exc:
             errors.append(f"{file.get('name', file['id'])}: {exc.detail}")
             continue
-        ingest_document(session, workspace.organization_id, drive_file_document(file, text, workspace.id, owner_user_id))
+        ingest_and_file(session, workspace.organization_id, drive_file_document(file, text, workspace.id, owner_user_id))
         row.ingested_modified_time = row.modified_time or now
         ingested += 1
     session.commit()
