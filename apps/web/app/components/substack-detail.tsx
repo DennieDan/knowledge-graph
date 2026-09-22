@@ -105,14 +105,13 @@ export default function SubstackDetail({ substack, stackTypes, detail, details, 
             {matchingSegments.length > 0 ? (
               <section>
                 <p>
-                  {matchingSegments.map((segment) => {
-                    if (segment.kind === "text") return <span key={segment.id}>{segment.value}</span>;
-                    return (
-                      <HighlightedToken key={segment.id} sourceIds={segment.sourceIds} onHover={setHoveredSourceIds}>
+                  {matchingSegments.map((segment) => (
+                    <span key={segment.id} className={segment.kind === "text" ? styles.reportParagraph : undefined}>
+                      <HighlightedToken sourceIds={segment.sourceIds} onHover={setHoveredSourceIds}>
                         {segment.kind === "field" && segment.name ? `${segment.name}: ${segment.value}` : segment.value}
                       </HighlightedToken>
-                    );
-                  })}
+                    </span>
+                  ))}
                 </p>
               </section>
             ) : (

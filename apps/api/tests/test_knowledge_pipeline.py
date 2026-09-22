@@ -178,6 +178,10 @@ class KnowledgePipelineTests(unittest.TestCase):
             analysis_run_id=None,
         )
         extraction = ClientExtraction(
+            report=[
+                EvidenceValue(value="Acme Engineering is identified by UEN 201912345K.", citations=[str(chunk.id)], confidence="high"),
+                EvidenceValue(value="The available evidence does not state commercial terms.", citations=[str(chunk.id)], confidence="high"),
+            ],
             name=EvidenceValue(value="Acme Engineering", citations=[str(chunk.id)], confidence="high"),
             registration_number=EvidenceValue(value="201912345K", citations=[str(chunk.id)], confidence="high"),
         )
@@ -186,8 +190,12 @@ class KnowledgePipelineTests(unittest.TestCase):
         ):
             content = generate_substack(self.session, substack.id, None)
         self.assertEqual("confirmed", content.status)
+        self.assertEqual("clients.extract.v2", content.prompt_key)
+        self.assertEqual("v2", content.prompt_version)
         self.assertEqual("confirmed", substack.status)
         self.assertEqual("clean", substack.review_state)
+        self.assertEqual(["text", "text"], [segment["kind"] for segment in content.content["segments"]])
+        self.assertIn("Acme Engineering is identified", content.content["segments"][0]["value"])
         citations = self.session.scalars(select(ContentCitation).where(ContentCitation.content_id == content.id)).all()
         self.assertTrue(citations)
 
@@ -215,6 +223,10 @@ class KnowledgePipelineTests(unittest.TestCase):
         ))
         self.session.flush()
         extraction = ClientExtraction(
+            report=[
+                EvidenceValue(value="Acme Engineering is identified by UEN 201912345K.", citations=[str(chunk.id)]),
+                EvidenceValue(value="The customer record is supported by the current master document.", citations=[str(chunk.id)]),
+            ],
             name=EvidenceValue(value="Acme Engineering", citations=[str(chunk.id)]),
             registration_number=EvidenceValue(value="201912345K", citations=[str(chunk.id)]),
         )

@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 from .config import get_settings
 from .entity_resolution import resolve_candidate
 from .extractions import ClientExtraction, DiscoveryOutput, ItemExtraction, SalesOrderExtraction
-from .extractions.common import EvidenceValue
 from .jobs import enqueue_job, utcnow
 from .llm import LLMResult, get_llm_client
 from .models import (
@@ -40,9 +39,9 @@ from .segments import Segment
 
 DISCOVERY_KEY = "discovery.core_entities.v1"
 PROMPT_CONFIG = {
-    "sales-orders": ("sales_orders.extract.v1", SALES_ORDER_PROMPT, SALES_ORDER_QUERIES, SalesOrderExtraction),
-    "clients": ("clients.extract.v1", CLIENT_PROMPT, CLIENT_QUERIES, ClientExtraction),
-    "items": ("items.extract.v1", ITEM_PROMPT, ITEM_QUERIES, ItemExtraction),
+    "sales-orders": ("sales_orders.extract.v2", SALES_ORDER_PROMPT, SALES_ORDER_QUERIES, SalesOrderExtraction),
+    "clients": ("clients.extract.v2", CLIENT_PROMPT, CLIENT_QUERIES, ClientExtraction),
+    "items": ("items.extract.v2", ITEM_PROMPT, ITEM_QUERIES, ItemExtraction),
 }
 
 
@@ -164,13 +163,14 @@ def discover_document(session: Session, version_id: UUID, run_id: UUID | None) -
         )
         created_count += int(created)
         updated_count += int(not created)
+        generation_prompt_key = PROMPT_CONFIG[substack.stack_type][0]
         enqueue_job(
             session,
             organization_id=document.organization_id,
             owner_user_id=document.owner_user_id,
             kind="generate_substack",
             payload={"substack_id": str(substack.id)},
-            dedupe_key=f"generate:{substack.id}:{version.id}:{settings.analysis_config_version}:{settings.openai_model}",
+            dedupe_key=f"generate:{substack.id}:{version.id}:{generation_prompt_key}:{settings.analysis_config_version}:{settings.openai_model}",
             analysis_run_id=run_id,
         )
     _link_document_entities(session, version.id)
@@ -210,27 +210,11 @@ def _exact_terms(session: Session, substack: Substack) -> tuple[str, ...]:
 
 
 def _field_segments(extraction: BaseModel) -> list[Segment]:
-    segments: list[Segment] = []
-
-    def append(name: str, value) -> None:
-        if isinstance(value, EvidenceValue):
-            if value.value:
-                segments.append(Segment(kind="field", name=name.replace("_", " "), value=value.value, citations=value.citations))
-            return
-        if isinstance(value, list):
-            for index, item in enumerate(value, 1):
-                append(f"{name} {index}", item)
-            return
-        if isinstance(value, BaseModel):
-            for child_name, child_value in value:
-                if child_name not in ("conflicts", "open_questions", "references"):
-                    append(f"{name} {child_name}".strip(), child_value)
-
-    for field_name, field_value in extraction:
-        if field_name not in ("conflicts", "open_questions", "references"):
-            append(field_name, field_value)
-    for reference in getattr(extraction, "references", []):
-        segments.append(Segment(kind="token", name=reference.entity_type, value=reference.name, citations=reference.citations))
+    segments = [
+        Segment(kind="text", value=paragraph.value, citations=paragraph.citations)
+        for paragraph in getattr(extraction, "report", [])
+        if paragraph.value
+    ]
     for conflict in getattr(extraction, "conflicts", []):
         citations = list(dict.fromkeys(citation for value in conflict.values for citation in value.citations))
         values = ", ".join(value.value for value in conflict.values if value.value)
@@ -301,6 +285,7 @@ def generate_substack(session: Session, substack_id: UUID, run_id: UUID | None) 
     if substack is None or substack.stack_type not in PROMPT_CONFIG:
         raise ValueError("unsupported_substack")
     prompt_key, prompt, queries, schema = PROMPT_CONFIG[substack.stack_type]
+    prompt_version = prompt_key.rsplit(".", 1)[-1]
     exact_terms = _exact_terms(session, substack)
     retrieved = merge_retrieval([
         retrieve_chunks(session, substack.organization_id, substack.owner_user_id, f"{query} {' '.join(exact_terms)}", exact_terms=exact_terms)
@@ -312,6 +297,8 @@ def generate_substack(session: Session, substack_id: UUID, run_id: UUID | None) 
         raise ValueError("no_retrievable_evidence")
     result = get_llm_client().parse(prompt=prompt, evidence=evidence_text(retrieved), schema=schema)
     extraction = result.parsed
+    if len(getattr(extraction, "report", [])) < 2 or any(not paragraph.value for paragraph in extraction.report):
+        raise ValueError("generation_missing_natural_language_report")
     allowed = {str(item.chunk.id) for item in retrieved}
     if not _valid_citations(extraction, allowed):
         raise ValueError("generation_citation_outside_evidence")
@@ -346,7 +333,7 @@ def generate_substack(session: Session, substack_id: UUID, run_id: UUID | None) 
         substack_id=substack.id,
         revision=(latest.revision + 1) if latest else 1,
         prompt_key=prompt_key,
-        prompt_version="v1",
+        prompt_version=prompt_version,
         model=settings.openai_model,
         content={
             "segments": [segment.model_dump() for segment in segments],
@@ -378,7 +365,7 @@ def generate_substack(session: Session, substack_id: UUID, run_id: UUID | None) 
     run_record = GenerationRun(
         substack_id=substack.id,
         prompt_key=prompt_key,
-        prompt_version="v1",
+        prompt_version=prompt_version,
         model=settings.openai_model,
         input_chunk_ids=sorted(allowed),
         input_fingerprint=fingerprint,

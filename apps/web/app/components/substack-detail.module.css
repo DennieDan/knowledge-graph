@@ -23,6 +23,10 @@
 .prose section:first-child { padding-top: 8px; }
 .prose h3 { margin-bottom: 8px; font-size: 15px; }
 .prose p { color: var(--md-sys-color-on-surface-variant); font-size: 14px; line-height: 1.8; }
+.reportParagraph { display: block; margin-bottom: 14px; }
+.reportParagraph:last-child { margin-bottom: 0; }
+.reportParagraph .highlightedToken { padding: 0; background: transparent; color: inherit; font-weight: inherit; }
+.reportParagraph .highlightedToken:hover { outline: 0; text-decoration: underline; text-decoration-color: var(--md-sys-color-primary); text-underline-offset: 3px; }
 .highlightedToken { padding: 2px 4px; border-radius: 4px; background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container); font-weight: 600; cursor: default; }
 .highlightedToken:hover { outline: 1px solid var(--md-sys-color-primary); }
 .topics { display: grid; gap: 12px; max-width: 900px; margin-top: 14px; }

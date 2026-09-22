@@ -43,8 +43,9 @@
 
 .analysisStatus {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
   margin: -8px 0 20px;
   padding: 12px 14px;
   border: 1px solid var(--cp-border);
@@ -55,6 +56,39 @@
 
 .analysisStatus span {
   color: var(--cp-muted);
+}
+
+.analysisSummary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.generationProgress {
+  display: grid;
+  gap: 6px;
+}
+
+.progressLabels {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.progressTrack {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--cp-border);
+}
+
+.progressTrack > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--md-sys-color-primary);
+  transition: width 0.25s ease;
 }
 
 .analysisStatus button {

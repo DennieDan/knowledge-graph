@@ -4,6 +4,7 @@ from .common import EntityReference, EvidenceConflict, EvidenceValue, OpenQuesti
 
 
 class ClientExtraction(BaseModel):
+    report: list[EvidenceValue]
     name: EvidenceValue
     registration_number: EvidenceValue = Field(default_factory=EvidenceValue)
     customer_id: EvidenceValue = Field(default_factory=EvidenceValue)

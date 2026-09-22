@@ -61,6 +61,12 @@ const FALLBACK_TYPE: StackType = {
   desc: "",
 };
 
+function analysisInProgress(run: AnalysisRun): boolean {
+  return ["queued", "embedding", "discovering", "generating"].includes(run.status)
+    || run.generation_queued > 0
+    || run.generation_running > 0;
+}
+
 function initials(me: Me): string {
   const name = me.display_name ?? me.email;
   return name
@@ -162,11 +168,11 @@ export default function WorkspaceShell() {
   }, [activeAccount, refreshSubstacks]);
 
   useEffect(() => {
-    if (!activeAccount || !analysisRuns.some((run) => ["queued", "embedding", "discovering", "generating"].includes(run.status))) return;
+    if (!activeAccount || !analysisRuns.some(analysisInProgress)) return;
     const timer = window.setInterval(() => {
       listAnalysis(activeAccount.id).then((runs) => {
         setAnalysisRuns(runs);
-        if (!runs.some((run) => ["queued", "embedding", "discovering", "generating"].includes(run.status))) {
+        if (!runs.some(analysisInProgress)) {
           refreshSubstacks();
           if (selectedSubstackId) ensureDetail(selectedSubstackId);
         }

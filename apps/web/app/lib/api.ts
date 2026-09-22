@@ -307,6 +307,11 @@ export interface AnalysisRun {
   candidates_found: number;
   substacks_created: number;
   substacks_updated: number;
+  generation_total: number;
+  generation_completed: number;
+  generation_running: number;
+  generation_queued: number;
+  generation_failed: number;
   failures: number;
   error: string | null;
 }

@@ -9,7 +9,7 @@ from .auth import get_current_user
 from .config import get_settings
 from .database import get_session
 from .jobs import create_run, enqueue_job, retry_failed_run
-from .models import AnalysisRun, Chunk, Document, DocumentVersion, User
+from .models import AnalysisRun, Chunk, Document, DocumentVersion, KnowledgeJob, User
 
 
 router = APIRouter(tags=["analysis"])
@@ -20,7 +20,16 @@ def _visible_run(run: AnalysisRun, user: User) -> bool:
     return run.owner_user_id is None or run.owner_user_id == user.id
 
 
-def _run_json(run: AnalysisRun) -> dict:
+def _run_json(session: Session, run: AnalysisRun) -> dict:
+    generation_counts = dict(session.execute(
+        select(KnowledgeJob.status, func.count(KnowledgeJob.id))
+        .where(
+            KnowledgeJob.analysis_run_id == run.id,
+            KnowledgeJob.kind == "generate_substack",
+        )
+        .group_by(KnowledgeJob.status)
+    ).all())
+    generation_total = sum(generation_counts.values())
     return {
         "id": str(run.id),
         "organization_id": str(run.organization_id),
@@ -33,6 +42,11 @@ def _run_json(run: AnalysisRun) -> dict:
         "candidates_found": run.candidates_found,
         "substacks_created": run.substacks_created,
         "substacks_updated": run.substacks_updated,
+        "generation_total": generation_total,
+        "generation_completed": generation_counts.get("succeeded", 0),
+        "generation_running": generation_counts.get("running", 0),
+        "generation_queued": generation_counts.get("queued", 0),
+        "generation_failed": generation_counts.get("failed", 0),
         "failures": run.failures,
         "error": run.error_summary,
         "created_at": run.created_at.isoformat() if run.created_at else None,
@@ -108,7 +122,7 @@ def start_analysis(
     runs = [_enqueue_scope(session, organization_id, None, "manual")]
     if _latest_versions(session, organization_id, user.id):
         runs.append(_enqueue_scope(session, organization_id, user.id, "manual"))
-    return [_run_json(run) for run in runs]
+    return [_run_json(session, run) for run in runs]
 
 
 @router.get("/accounts/{organization_id}/analysis")
@@ -127,7 +141,7 @@ def list_analysis(
         .order_by(AnalysisRun.created_at.desc())
         .limit(20)
     ).all()
-    return [_run_json(run) for run in runs]
+    return [_run_json(session, run) for run in runs]
 
 
 @router.get("/analysis/{run_id}")
@@ -142,7 +156,7 @@ def analysis_detail(
     membership_for(run.organization_id, user, session)
     if not _visible_run(run, user):
         raise HTTPException(status_code=404, detail="analysis_not_found")
-    return _run_json(run)
+    return _run_json(session, run)
 
 
 @router.post("/analysis/{run_id}/retry")
@@ -159,4 +173,4 @@ def retry_analysis(
         raise HTTPException(status_code=404, detail="analysis_not_found")
     queued = retry_failed_run(session, run)
     session.commit()
-    return {"queued": queued, "run": _run_json(run)}
+    return {"queued": queued, "run": _run_json(session, run)}

@@ -12,6 +12,7 @@ class SalesOrderLine(BaseModel):
 
 
 class SalesOrderExtraction(BaseModel):
+    report: list[EvidenceValue]
     order_number: EvidenceValue
     customer_name: EvidenceValue
     customer_identifier: EvidenceValue = Field(default_factory=EvidenceValue)

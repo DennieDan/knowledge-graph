@@ -148,8 +148,15 @@ export default function StacksView({
   const activeType = selectedType
     ? stackTypes.find((t) => t.id === selectedType)
     : null;
-  const activeRun = analysisRuns.find((run) => ["queued", "embedding", "discovering", "generating"].includes(run.status));
-  const failedRun = analysisRuns.find((run) => run.status === "failed" || run.status === "partial");
+  const activeRun = analysisRuns.find((run) =>
+    ["queued", "embedding", "discovering", "generating"].includes(run.status)
+    || run.generation_queued > 0
+    || run.generation_running > 0,
+  );
+  const failedRun = analysisRuns.find((run) => (run.status === "failed" || run.status === "partial") && run.generation_queued === 0 && run.generation_running === 0);
+  const generationPercent = activeRun?.generation_total
+    ? Math.round(((activeRun.generation_completed + activeRun.generation_failed) / activeRun.generation_total) * 100)
+    : 0;
   const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
 
   useEffect(() => setStatusFilter(new Set()), [selectedType]);
@@ -248,8 +255,22 @@ export default function StacksView({
 
       {!activeType && activeRun && (
         <div className={styles.analysisStatus} role="status" aria-live="polite">
-          <strong>{activeRun.status === "queued" ? "Analysis queued" : `${activeRun.status[0]!.toUpperCase()}${activeRun.status.slice(1)} knowledge`}</strong>
-          <span>{activeRun.documents_processed}/{activeRun.documents_total} documents · {activeRun.chunks_embedded} chunks embedded · {activeRun.candidates_found} records found</span>
+          <div className={styles.analysisSummary}>
+            <strong>{activeRun.generation_total > 0 ? "Generating LLM reports" : activeRun.status === "queued" ? "Analysis queued" : `${activeRun.status[0]!.toUpperCase()}${activeRun.status.slice(1)} knowledge`}</strong>
+            <span>{activeRun.documents_processed}/{activeRun.documents_total} documents analyzed · {activeRun.chunks_embedded} chunks embedded · {activeRun.candidates_found} records found</span>
+          </div>
+          {activeRun.generation_total > 0 && (
+            <div className={styles.generationProgress}>
+              <div className={styles.progressLabels}>
+                <span>LLM content</span>
+                <strong>{activeRun.generation_completed}/{activeRun.generation_total} generated</strong>
+              </div>
+              <div className={styles.progressTrack} role="progressbar" aria-label="LLM content generation" aria-valuemin={0} aria-valuemax={activeRun.generation_total} aria-valuenow={activeRun.generation_completed + activeRun.generation_failed}>
+                <span style={{ width: `${generationPercent}%` }} />
+              </div>
+              <span>{activeRun.generation_running > 0 ? `${activeRun.generation_running} generating · ` : ""}{activeRun.generation_queued} queued{activeRun.generation_failed > 0 ? ` · ${activeRun.generation_failed} failed` : ""}</span>
+            </div>
+          )}
         </div>
       )}
       {!activeType && !activeRun && failedRun && (

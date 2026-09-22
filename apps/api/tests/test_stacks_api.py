@@ -112,6 +112,10 @@ class StacksApiTests(unittest.TestCase):
         listed = self.client.get(f"/accounts/{self.organization.id}/analysis")
         self.assertEqual(200, listed.status_code)
         self.assertTrue(any(run["scope"] == "mine" for run in listed.json()))
+        private_run = next(run for run in listed.json() if run["scope"] == "mine")
+        self.assertEqual(0, private_run["generation_total"])
+        self.assertEqual(0, private_run["generation_completed"])
+        self.assertEqual(0, private_run["generation_failed"])
 
     def test_search_filters_by_name(self):
         self.ingest(owner=self.alice.id, title="PO2431.pdf")
