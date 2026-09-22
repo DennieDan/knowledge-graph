@@ -5,10 +5,13 @@ from unittest.mock import patch
 from uuid import uuid4
 
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.database import get_engine
+from app.drive import _decode_file_text
 from app.drive_sync import sync_workspace
+from app.filing import ingest_and_file
 from app.models import (
     Document,
     DocumentVersion,
@@ -159,6 +162,44 @@ class DriveSyncTests(unittest.TestCase):
             .limit(1)
         )
         self.assertEqual(2, latest.revision)
+
+    def test_nul_bytes_in_content_are_stripped(self):
+        self.set_remote([remote_file("f1")])
+        self.mock_fetch.return_value = "order\x00 details\x00here"
+        result = sync_workspace(self.session, self.workspace, self.drive_connection, self.user)
+        self.assertEqual(1, result["ingested"])
+        latest = self.session.scalar(
+            select(DocumentVersion)
+            .join(Document, Document.id == DocumentVersion.document_id)
+            .where(Document.external_id == "f1")
+        )
+        self.assertEqual("order detailshere", latest.content)
+
+    def test_ingest_failure_is_isolated_per_file(self):
+        self.set_remote([remote_file("bad"), remote_file("good")])
+        original = ingest_and_file
+
+        def flaky(session, organization_id, document):
+            if document.external_id == "bad":
+                raise SQLAlchemyError("boom")
+            return original(session, organization_id, document)
+
+        with patch("app.drive_sync.ingest_and_file", side_effect=flaky):
+            result = sync_workspace(self.session, self.workspace, self.drive_connection, self.user)
+        self.assertEqual(1, result["ingested"])
+        self.assertEqual(1, len(result["errors"]))
+        self.assertIsNone(self.document_for("bad"))
+        self.assertIsNotNone(self.document_for("good"))
+        failed = self.session.scalar(select(DriveFile).where(DriveFile.file_id == "bad"))
+        self.assertIsNone(failed.ingested_modified_time)
+
+    def test_decode_file_text_handles_utf16_and_declared_charsets(self):
+        text = "Tên lớp số"
+        self.assertEqual(text, _decode_file_text(text.encode("utf-16"), None))
+        self.assertEqual(text, _decode_file_text(text.encode("utf-16-le"), None))
+        self.assertEqual(text, _decode_file_text(text.encode("utf-16-be"), None))
+        self.assertEqual("plain", _decode_file_text(b"plain", None))
+        self.assertEqual("café", _decode_file_text("café".encode("latin-1"), "latin-1"))
 
     def test_trashed_and_missing_files_are_marked(self):
         self.set_remote([remote_file("f1"), remote_file("f2", trashed=True)])

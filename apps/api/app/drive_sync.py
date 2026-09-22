@@ -11,6 +11,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from .auth import get_current_user
@@ -105,6 +106,8 @@ def sync_workspace(session: Session, workspace: DriveWorkspace, connection: Driv
         if file_id not in seen:
             row.trashed = True
     session.flush()
+    # Persist the mirror first so a per-file ingest rollback below cannot lose it.
+    session.commit()
 
     owner_user_id = connection.user_id if workspace.kind == "my_drive" else None
     ingested = skipped = 0
@@ -127,7 +130,12 @@ def sync_workspace(session: Session, workspace: DriveWorkspace, connection: Driv
         except HTTPException as exc:
             errors.append(f"{file.get('name', file['id'])}: {exc.detail}")
             continue
-        ingest_and_file(session, workspace.organization_id, drive_file_document(file, text, workspace.id, owner_user_id))
+        try:
+            ingest_and_file(session, workspace.organization_id, drive_file_document(file, text, workspace.id, owner_user_id))
+        except SQLAlchemyError as exc:
+            session.rollback()
+            errors.append(f"{file.get('name', file['id'])}: {type(exc).__name__}")
+            continue
         row.ingested_modified_time = row.modified_time or now
         ingested += 1
     session.commit()
