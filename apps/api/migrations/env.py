@@ -19,7 +19,7 @@ def run_migrations() -> None:
         with context.begin_transaction():
             context.run_migrations()
     else:
-        engine = create_engine(url, poolclass=pool.NullPool, connect_args={"connect_timeout": 3})
+        engine = create_engine(url, poolclass=pool.NullPool, connect_args={"connect_timeout": 10})
         with engine.connect() as connection:
             context.configure(connection=connection, target_metadata=Base.metadata, compare_type=True, render_item=render_item)
             with context.begin_transaction():

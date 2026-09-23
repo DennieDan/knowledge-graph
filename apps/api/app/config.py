@@ -59,20 +59,19 @@ class Settings(BaseSettings):
         # Render's private network exposes services as bare host:port.
         return value if "://" in value else f"http://{value}"
 
-    @staticmethod
-    def _psycopg_url(value: SecretStr) -> str:
-        url = value.get_secret_value()
-        if url.startswith("postgresql://"):
-            return url.replace("postgresql://", "postgresql+psycopg://", 1)
-        if url.startswith("postgres://"):
-            return url.replace("postgres://", "postgresql+psycopg://", 1)
-        return url
-
     def runtime_url(self) -> str:
-        return self._psycopg_url(self.database_url)
+        return psycopg_url(self.database_url.get_secret_value())
 
     def migration_url(self) -> str:
-        return self._psycopg_url(self.migration_database_url or self.database_url)
+        return psycopg_url((self.migration_database_url or self.database_url).get_secret_value())
+
+
+def psycopg_url(url: str) -> str:
+    """Point plain Postgres URLs (as copied from Supabase) at the installed psycopg 3 driver."""
+    for prefix in ("postgresql://", "postgres://"):
+        if url.startswith(prefix):
+            return "postgresql+psycopg://" + url[len(prefix):]
+    return url
 
 
 @lru_cache
