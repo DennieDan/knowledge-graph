@@ -108,15 +108,19 @@ export default function ToCheckView({
                     <Icon name={type?.icon ?? "file-text"} size={15} />
                   </span>
                   <span className={styles.rowBody}>
-                    <span className={styles.rowName}>{ss.name}</span>
+                    <span className={styles.rowName}>
+                      {ss.name}
+                      {kind === "attention" && (
+                        <span className={`${styles.state} ${styles.state_attention}`}>
+                          {kindLabel(ss, kind)}
+                        </span>
+                      )}
+                    </span>
                     <span className={styles.rowMeta}>
                       {type?.name ?? "Stack"} · {ss.count}{" "}
                       {ss.count === 1 ? "source" : "sources"} · {ss.access} ·{" "}
                       {ss.updated}
                     </span>
-                  </span>
-                  <span className={`${styles.state} ${styles[`state_${kind}`]}`}>
-                    {kindLabel(ss, kind)}
                   </span>
                 </button>
                 <div className={styles.rowActions}>

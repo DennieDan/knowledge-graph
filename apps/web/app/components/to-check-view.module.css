@@ -136,6 +136,9 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .rowMeta {
@@ -189,6 +192,7 @@
   font-size: 12px;
   line-height: inherit;
   white-space: nowrap;
+  min-width: 128px;
 }
 
 .confirmBtn:disabled {
@@ -204,11 +208,13 @@
   color: var(--cp-ink);
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   cursor: pointer;
   font-family: inherit;
   font-size: 12px;
   line-height: inherit;
   white-space: nowrap;
+  min-width: 128px;
 }
 
 .reviewBtn:hover {
