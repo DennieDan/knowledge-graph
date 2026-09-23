@@ -514,7 +514,12 @@ export default function WorkspaceShell() {
               onManageDrive={() => setDriveOpen(true)}
             />
           )}
-          {activeNav === "search" && <SearchView me={me} />}
+          {activeNav === "search" && (
+            <SearchView
+              accountId={me?.active_account_id ?? null}
+              onOpenRecord={openSubstack}
+            />
+          )}
           {activeNav === "maintenance" && (
             <div className={styles.placeholder}>
               <h1 className={styles.placeholderTitle}>Maintenance</h1>

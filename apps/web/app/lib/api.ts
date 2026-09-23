@@ -337,3 +337,88 @@ export interface DriveSyncResult { synced: number; ingested: number; skipped: nu
 export function syncDriveWorkspace(workspaceId: string): Promise<DriveSyncResult> {
   return apiFetch(`/drive/workspaces/${workspaceId}/sync`, { method: "POST" });
 }
+
+// ── Chat / Ask ─────────────────────────────────────────────────────────
+
+export interface ChatRecordCitation {
+  record_id: string;
+  name: string;
+  stack_type: string;
+  checked: "person" | "system" | "no";
+  confirmed_by: string | null;
+  confirmed_at: string | null;
+  revision: number | null;
+  source_ids: string[];
+}
+
+export interface ChatChunkCitation {
+  chunk_id: string;
+  document_id: string;
+  title: string;
+  source: string;
+  source_uri: string | null;
+  snippet: string;
+}
+
+export type ChatCitation = ChatRecordCitation | ChatChunkCitation;
+
+export function isRecordCitation(c: ChatCitation): c is ChatRecordCitation {
+  return "record_id" in c;
+}
+
+export interface ChatStep {
+  tool: string;
+  query?: string;
+  hits?: number;
+  new_chunks?: number;
+}
+
+export interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  text: string;
+  answered: boolean;
+  checked: boolean;
+  checked_note: string | null;
+  citations: ChatCitation[];
+  steps: ChatStep[];
+  feedback: "up" | "down" | null;
+  created_at: string | null;
+}
+
+export interface ChatThread {
+  id: string;
+  title: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface ChatThreadDetail extends ChatThread {
+  messages: ChatMessage[];
+}
+
+export function createChatThread(accountId: string): Promise<ChatThread> {
+  return apiFetch(`/accounts/${accountId}/chat/threads`, { method: "POST", body: JSON.stringify({}) });
+}
+
+export function listChatThreads(accountId: string): Promise<{ threads: ChatThread[] }> {
+  return apiFetch(`/accounts/${accountId}/chat/threads`);
+}
+
+export function getChatThread(accountId: string, threadId: string): Promise<ChatThreadDetail> {
+  return apiFetch(`/accounts/${accountId}/chat/threads/${threadId}`);
+}
+
+export function postChatMessage(accountId: string, threadId: string, text: string): Promise<ChatMessage> {
+  return apiFetch(`/accounts/${accountId}/chat/threads/${threadId}/messages`, {
+    method: "POST",
+    body: JSON.stringify({ text }),
+  });
+}
+
+export function setChatFeedback(accountId: string, messageId: string, rating: "up" | "down"): Promise<ChatMessage> {
+  return apiFetch(`/accounts/${accountId}/chat/messages/${messageId}/feedback`, {
+    method: "POST",
+    body: JSON.stringify({ rating }),
+  });
+}
