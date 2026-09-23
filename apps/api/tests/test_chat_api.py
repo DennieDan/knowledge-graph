@@ -1,7 +1,8 @@
 """Chat API: the agent loop, citation validation, thread privacy, feedback."""
 import unittest
+from datetime import datetime, timezone
 from unittest.mock import patch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
 from sqlalchemy import select
@@ -193,6 +194,35 @@ class ChatApiTests(unittest.TestCase):
 
         self.assertEqual(404, response.status_code)
         self.assertEqual([], self.client.get(f"/accounts/{self.organization.id}/chat/threads").json()["threads"])
+
+    def test_refetch_keeps_question_before_answer_on_timestamp_ties(self):
+        thread_id = self.thread().json()["id"]
+        at = datetime.now(timezone.utc)
+        # A turn commits both rows together, so their created_at ties; the
+        # assistant row here sorts first on id, like a random-UUID tie-break.
+        question = ChatMessage(
+            id=UUID("ffffffff-ffff-4fff-bfff-ffffffffffff"),
+            thread_id=UUID(thread_id),
+            role="user",
+            text="when is PO2431 due?",
+            created_at=at,
+        )
+        answer = ChatMessage(
+            id=UUID("00000000-0000-4000-8000-000000000000"),
+            thread_id=UUID(thread_id),
+            role="assistant",
+            text="PO2431 is due 14 March.",
+            answered=True,
+            created_at=at,
+        )
+        self.session.add_all([answer, question])
+        self.session.flush()
+
+        messages = self.client.get(
+            f"/accounts/{self.organization.id}/chat/threads/{thread_id}"
+        ).json()["messages"]
+
+        self.assertEqual(["user", "assistant"], [message["role"] for message in messages])
 
     def test_records_feedback_on_an_answer(self):
         version = self.ingest("PO2431.pdf", "Purchase order 2431: 120 brackets.")

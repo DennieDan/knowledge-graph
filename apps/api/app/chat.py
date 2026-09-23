@@ -15,7 +15,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import case, select
 from sqlalchemy.orm import Session
 
 from .accounts import membership_for
@@ -143,7 +143,13 @@ def get_thread(
     messages = session.scalars(
         select(ChatMessage)
         .where(ChatMessage.thread_id == thread.id)
-        .order_by(ChatMessage.created_at, ChatMessage.id)
+        .order_by(
+            # A turn commits the question and answer together, so their
+            # created_at ties; keep the question first on ties.
+            ChatMessage.created_at,
+            case((ChatMessage.role == "user", 0), else_=1),
+            ChatMessage.id,
+        )
     ).all()
     return {**_thread_json(thread), "messages": [_message_json(message) for message in messages]}
 
