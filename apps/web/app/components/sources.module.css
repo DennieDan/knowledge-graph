@@ -115,6 +115,22 @@
   text-decoration: none;
 }
 
+.connAction button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.spinning {
+  display: inline-flex;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .columns {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 280px;

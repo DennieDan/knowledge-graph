@@ -2,6 +2,7 @@
 
 Chunks are stored without embeddings; `python -m scripts.reembed` fills them in.
 """
+import re
 from dataclasses import dataclass
 from hashlib import sha256
 from uuid import UUID
@@ -22,6 +23,16 @@ class SourceDocument:
     title: str
     content: str
     source_uri: str | None = None
+    drive_workspace_id: UUID | None = None
+    owner_user_id: UUID | None = None
+
+
+_CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+
+
+def clean_text(text: str) -> str:
+    """Postgres text columns reject NUL bytes; other C0 controls are noise."""
+    return _CONTROL_CHARS.sub("", text)
 
 
 def content_hash(content: str) -> str:
@@ -43,12 +54,16 @@ def _document_for(session: Session, organization_id: UUID, document: SourceDocum
             external_id=document.external_id,
             title=document.title,
             source_uri=document.source_uri,
+            drive_workspace_id=document.drive_workspace_id,
+            owner_user_id=document.owner_user_id,
         )
         session.add(existing)
         session.flush()
         return existing
     existing.title = document.title
     existing.source_uri = document.source_uri
+    existing.drive_workspace_id = document.drive_workspace_id
+    existing.owner_user_id = document.owner_user_id
     return existing
 
 
@@ -60,7 +75,7 @@ def ingest_document(
     Earlier revisions keep their chunks so retrieval against them stays valid.
     The caller commits.
     """
-    content = document.content.strip()
+    content = clean_text(document.content).strip()
     if not content:
         return None
 

@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     google_client_id: SecretStr
     google_client_secret: SecretStr
     google_redirect_uri: str = "http://localhost:8000/auth/google/callback"
+    google_drive_redirect_uri: str = "http://localhost:8000/drive/callback"
     session_secret: SecretStr
     web_origin: str = "http://localhost:3000"
     waha_base_url: str = "http://localhost:3100"
@@ -36,6 +37,17 @@ class Settings(BaseSettings):
     embedding_model: str = EMBEDDING_MODEL
     embedding_device: str | None = None
     embedding_batch_size: int = 32
+    openai_api_key: SecretStr | None = None
+    openai_model: str = "gpt-5-mini"
+    openai_timeout_seconds: float = 60.0
+    analysis_config_version: str = "core-v1"
+    analysis_max_documents: int = 500
+    analysis_max_chunks_per_document: int = 60
+    analysis_max_candidates_per_document: int = 30
+    analysis_max_candidates_per_run: int = 200
+    retrieval_limit_per_query: int = 8
+    retrieval_max_chunks: int = 40
+    retrieval_max_context_chars: int = 50000
 
 
 @lru_cache

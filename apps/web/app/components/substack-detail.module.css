@@ -9,6 +9,10 @@
 .historyButtons button:hover:not(:disabled), .panelToggle:hover, .sourcesHeader button:hover { background: var(--cp-hover); }
 .historyButtons button:disabled { opacity: .25; cursor: default; }
 .panelToggle { margin-left: auto; color: var(--cp-muted); }
+.reviewBanner { display: flex; align-items: center; gap: 10px; margin-top: 16px; padding: 11px 13px; border: 1px solid var(--cp-border); border-radius: 8px; background: var(--md-sys-color-surface-container-low); font-size: 12px; }
+.reviewBanner span { flex: 1; }
+.reviewBanner button { border: 0; background: transparent; color: var(--md-sys-color-primary); font-weight: 600; cursor: pointer; }
+.reviewBanner .confirmButton { padding: 7px 10px; border-radius: 6px; background: var(--md-sys-color-primary); color: var(--md-sys-color-on-primary); }
 .toolbar { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin: 30px 0 14px; }
 .toolbar label { width: 240px; display: flex; align-items: center; gap: 7px; border: 1px solid var(--cp-border); border-radius: 7px; padding: 7px 9px; }
 .toolbar input { border: 0; outline: 0; width: 100%; background: transparent; font-size: 12px; }
@@ -19,6 +23,10 @@
 .prose section:first-child { padding-top: 8px; }
 .prose h3 { margin-bottom: 8px; font-size: 15px; }
 .prose p { color: var(--md-sys-color-on-surface-variant); font-size: 14px; line-height: 1.8; }
+.reportParagraph { display: block; margin-bottom: 14px; }
+.reportParagraph:last-child { margin-bottom: 0; }
+.reportParagraph .highlightedToken { padding: 0; background: transparent; color: inherit; font-weight: inherit; }
+.reportParagraph .highlightedToken:hover { outline: 0; text-decoration: underline; text-decoration-color: var(--md-sys-color-primary); text-underline-offset: 3px; }
 .highlightedToken { padding: 2px 4px; border-radius: 4px; background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container); font-weight: 600; cursor: default; }
 .highlightedToken:hover { outline: 1px solid var(--md-sys-color-primary); }
 .topics { display: grid; gap: 12px; max-width: 900px; margin-top: 14px; }
@@ -35,6 +43,10 @@
 .relatedClosed { padding-top: 20px; }
 .relatedToggle { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 10px 2px; border: 0; background: transparent; font-size: 16px; font-weight: 600; cursor: pointer; }
 .relatedToggle small { margin-left: 10px; color: var(--cp-muted); font-weight: 400; }
+.relatedFilters { display: flex; flex-wrap: wrap; gap: 8px; padding: 2px 0 10px; }
+.relatedChip { padding: 4px 11px; border: 1px solid var(--cp-border); border-radius: 999px; background: var(--cp-surface); color: var(--cp-muted); font-family: inherit; font-size: 12px; line-height: 1.4; cursor: pointer; }
+.relatedChip:hover { color: var(--cp-ink); border-color: var(--cp-muted); }
+.relatedChipActive { border-color: var(--md-sys-color-primary); background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container); font-weight: 500; }
 .relatedGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding: 3px 0 18px; }
 .relatedGrid button { min-height: 70px; padding: 12px; border: 1px solid transparent; border-radius: 7px; background: var(--cp-hover); text-align: left; cursor: pointer; }
 .relatedGrid button:hover { border-color: var(--md-sys-color-primary); background: var(--md-sys-color-primary-container); }

@@ -12,6 +12,8 @@
   uvicorn, `apps/api/.venv`)
 - Web only: `pnpm dev` in `apps/web`
 - Verify web changes: `pnpm check-types` and `pnpm lint` in `apps/web`
+- Knowledge worker: `pnpm worker` in `apps/api` (run alongside the API); process one queued job with `pnpm worker:once`
+- LLM extraction requires `OPENAI_API_KEY` in `apps/api/.env`; never commit or log it
 
 ## Structure
 
@@ -20,6 +22,38 @@
 - `apps/api` — FastAPI service (port 8000)
 - `packages/ui`, `packages/eslint-config`, `packages/typescript-config` —
   shared workspace packages (`@repo/*`)
+
+## Deployment checklist
+
+When this app is deployed, the following configuration must be completed.
+Remind the user of these items when deployment is set up:
+
+- **Google OAuth redirect URIs.** The OAuth web client must have both:
+  - `https://your-api-domain/auth/google/callback` — identity sign-in
+  - `https://your-api-domain/drive/callback` — Drive authorization
+
+- **API environment variables.** On the production API host, set:
+  - `GOOGLE_REDIRECT_URI=https://your-api-domain/auth/google/callback`
+  - `GOOGLE_DRIVE_REDIRECT_URI=https://your-api-domain/drive/callback`
+  - `WEB_ORIGIN=https://your-web-domain`
+  - `SESSION_SECRET` — a strong random value (`openssl rand -hex 32`)
+  - `DATABASE_URL` — the production Postgres connection string
+  - `OPENAI_API_KEY` — server-side only, for Stack discovery and generation
+  - Run a separate `pnpm worker` process for durable embedding/analysis jobs
+
+- **Web environment variables.** On the production web host, set:
+  - `NEXT_PUBLIC_API_URL=https://your-api-domain`
+
+- **Session cookie.** `apps/api/app/main.py` currently sets `https_only=False`
+  on the session cookie. Before production, set it to `True` so the session
+  cookie is only sent over HTTPS.
+
+- **OAuth app verification.** `drive.readonly` is a restricted Google scope.
+  The Google Auth Platform app must be submitted for verification before
+  non-test users can grant Drive access in production.
+
+- **Database.** Run `pnpm db:migrate` in `apps/api` against the production
+  database before serving traffic.
 
 ## Conventions
 
@@ -51,6 +85,17 @@
 - WhatsApp, email, PDFs, and Google Drive are primary knowledge sources. PDPA
   compliance (consent, retention, access control, and audit history) shapes
   ingestion.
+- The platform supports two distinct account types: **Personal** and
+  **Company/Organization**.
+  - A Company/Organization account must be backed by Google Workspace. It has
+    one administrator role, assigned to a single user, while every person uses
+    their own user account.
+  - Within a Company/Organization account, a user's own Stacks correspond to
+    their Google Workspace **My Drive**. Other Google **Shared Drives** appear
+    as separate Workspaces listed horizontally.
+  - Users cannot connect an individual Google account to a Company/Organization
+    account. They must create and use a separate Personal account for their
+    individual Google account.
 - **Stacks** are the core entity model—typed collections into which ingested
   information is filed and linked. The initial 12 Stacks are:
   - **Sales Orders** — customer POs, line items, quantities, revisions, dates
@@ -66,3 +111,16 @@
   - **Meetings** — meeting notes, action items, and follow-ups
   - **Files** — documents, drawings, images, and attachments
   
+
+## Enhanced Features (not in MVP)
+**Company/Organization**. Either type can be created directly by uploading
+  files and must work without connecting to or depending on Google.
+  - Google Drive and Google Workspace are optional integrations, not account
+    creation requirements or the platform's system of record.
+  - A Company/Organization account has one administrator role, assigned to a
+    single user, while every person uses their own user account.
+  - Without Google, uploaded files and the Stacks created from them belong to
+    the relevant Personal or Company/Organization workspace.
+  - When Google Workspace is connected to a Company/Organization account, a
+    user's own Stacks correspond to their Google Workspace **My Drive**. Other
+    Google **Shared Drives** appear as separate Workspaces listed horizontally.

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { listDriveFiles, type DriveFile } from "../lib/api";
+import { listDriveFiles, listDriveWorkspaces, type DriveFile } from "../lib/api";
 import styles from "./drive-files.module.css";
 
 function formatModified(iso?: string): string {
@@ -12,15 +12,16 @@ function formatModified(iso?: string): string {
   });
 }
 
-export default function DriveFiles() {
+export default function DriveFiles({ accountId }: { accountId: string }) {
   const [files, setFiles] = useState<DriveFile[] | null>(null);
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    listDriveFiles()
+    listDriveWorkspaces(accountId)
+      .then((workspaces) => workspaces[0] ? listDriveFiles(workspaces[0].id) : { files: [] })
       .then((data) => setFiles(data.files))
       .catch(() => setError(true));
-  }, []);
+  }, [accountId]);
 
   return (
     <section className={styles.driveFiles} aria-live="polite">

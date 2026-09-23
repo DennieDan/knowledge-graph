@@ -7,11 +7,15 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
 
+from .accounts import router as accounts_router
+from .analysis_api import router as analysis_router
 from .auth import router as auth_router
 from .config import get_settings
 from .database import get_engine
 from .drive import router as drive_router
+from .drive_sync import router as drive_sync_router
 from .models import Base
+from .stacks import router as stacks_router
 from .whatsapp import router as whatsapp_router
 
 app = FastAPI(title="Knowledge Graph API")
@@ -33,8 +37,12 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+app.include_router(accounts_router)
+app.include_router(analysis_router)
 app.include_router(drive_router)
+app.include_router(drive_sync_router)
 app.include_router(whatsapp_router)
+app.include_router(stacks_router)
 
 
 @app.get("/health")

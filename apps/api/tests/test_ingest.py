@@ -125,7 +125,11 @@ class IngestDocumentTests(unittest.TestCase):
         self.assertIsNone(ingest_document(self.session, self.organization.id, self.document("alpha")))
         self.assertEqual(
             1,
-            len(self.session.scalars(select(DocumentVersion)).all()),
+            len(self.session.scalars(
+                select(DocumentVersion)
+                .join(Document, DocumentVersion.document_id == Document.id)
+                .where(Document.organization_id == self.organization.id)
+            ).all()),
         )
 
     def test_changed_content_adds_a_revision_and_keeps_the_old_chunks(self):
@@ -142,7 +146,9 @@ class IngestDocumentTests(unittest.TestCase):
 
     def test_empty_content_is_skipped(self):
         self.assertIsNone(ingest_document(self.session, self.organization.id, self.document("  \n ")))
-        self.assertEqual([], self.session.scalars(select(Document)).all())
+        self.assertEqual([], self.session.scalars(
+            select(Document).where(Document.organization_id == self.organization.id)
+        ).all())
 
     def test_whatsapp_chat_round_trips_into_chunks(self):
         user = User(email=f"ingest-{uuid4()}@example.com")

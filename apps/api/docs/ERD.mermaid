@@ -1,39 +1,103 @@
 erDiagram
+    USERS ||--|| GOOGLE_IDENTITIES : authenticates
+    USERS ||--o{ ORGANIZATION_MEMBERSHIPS : joins
+    ORGANIZATIONS ||--o{ ORGANIZATION_MEMBERSHIPS : has
+    ORGANIZATIONS ||--o{ ORGANIZATION_INVITATIONS : invites
+    USERS ||--o{ DRIVE_CONNECTIONS : authorizes
+    GOOGLE_IDENTITIES ||--o{ DRIVE_CONNECTIONS : grants
+    ORGANIZATIONS ||--o{ DRIVE_CONNECTIONS : scopes
+    ORGANIZATIONS ||--o{ DRIVE_WORKSPACES : contains
+    DRIVE_CONNECTIONS ||--o{ DRIVE_WORKSPACE_CONNECTIONS : discovers
+    DRIVE_WORKSPACES ||--o{ DRIVE_WORKSPACE_CONNECTIONS : accessible_by
+    DRIVE_WORKSPACES ||--o{ DRIVE_SELECTIONS : configures
     ORGANIZATIONS ||--o{ DOCUMENTS : contains
+    DRIVE_WORKSPACES o|--o{ DOCUMENTS : originates
+    USERS o|--o{ DOCUMENTS : privately_owns
     DOCUMENTS ||--o{ DOCUMENT_VERSIONS : has
     DOCUMENT_VERSIONS ||--o{ CHUNKS : contains
 
+    USERS {
+        uuid id PK
+        varchar email UK
+        text display_name
+    }
+    GOOGLE_IDENTITIES {
+        uuid id PK
+        uuid user_id FK
+        varchar google_sub UK
+        varchar hosted_domain
+    }
     ORGANIZATIONS {
         uuid id PK
-        varchar_255 name
-        timestamptz created_at
+        varchar name
+        varchar account_type
+        varchar google_domain
+        uuid created_by_user_id FK
     }
-
+    ORGANIZATION_MEMBERSHIPS {
+        uuid id PK
+        uuid organization_id FK
+        uuid user_id FK
+        varchar role
+    }
+    ORGANIZATION_INVITATIONS {
+        uuid id PK
+        uuid organization_id FK
+        varchar email
+        varchar token_hash UK
+        varchar status
+        timestamptz expires_at
+    }
+    DRIVE_CONNECTIONS {
+        uuid id PK
+        uuid organization_id FK
+        uuid user_id FK
+        uuid google_identity_id FK
+        text scopes
+        text refresh_token
+        varchar status
+    }
+    DRIVE_WORKSPACES {
+        uuid id PK
+        uuid organization_id FK
+        varchar kind
+        varchar google_drive_id
+        varchar name
+        uuid owner_user_id FK
+    }
+    DRIVE_WORKSPACE_CONNECTIONS {
+        uuid id PK
+        uuid workspace_id FK
+        uuid connection_id FK
+        varchar status
+    }
+    DRIVE_SELECTIONS {
+        uuid id PK
+        uuid workspace_id FK
+        uuid user_id FK
+        boolean share_all
+        jsonb selected_file_ids
+    }
     DOCUMENTS {
         uuid id PK
         uuid organization_id FK
+        uuid drive_workspace_id FK
+        uuid owner_user_id FK
         text title
-        varchar_100 source
-        text external_id "nullable"
-        text source_uri "nullable"
-        timestamptz created_at
+        varchar source
+        text external_id
     }
-
     DOCUMENT_VERSIONS {
         uuid id PK
         uuid document_id FK
         integer revision
-        varchar_64 content_hash
+        varchar content_hash
         text content
-        timestamptz created_at
     }
-
     CHUNKS {
         uuid id PK
         uuid document_version_id FK
         integer position
         text text
-        vector_384 embedding "nullable"
-        varchar_255 embedding_model "nullable"
-        timestamptz created_at
+        vector embedding
     }

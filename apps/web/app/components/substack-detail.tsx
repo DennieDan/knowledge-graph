@@ -2,61 +2,54 @@
 
 import { useMemo, useState } from "react";
 import Icon from "./icons";
-import { SUBSTACK_DETAILS, type DetailSource, type DetailToken, type StackType, type Substack } from "../lib/stacks";
+import { type StackType, type Substack, type UiSubstackDetail } from "../lib/stacks";
 import styles from "./substack-detail.module.css";
 
 interface Props {
   substack: Substack;
   stackTypes: StackType[];
-  substacks: Substack[];
+  detail: UiSubstackDetail | null;
+  details: Record<string, UiSubstackDetail>;
   canGoBack: boolean;
   canGoForward: boolean;
   onBack: () => void;
   onForward: () => void;
   onOpen: (id: string) => void;
+  onEnsureDetail: (id: string) => void;
+  onConfirmContent: (contentId: string) => void;
 }
 
-const fallbackSources = (substack: Substack, substacks: Substack[]): DetailSource[] => substack.docs.map((name, index) => {
-  const file = substacks.find((item) => item.typeId === "files" && item.name === name);
-  return { id: `fallback-${index}`, substackId: file?.id ?? "file-po2431", name, type: "Files", origin: "Google Drive", updated: substack.updated, note: "Supporting document" };
-});
-
 function HighlightedToken({ children, sourceIds, onHover }: { children: React.ReactNode; sourceIds: string[]; onHover: (ids: string[] | null) => void }) {
+  if (sourceIds.length === 0) return <>{children}</>;
   return <mark className={styles.highlightedToken} onMouseEnter={() => onHover(sourceIds)} onMouseLeave={() => onHover(null)}>{children}</mark>;
 }
 
-function InlineToken({ token, onHover }: { token?: DetailToken; onHover: (ids: string[] | null) => void }) {
-  if (!token) return null;
-  return <HighlightedToken sourceIds={token.sourceIds} onHover={onHover}>{token.value}</HighlightedToken>;
-}
-
-export default function SubstackDetail({ substack, stackTypes, substacks, canGoBack, canGoForward, onBack, onForward, onOpen }: Props) {
+export default function SubstackDetail({ substack, stackTypes, detail, details, canGoBack, canGoForward, onBack, onForward, onOpen, onEnsureDetail, onConfirmContent }: Props) {
   const [query, setQuery] = useState("");
+  const [showPending, setShowPending] = useState(false);
   const [hoveredSourceIds, setHoveredSourceIds] = useState<string[] | null>(null);
   const [relatedPreviewId, setRelatedPreviewId] = useState<string | null>(null);
   const [relatedOpen, setRelatedOpen] = useState(true);
   const [panelOpen, setPanelOpen] = useState(true);
-  const [expandedTopics, setExpandedTopics] = useState<string[]>([]);
   const type = stackTypes.find((item) => item.id === substack.typeId);
-  const detail = SUBSTACK_DETAILS[substack.id];
   const isConversation = substack.typeId === "conversations";
-  const isFile = substack.typeId === "files";
-  const sources = isFile ? [] : detail?.sources ?? fallbackSources(substack, substacks);
-  const allSourceIds = sources.map((source) => source.id);
-  const previewTarget = relatedPreviewId ? substacks.find((item) => item.id === relatedPreviewId) : null;
-  const previewSources = isFile ? [] : previewTarget ? SUBSTACK_DETAILS[previewTarget.id]?.sources ?? fallbackSources(previewTarget, substacks) : sources;
+  const sources = detail?.sources ?? [];
+  const previewSources = relatedPreviewId && details[relatedPreviewId] ? details[relatedPreviewId].sources : sources;
   const visibleSources = hoveredSourceIds ? previewSources.filter((source) => hoveredSourceIds.includes(source.id)) : previewSources;
-  const explicitRelatedIds = detail?.relatedIds ?? [];
-  const reverseRelatedIds = isFile ? substacks.filter((item) => item.id !== substack.id && (SUBSTACK_DETAILS[item.id]?.sources.some((source) => source.substackId === substack.id) || item.docs.includes(substack.name))).map((item) => item.id) : [];
-  const relatedIds = [...new Set([...explicitRelatedIds, ...reverseRelatedIds])];
-  const related = relatedIds.map((id) => substacks.find((item) => item.id === id)).filter((item): item is Substack => Boolean(item));
-  const tokens = detail?.tokens ?? [];
-  const token = (id: string) => tokens.find((item) => item.id === id);
-  const matchingTokens = useMemo(() => tokens.filter((item) => `${item.label} ${item.value}`.toLowerCase().includes(query.toLowerCase())), [tokens, query]);
-  const topics = useMemo(() => (detail?.conversation ?? []).filter((entry) => `${entry.date} ${entry.message} ${entry.summary}`.toLowerCase().includes(query.toLowerCase())), [detail?.conversation, query]);
-  const genericMatches = `${substack.name} ${substack.desc} ${substack.docs.join(" ")}`.toLowerCase().includes(query.toLowerCase());
+  const related = detail?.related ?? [];
+  const [relatedTypeFilter, setRelatedTypeFilter] = useState<Set<string>>(new Set());
+  const relatedTypes = useMemo(() => [...new Set(related.map((item) => item.typeId))], [related]);
+  const visibleRelated = related.filter((item) => relatedTypeFilter.size === 0 || relatedTypeFilter.has(item.typeId));
+  const displayed = showPending && detail?.pending ? detail.pending : detail;
 
-  const toggleTopic = (id: string) => setExpandedTopics((current) => current.includes(id) ? current.filter((topicId) => topicId !== id) : [...current, id]);
+  const matchingSegments = useMemo(
+    () => (displayed?.segments ?? []).filter((segment) => `${segment.name ?? ""} ${segment.value}`.toLowerCase().includes(query.toLowerCase())),
+    [displayed?.segments, query],
+  );
+  const topics = useMemo(
+    () => (displayed?.conversation ?? []).filter((entry) => `${entry.date} ${entry.author} ${entry.message}`.toLowerCase().includes(query.toLowerCase())),
+    [displayed?.conversation, query],
+  );
 
   return (
     <div className={`${styles.page} ${panelOpen ? "" : styles.pagePanelClosed}`}>
@@ -70,43 +63,88 @@ export default function SubstackDetail({ substack, stackTypes, substacks, canGoB
           <button className={styles.panelToggle} onClick={() => setPanelOpen((open) => !open)} aria-label={panelOpen ? "Close side panel" : "Open side panel"} aria-expanded={panelOpen}><Icon name="panel-right" size={18} /></button>
         </header>
 
+        {substack.reviewState === "unsupported" && (
+          <div className={styles.reviewBanner} role="status">
+            <span>This record no longer has enough current supporting evidence. Its last confirmed content remains available.</span>
+          </div>
+        )}
+        {detail?.pending && (
+          <div className={styles.reviewBanner} role="status">
+            <span>{showPending ? "Reviewing proposed update" : "A proposed update is ready for review"}</span>
+            <button onClick={() => setShowPending((value) => !value)}>{showPending ? "View current" : "Review update"}</button>
+            {showPending && detail.pending.id && <button className={styles.confirmButton} onClick={() => onConfirmContent(detail.pending!.id)}>Confirm update</button>}
+          </div>
+        )}
+        {!detail?.pending && detail?.status === "proposed" && detail.id && (
+          <div className={styles.reviewBanner} role="status">
+            <span>This AI-generated content is proposed and has not been confirmed.</span>
+            <button className={styles.confirmButton} onClick={() => onConfirmContent(detail.id)}>Confirm content</button>
+          </div>
+        )}
+
         <div className={styles.toolbar}>
           {isConversation && <span className={styles.sortLabel}>Most recent first</span>}
           <label><Icon name="search" size={14} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={isConversation ? "Search summary" : "Search content"} /></label>
         </div>
 
         <h2>{isConversation ? "Summary" : "Content"}</h2>
-        {isConversation ? <div className={styles.topics}>
-          {topics.map((topic) => {
-            const expanded = expandedTopics.includes(topic.id);
-            return <article key={topic.id} className={styles.topic} onMouseEnter={() => setHoveredSourceIds(topic.sourceIds)} onMouseLeave={() => setHoveredSourceIds(null)}>
-              <div className={styles.topicMeta}>{topic.date}</div>
-              <h3><HighlightedToken sourceIds={topic.sourceIds} onHover={setHoveredSourceIds}>{topic.message}</HighlightedToken></h3>
-              <p className={expanded ? "" : styles.clamped}>{topic.summary}</p>
-              <button onClick={() => toggleTopic(topic.id)}>{expanded ? "Show less" : "Show more"}<Icon name="chevron-down" size={14} /></button>
-            </article>;
-          })}
-          {topics.length === 0 && <p className={styles.empty}>No matching topics.</p>}
-        </div> : substack.id === "so-2431" ? <div className={styles.prose}>
-          {(query === "" || matchingTokens.length > 0) && <>
-            <section><h3>Order overview</h3><p><InlineToken token={token("client")} onHover={setHoveredSourceIds} /> placed sales order <InlineToken token={token("po")} onHover={setHoveredSourceIds} /> for <InlineToken token={token("qty")} onHover={setHoveredSourceIds} /> of the <InlineToken token={token("item")} onHover={setHoveredSourceIds} />. The order is <InlineToken token={token("status")} onHover={setHoveredSourceIds} /> and has a total value of <InlineToken token={token("total")} onHover={setHoveredSourceIds} />.</p></section>
-            <section><h3>Delivery and ownership</h3><p>Delivery is scheduled for <InlineToken token={token("delivery")} onHover={setHoveredSourceIds} />. <InlineToken token={token("pic")} onHover={setHoveredSourceIds} /> is coordinating the customer confirmation, production handoff, and final delivery.</p></section>
-            <section><h3>What needs attention</h3><p>The latest WhatsApp confirmation changed the quantity to 240 units. Production should use the approved BRK-440 Rev C specification and preserve the conversation as evidence for this revision.</p></section>
-          </>}
-          {query && matchingTokens.length === 0 && <p className={styles.empty}>No matching content.</p>}
-        </div> : <div className={styles.prose}>
-          {genericMatches ? <>
-            <section><h3>Overview</h3><p>{sources.length > 0 ? <HighlightedToken sourceIds={allSourceIds} onHover={setHoveredSourceIds}>{substack.name}</HighlightedToken> : <strong>{substack.name}</strong>} is recorded in the {type?.name ?? "workspace"} stack. {substack.desc}</p></section>
-            <section><h3>Current context</h3><p>This record was last updated {sources.length > 0 ? <HighlightedToken sourceIds={allSourceIds} onHover={setHoveredSourceIds}>{substack.updated.toLowerCase()}</HighlightedToken> : substack.updated.toLowerCase()} and is available to {substack.access.toLowerCase()}. Supporting information has been organized in the side panel so the team can verify the record against its original evidence.</p></section>
-            {sources.length > 0 && <section><h3>Supporting material</h3><p>The record references {sources.map((source, index) => <span key={source.id}>{index > 0 && ", "}<HighlightedToken sourceIds={[source.id]} onHover={setHoveredSourceIds}>{source.name}</HighlightedToken></span>)}. Hover over a highlighted token to isolate its evidence, or open the source to inspect the original record.</p></section>}
-          </> : <p className={styles.empty}>No matching content.</p>}
-        </div>}
+        {!detail ? (
+          <p className={styles.empty}>Loading content…</p>
+        ) : isConversation ? (
+          <div className={styles.topics}>
+            {topics.map((topic) => (
+              <article key={topic.id} className={styles.topic} onMouseEnter={() => setHoveredSourceIds(topic.sourceIds)} onMouseLeave={() => setHoveredSourceIds(null)}>
+                <div className={styles.topicMeta}>{topic.date} · {topic.author}</div>
+                <h3><HighlightedToken sourceIds={topic.sourceIds} onHover={setHoveredSourceIds}>{topic.message}</HighlightedToken></h3>
+              </article>
+            ))}
+            {topics.length === 0 && <p className={styles.empty}>No matching topics.</p>}
+          </div>
+        ) : (
+          <div className={styles.prose}>
+            {matchingSegments.length > 0 ? (
+              <section>
+                <p>
+                  {matchingSegments.map((segment) => (
+                    <span key={segment.id} className={segment.kind === "text" ? styles.reportParagraph : undefined}>
+                      <HighlightedToken sourceIds={segment.sourceIds} onHover={setHoveredSourceIds}>
+                        {segment.kind === "field" && segment.name ? `${segment.name}: ${segment.value}` : segment.value}
+                      </HighlightedToken>
+                    </span>
+                  ))}
+                </p>
+              </section>
+            ) : (
+              <p className={styles.empty}>{(displayed?.segments.length ?? 0) === 0 ? "No generated content yet." : "No matching content."}</p>
+            )}
+          </div>
+        )}
 
         <section className={`${styles.related} ${relatedOpen ? "" : styles.relatedClosed}`}>
-          <button className={styles.relatedToggle} onClick={() => setRelatedOpen((open) => !open)} aria-expanded={relatedOpen}><span>Related <small>{related.length}</small></span><Icon name="chevron-down" /></button>
-          {relatedOpen && <div className={styles.relatedGrid}>{related.map((item) => {
+          <button className={styles.relatedToggle} onClick={() => setRelatedOpen((open) => !open)} aria-expanded={relatedOpen}><span>Related <small>{relatedTypeFilter.size > 0 ? `${visibleRelated.length}/${related.length}` : related.length}</small></span><Icon name="chevron-down" /></button>
+          {relatedOpen && relatedTypes.length > 1 && (
+            <div className={styles.relatedFilters} role="group" aria-label="Filter related by stack type">
+              {relatedTypes.map((typeId) => (
+                <button
+                  key={typeId}
+                  type="button"
+                  aria-pressed={relatedTypeFilter.has(typeId)}
+                  onClick={() => setRelatedTypeFilter((current) => {
+                    const next = new Set(current);
+                    if (next.has(typeId)) next.delete(typeId);
+                    else next.add(typeId);
+                    return next;
+                  })}
+                  className={`${styles.relatedChip} ${relatedTypeFilter.has(typeId) ? styles.relatedChipActive : ""}`}
+                >
+                  {stackTypes.find((candidate) => candidate.id === typeId)?.name ?? typeId}
+                </button>
+              ))}
+            </div>
+          )}
+          {relatedOpen && <div className={styles.relatedGrid}>{visibleRelated.map((item) => {
             const relatedType = stackTypes.find((candidate) => candidate.id === item.typeId);
-            return <button key={item.id} onClick={() => onOpen(item.id)} onMouseEnter={() => { setRelatedPreviewId(item.id); setHoveredSourceIds(null); }} onMouseLeave={() => setRelatedPreviewId(null)}><span>{relatedType?.name}</span><strong>{item.name}</strong></button>;
+            return <button key={item.id} onClick={() => onOpen(item.id)} onMouseEnter={() => { setRelatedPreviewId(item.id); setHoveredSourceIds(null); onEnsureDetail(item.id); }} onMouseLeave={() => setRelatedPreviewId(null)}><span>{relatedType?.name}</span><strong>{item.name}</strong></button>;
           })}</div>}
         </section>
       </section>
@@ -114,8 +152,8 @@ export default function SubstackDetail({ substack, stackTypes, substacks, canGoB
       {panelOpen && <aside className={styles.sources}>
         <div className={styles.sourcesHeader}><h2>{isConversation ? "Attachments" : "Sources"}</h2><button onClick={() => setPanelOpen(false)} aria-label="Close side panel"><Icon name="x" size={16} /></button></div>
         <div className={styles.sourceList}>
-          {visibleSources.map((source, index) => <button key={source.id} onClick={() => onOpen(source.substackId)}><b>{String(index + 1).padStart(2, "0")}</b><span><strong>{source.name}</strong><small>{source.type} · {source.origin} · {source.updated}</small><small>{source.note}</small></span></button>)}
-          {visibleSources.length === 0 && <div className={styles.emptyPanel}><Icon name="file-text" size={20} /><p>{isFile ? "Files are original evidence and do not have their own sources." : "No sources linked to this content."}</p></div>}
+          {visibleSources.map((source, index) => <button key={`${source.id}-${index}`} onClick={() => source.substackId && onOpen(source.substackId)}><b>{String(index + 1).padStart(2, "0")}</b><span><strong>{source.name}</strong><small>{source.type} · {source.origin} · {source.updated}</small><small>{source.note}</small></span></button>)}
+          {visibleSources.length === 0 && <div className={styles.emptyPanel}><Icon name="file-text" size={20} /><p>No sources linked to this content.</p></div>}
         </div>
         <button className={styles.chat}>Chat with POPO <Icon name="chevron-down" /></button>
       </aside>}
