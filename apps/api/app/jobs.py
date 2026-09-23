@@ -74,6 +74,17 @@ def create_run(
 def claim_job(session: Session, worker_id: str) -> KnowledgeJob | None:
     now = utcnow()
     expired = now - timedelta(seconds=LEASE_SECONDS)
+    # Release parked budget jobs whose available_at has arrived.
+    for parked in session.scalars(
+        select(KnowledgeJob).where(
+            KnowledgeJob.status == "budget_exhausted",
+            KnowledgeJob.available_at <= now,
+        ).limit(50)
+    ).all():
+        parked.status = "queued"
+        parked.last_error = None
+    session.flush()
+
     job = session.scalar(
         select(KnowledgeJob)
         .where(
@@ -96,6 +107,20 @@ def claim_job(session: Session, worker_id: str) -> KnowledgeJob | None:
     session.refresh(job)
     session.expunge(job)
     return job
+
+
+def park_budget_exhausted(session: Session, job_id: UUID) -> None:
+    """Park until next UTC midnight so claim_job can release it tomorrow."""
+    job = session.get(KnowledgeJob, job_id)
+    if job is None:
+        return
+    tomorrow = (utcnow() + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    job.status = "budget_exhausted"
+    job.locked_at = None
+    job.locked_by = None
+    job.available_at = tomorrow
+    job.last_error = "daily_token_budget_exhausted"
+    session.commit()
 
 
 def finish_job(session: Session, job_id: UUID) -> None:

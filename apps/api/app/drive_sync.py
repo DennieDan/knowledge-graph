@@ -28,6 +28,7 @@ from .drive import (
     workspace_context,
 )
 from .filing import ingest_and_file
+from .jobs import enqueue_job, utcnow
 from .models import DriveConnection, DriveFile, DriveSelection, DriveWorkspace, User
 from .sources import drive_file_document
 
@@ -149,4 +150,19 @@ def sync_workspace_files(
     session: Session = Depends(get_session),
 ):
     workspace, connection = workspace_context(workspace_id, user, session)
-    return sync_workspace(session, workspace, connection, user)
+    now = utcnow()
+    job = enqueue_job(
+        session,
+        organization_id=workspace.organization_id,
+        owner_user_id=workspace.owner_user_id,
+        kind="sync_workspace",
+        payload={"workspace_id": str(workspace.id)},
+        dedupe_key=f"sync_workspace:{workspace.id}:{now.date().isoformat()}:{now.hour}:{now.minute // 5}",
+    )
+    session.commit()
+    return {
+        "queued": True,
+        "job_id": str(job.id),
+        "workspace_id": str(workspace.id),
+        "status": job.status,
+    }

@@ -1,19 +1,19 @@
-"""Findings queue endpoints (#15). Health (#21) and jobs (#31) routes join this router later."""
+"""Findings queue (#15) and job observability (#31) endpoints. Health (#21) joins later."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from .accounts import membership_for
 from .auth import get_current_user
 from .database import get_session
 from .findings import dismiss_finding
-from .models import DISMISSAL_REASONS, Finding, User
+from .models import DISMISSAL_REASONS, Finding, KnowledgeJob, User
 
 router = APIRouter(tags=["health"])
 
@@ -78,3 +78,45 @@ def dismiss(
         raise HTTPException(status_code=400, detail=str(error)) from error
     session.commit()
     return {"id": str(finding.id), "decision": finding.decision, "dismissal_reason": finding.dismissal_reason}
+
+
+@router.get("/accounts/{organization_id}/jobs")
+def get_jobs(
+    organization_id: UUID,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Queue depth, oldest queued age, failures in the last 24h, counts per kind and status."""
+    membership_for(organization_id, user, session)
+    now = utcnow()
+    queued = session.scalars(
+        select(KnowledgeJob).where(
+            KnowledgeJob.organization_id == organization_id,
+            KnowledgeJob.status == "queued",
+        )
+    ).all()
+    oldest_age = None
+    if queued:
+        oldest = min(job.created_at for job in queued)
+        oldest_age = int((now - oldest).total_seconds())
+    failures = session.scalar(
+        select(func.count()).select_from(KnowledgeJob).where(
+            KnowledgeJob.organization_id == organization_id,
+            KnowledgeJob.status == "failed",
+            KnowledgeJob.updated_at >= now - timedelta(hours=24),
+        )
+    ) or 0
+    by_kind = session.execute(
+        select(KnowledgeJob.kind, KnowledgeJob.status, func.count())
+        .where(KnowledgeJob.organization_id == organization_id)
+        .group_by(KnowledgeJob.kind, KnowledgeJob.status)
+    ).all()
+    return {
+        "queue_depth": len(queued),
+        "oldest_queued_age_seconds": oldest_age,
+        "failures_last_24h": failures,
+        "by_kind_status": [
+            {"kind": kind, "status": status, "count": count}
+            for kind, status, count in by_kind
+        ],
+    }
