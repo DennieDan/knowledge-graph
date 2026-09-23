@@ -8,6 +8,7 @@ import SourcesView from "./sources-view";
 import StacksView from "./stacks-view";
 import SubstackDetail from "./substack-detail";
 import ToCheckView from "./to-check-view";
+import MaintenanceView from "./maintenance-view";
 import WhatsAppConnect from "./whatsapp-connect";
 import DrivePicker from "./drive-picker";
 import AccountOnboarding from "./account-onboarding";
@@ -549,13 +550,7 @@ export default function WorkspaceShell() {
             />
           )}
           {activeNav === "maintenance" && (
-            <div className={styles.placeholder}>
-              <h1 className={styles.placeholderTitle}>Maintenance</h1>
-              <p className={styles.placeholderText}>
-                Review stale sources, conflicts, and visibility gaps. Coming
-                soon.
-              </p>
-            </div>
+            <MaintenanceView accountId={activeAccount?.id ?? null} />
           )}
 
           <div className={activeNav !== "stacks" ? styles.hiddenView : undefined}>

@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from . import generators
 from .models import (
     Chunk,
+    ConfirmEvent,
     ContentCitation,
     Document,
     DocumentVersion,
@@ -132,6 +133,19 @@ def run_generation(session: Session, substack: Substack) -> SubstackContent | No
     )
     session.add(content)
     session.flush()
+    if auto_confirm:
+        from datetime import datetime, timezone
+        content.confirmed_at = datetime.now(timezone.utc)
+        content.confirmed_by_user_id = None
+        session.add(
+            ConfirmEvent(
+                organization_id=substack.organization_id,
+                substack_id=substack.id,
+                content_id=content.id,
+                kind="auto",
+                by_user_id=None,
+            )
+        )
     if latest is not None:
         latest.status = "stale"
 
