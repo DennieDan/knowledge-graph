@@ -525,6 +525,7 @@ export default function WorkspaceShell() {
 
           {activeNav === "tocheck" && (
             <ToCheckView
+              accountId={activeAccount?.id ?? null}
               stackTypes={stackTypes}
               substacks={substacks}
               busy={analysisBusy}
