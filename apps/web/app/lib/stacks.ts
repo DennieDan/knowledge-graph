@@ -16,6 +16,7 @@ export interface Substack {
   desc: string;
   scope: "mine" | "shared" | "workspace";
   access: string;
+  status: string;
   role: string;
   reviewState: "clean" | "pending" | "pending_update" | "unsupported" | "generation_error";
   updated: string;
@@ -115,6 +116,7 @@ export function toSubstack(row: ApiSubstack): Substack {
     desc: row.desc ?? "",
     scope: row.scope,
     access: row.scope === "mine" ? "Only me" : "All members",
+    status: row.status,
     role: row.review_state === "pending_update" ? "Update available" : row.review_state === "unsupported" ? "Needs review" : row.status === "confirmed" ? "Confirmed" : "Proposed",
     reviewState: row.review_state,
     updated: relativeTime(row.updated_at),

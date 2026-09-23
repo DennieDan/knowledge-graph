@@ -68,6 +68,11 @@ export default function SubstackDetail({ substack, stackTypes, detail, details, 
             <span>This record no longer has enough current supporting evidence. Its last confirmed content remains available.</span>
           </div>
         )}
+        {substack.reviewState === "generation_error" && (
+          <div className={styles.reviewBanner} role="status">
+            <span>Generating content for this record failed. Check Maintenance for the failed run.</span>
+          </div>
+        )}
         {detail?.pending && (
           <div className={styles.reviewBanner} role="status">
             <span>{showPending ? "Reviewing proposed update" : "A proposed update is ready for review"}</span>
