@@ -9,9 +9,38 @@ from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError, OperationalError, StatementError
 from sqlalchemy.orm import Session
 
+from app.config import Settings
 from app.database import get_engine, get_session
 from app.main import app
 from app.models import Chunk, Document, DocumentVersion, Organization, EMBEDDING_DIMENSIONS
+
+
+class SettingsTests(unittest.TestCase):
+    def settings(self, **overrides):
+        values = {
+            "database_url": "postgresql+psycopg://runtime",
+            "google_client_id": "client",
+            "google_client_secret": "secret",
+            "session_secret": "session",
+            **overrides,
+        }
+        return Settings(_env_file=None, **values)
+
+    def test_runtime_url_uses_psycopg_driver(self):
+        settings = self.settings(database_url="postgresql://runtime")
+        self.assertEqual(settings.runtime_url(), "postgresql+psycopg://runtime")
+
+    def test_migration_url_defaults_to_runtime_database(self):
+        self.assertEqual(self.settings().migration_url(), "postgresql+psycopg://runtime")
+
+    def test_migration_url_can_use_direct_database_connection(self):
+        settings = self.settings(migration_database_url="postgresql://migration")
+        self.assertEqual(settings.migration_url(), "postgresql+psycopg://migration")
+
+    def test_session_cookie_defaults_are_local_development_safe(self):
+        settings = self.settings()
+        self.assertFalse(settings.session_https_only)
+        self.assertEqual(settings.session_same_site, "lax")
 
 
 class DatabaseTests(unittest.TestCase):

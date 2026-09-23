@@ -13,7 +13,7 @@ def render_item(type_, obj, autogen_context):
 
 
 def run_migrations() -> None:
-    url = get_settings().database_url.get_secret_value()
+    url = get_settings().migration_url()
     if context.is_offline_mode():
         context.configure(url=url, target_metadata=Base.metadata, literal_binds=True, dialect_opts={"paramstyle": "named"})
         with context.begin_transaction():
