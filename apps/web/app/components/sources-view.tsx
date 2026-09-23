@@ -1,29 +1,39 @@
 "use client";
 
-import { useState } from "react";
-import { driveConnectUrl, listDriveWorkspaces, loginUrl, syncDriveWorkspace, type Account, type Me } from "../lib/api";
+import { useEffect, useState } from "react";
+import {
+  driveConnectUrl,
+  listDriveWorkspaces,
+  loginUrl,
+  syncDriveWorkspace,
+  type Account,
+  type DriveWorkspace,
+  type Me,
+} from "../lib/api";
 import { track } from "../lib/analytics";
 import Icon from "./icons";
 import styles from "./sources.module.css";
 
-type SourceState = "Healthy" | "Stale" | "Gap";
+type SourceState = "Healthy" | "Stale" | "Failed";
 
-const SOURCE_ROWS: {
-  name: string;
-  freshness: string;
-  records: string;
-  state: SourceState;
-}[] = [
-  { name: "Atlas / Drive", freshness: "18 min", records: "12", state: "Healthy" },
-  { name: "Maya - Alex / WhatsApp", freshness: "2 min", records: "1 chat", state: "Healthy" },
-  { name: "Nova / Drive", freshness: "3 days", records: "8", state: "Stale" },
-  { name: "Supplier archive", freshness: "12 days", records: "24", state: "Gap" },
-];
+function healthLabel(health?: DriveWorkspace["health"]): SourceState {
+  if (health === "failed") return "Failed";
+  if (health === "stale") return "Stale";
+  return "Healthy";
+}
 
-const VISIBILITY_GAPS = [
-  { name: "Project Nova", reason: "Drive not refreshed", age: "3 days" },
-  { name: "Supplier decisions", reason: "No linked chat", age: "12 days" },
-];
+function freshnessText(workspace: DriveWorkspace): string {
+  if (workspace.last_error) {
+    return workspace.last_error.split(":")[0] || "Error";
+  }
+  if (!workspace.last_success_at) return "Never synced";
+  const ageMs = Date.now() - new Date(workspace.last_success_at).getTime();
+  const minutes = Math.round(ageMs / 60000);
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 48) return `${hours} hr`;
+  return `${Math.round(hours / 24)} days`;
+}
 
 function StatePill({ state }: { state: SourceState }) {
   return <span className={styles.pillOutline}>{state}</span>;
@@ -42,7 +52,22 @@ export default function SourcesView({
 }) {
   const [syncMsg, setSyncMsg] = useState("");
   const [syncState, setSyncState] = useState<{ done: number; total: number } | null>(null);
+  const [workspaces, setWorkspaces] = useState<DriveWorkspace[]>([]);
   const syncing = syncState !== null;
+
+  const refresh = () => {
+    if (!activeAccount?.drive_linked) {
+      setWorkspaces([]);
+      return;
+    }
+    listDriveWorkspaces(activeAccount.id)
+      .then(setWorkspaces)
+      .catch(() => setWorkspaces([]));
+  };
+
+  useEffect(() => {
+    refresh();
+  }, [activeAccount?.id, activeAccount?.drive_linked]);
 
   const handleSync = async () => {
     if (!activeAccount || syncing) return;
@@ -50,30 +75,27 @@ export default function SourcesView({
     setSyncState({ done: 0, total: 0 });
     const startedAt = performance.now();
     try {
-      const workspaces = await listDriveWorkspaces(activeAccount.id);
-      setSyncState({ done: 0, total: workspaces.length });
-      track("drive_sync_started", { workspaces: workspaces.length });
-      let synced = 0, ingested = 0;
-      const errors: string[] = [];
-      for (const [index, workspace] of workspaces.entries()) {
+      const rows = await listDriveWorkspaces(activeAccount.id);
+      setWorkspaces(rows);
+      setSyncState({ done: 0, total: rows.length });
+      track("drive_sync_started", { workspaces: rows.length });
+      let queued = 0;
+      for (const [index, workspace] of rows.entries()) {
         const result = await syncDriveWorkspace(workspace.id);
-        synced += result.synced;
-        ingested += result.ingested;
-        errors.push(...result.errors);
-        setSyncState({ done: index + 1, total: workspaces.length });
+        if (result.queued) queued += 1;
+        setSyncState({ done: index + 1, total: rows.length });
       }
       track("drive_sync_completed", {
-        workspaces: workspaces.length,
-        synced,
-        ingested,
-        errors: errors.length,
+        workspaces: rows.length,
+        queued,
         duration_ms: Math.round(performance.now() - startedAt),
       });
-      if (workspaces.length === 0) {
+      if (rows.length === 0) {
         setSyncMsg("No Drive workspaces to sync.");
       } else {
-        setSyncMsg(errors.length > 0 ? `Synced ${synced} files, ingested ${ingested} · ${errors.length} error(s)` : `Synced ${synced} files, ingested ${ingested}`);
+        setSyncMsg(`Queued ${queued} sync job(s). Worker will update freshness.`);
       }
+      refresh();
     } catch (reason) {
       setSyncMsg(reason instanceof Error ? reason.message : "Sync failed.");
     } finally {
@@ -81,9 +103,11 @@ export default function SourcesView({
     }
   };
 
+  const failed = workspaces.filter((row) => row.health === "failed");
+  const stale = workspaces.filter((row) => row.health === "stale");
+
   return (
     <div className={styles.page}>
-      {/* Subtitle + Add source */}
       <div className={styles.headRow}>
         <p className={styles.subtitle}>
           Connection health, indexing freshness, and visibility gaps.
@@ -99,7 +123,6 @@ export default function SourcesView({
         )}
       </div>
 
-      {/* Connection summary cards */}
       <div className={styles.connGrid}>
         <div className={styles.connCard}>
           <p className={styles.connName}>Google Drive</p>
@@ -122,9 +145,9 @@ export default function SourcesView({
                     <Icon name="refresh-cw" size={13} />
                   </span>
                   {syncing
-                    ? syncState.total > 1
-                      ? `Syncing ${syncState.done}/${syncState.total}…`
-                      : "Syncing…"
+                    ? syncState && syncState.total > 1
+                      ? `Queueing ${syncState.done}/${syncState.total}…`
+                      : "Queueing…"
                     : "Sync now"}
                 </button>
               </>
@@ -133,7 +156,11 @@ export default function SourcesView({
             ) : (
               <a href={loginUrl}>Sign in to connect</a>
             )}
-            {syncMsg && <span className={styles.connMeta} role="status" aria-live="polite">{syncMsg}</span>}
+            {syncMsg && (
+              <span className={styles.connMeta} role="status" aria-live="polite">
+                {syncMsg}
+              </span>
+            )}
           </div>
         </div>
 
@@ -143,9 +170,7 @@ export default function SourcesView({
             <span className={me?.whatsapp_linked ? styles.pillDark : styles.pillLight}>
               {me?.whatsapp_linked ? "Connected" : "Not linked"}
             </span>
-            {me?.whatsapp_linked && (
-              <span className={styles.connMeta}>WAHA session</span>
-            )}
+            {me?.whatsapp_linked && <span className={styles.connMeta}>WAHA session</span>}
           </div>
           <div className={styles.connAction}>
             {me ? (
@@ -161,60 +186,66 @@ export default function SourcesView({
         <div className={styles.connCard}>
           <p className={styles.connName}>Coverage</p>
           <div className={styles.connRow}>
-            <span className={styles.pillLight}>2 gaps</span>
-            <span className={styles.connMeta}>Review</span>
+            <span className={styles.pillLight}>
+              {failed.length + stale.length} gap{failed.length + stale.length === 1 ? "" : "s"}
+            </span>
+            <span className={styles.connMeta}>Drive health</span>
           </div>
         </div>
       </div>
 
-      {/* Table + Gaps panel */}
       <div className={styles.columns}>
-        {/* Knowledge Inputs table */}
         <div className={styles.tableCard}>
           <p className={styles.panelLabel}>Knowledge Inputs</p>
           <table className={styles.table}>
-            <colgroup>
-              <col style={{ width: "44%" }} />
-              <col style={{ width: "18%" }} />
-              <col style={{ width: "16%" }} />
-              <col style={{ width: "22%" }} />
-            </colgroup>
             <thead>
               <tr>
-                {["Source", "Freshness", "Records", "State"].map((h) => (
+                {["Source", "Freshness", "Kind", "State"].map((h) => (
                   <th key={h}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {SOURCE_ROWS.map((row) => (
-                <tr key={row.name}>
-                  <td className={styles.cellSource}>{row.name}</td>
-                  <td className={styles.cellMeta}>{row.freshness}</td>
-                  <td className={styles.cellMeta}>{row.records}</td>
-                  <td>
-                    <StatePill state={row.state} />
+              {workspaces.length === 0 ? (
+                <tr>
+                  <td className={styles.cellMeta} colSpan={4}>
+                    No Drive workspaces yet.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                workspaces.map((row) => (
+                  <tr key={row.id}>
+                    <td className={styles.cellSource}>{row.name}</td>
+                    <td className={styles.cellMeta}>{freshnessText(row)}</td>
+                    <td className={styles.cellMeta}>{row.kind}</td>
+                    <td>
+                      <StatePill state={healthLabel(row.health)} />
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
 
-        {/* Visibility Gaps panel */}
         <div className={styles.gapsPanel}>
           <p className={styles.panelLabel}>Visibility Gaps</p>
-          <h3 className={styles.gapsTitle}>What crosspod cannot see</h3>
+          <h3 className={styles.gapsTitle}>Failed or stale sources</h3>
           <div className={styles.gapList}>
-            {VISIBILITY_GAPS.map((gap) => (
-              <div key={gap.name} className={styles.gapCard}>
-                <p className={styles.gapName}>{gap.name}</p>
-                <p className={styles.gapReason}>{gap.reason}</p>
-                <span className={styles.pillOutline}>{gap.age}</span>
-              </div>
-            ))}
+            {[...failed, ...stale].length === 0 ? (
+              <p className={styles.gapReason}>No gaps right now.</p>
+            ) : (
+              [...failed, ...stale].map((gap) => (
+                <div key={gap.id} className={styles.gapCard}>
+                  <p className={styles.gapName}>{gap.name}</p>
+                  <p className={styles.gapReason}>
+                    {gap.last_error || "Missed a sync schedule"}
+                  </p>
+                  <span className={styles.pillOutline}>{healthLabel(gap.health)}</span>
+                </div>
+              ))
+            )}
           </div>
-          <button className={styles.reviewBtn}>Review gaps</button>
         </div>
       </div>
     </div>

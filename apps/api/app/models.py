@@ -1,9 +1,9 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 from uuid import UUID, uuid4
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func, text
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -63,6 +63,7 @@ class Organization(Base):
     account_type: Mapped[str] = mapped_column(String(20), default="personal")
     google_domain: Mapped[Optional[str]] = mapped_column(String(255))
     created_by_user_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    daily_token_budget: Mapped[int] = mapped_column(Integer, default=500_000)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -126,6 +127,9 @@ class DriveWorkspace(Base):
     name: Mapped[str] = mapped_column(String(255))
     owner_user_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     status: Mapped[str] = mapped_column(String(20), default="active")
+    last_error: Mapped[Optional[str]] = mapped_column(Text)
+    last_error_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    last_success_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -197,6 +201,9 @@ class WhatsappChat(Base):
     import_status: Mapped[str] = mapped_column(String(20), default="none")
     import_error: Mapped[Optional[str]] = mapped_column(Text)
     message_count: Mapped[int] = mapped_column(Integer, default=0)
+    last_error: Mapped[Optional[str]] = mapped_column(Text)
+    last_error_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    last_success_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -306,8 +313,8 @@ class AnalysisRun(Base):
 class KnowledgeJob(Base):
     __tablename__ = "knowledge_jobs"
     __table_args__ = (
-        CheckConstraint("kind IN ('embed_version','discover_document','generate_substack','reconcile_scope','run_checks')", name="valid_knowledge_job_kind"),
-        CheckConstraint("status IN ('queued','running','succeeded','failed','cancelled')", name="valid_knowledge_job_status"),
+        CheckConstraint("kind IN ('embed_version','discover_document','generate_substack','reconcile_scope','run_checks','sync_workspace','whatsapp_ingest')", name="valid_knowledge_job_kind"),
+        CheckConstraint("status IN ('queued','running','succeeded','failed','cancelled','budget_exhausted')", name="valid_knowledge_job_status"),
         Index("ix_knowledge_jobs_available", "status", "available_at"),
     )
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
@@ -543,3 +550,29 @@ class Finding(Base):
     decided_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     dismissal_reason: Mapped[Optional[str]] = mapped_column(String(40))
     dedupe_key: Mapped[str] = mapped_column(String(255), unique=True)
+
+
+class Schedule(Base):
+    __tablename__ = "schedules"
+    __table_args__ = (
+        UniqueConstraint("key", "organization_id", name="uq_schedule_key_org"),
+        Index("ix_schedules_next_run", "enabled", "next_run_at"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    key: Mapped[str] = mapped_column(String(80))
+    cron: Mapped[str] = mapped_column(String(80))
+    organization_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"))
+    payload: Mapped[dict] = mapped_column(JSONB, default=dict)
+    last_run_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    next_run_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class Spend(Base):
+    __tablename__ = "spend"
+    __table_args__ = (UniqueConstraint("organization_id", "day", name="uq_spend_org_day"),)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"))
+    day: Mapped[date] = mapped_column(Date)
+    input_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    output_tokens: Mapped[int] = mapped_column(Integer, default=0)
