@@ -4,6 +4,7 @@ Substacks are org-scoped; visibility is owner-only (`owner_user_id` set) or
 org-wide (NULL). Responses mirror the frontend's Substack/SubstackDetail
 shapes so the Stacks tab can swap mock data for real rows 1:1.
 """
+from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -158,6 +159,15 @@ def _content_payload(session: Session, content: SubstackContent | None) -> dict:
     payload["id"] = str(content.id)
     payload["revision"] = content.revision
     payload["status"] = content.status
+    payload["confirmed_at"] = content.confirmed_at.isoformat() if content.confirmed_at else None
+    confirmer = (
+        session.get(User, content.confirmed_by_user_id)
+        if content.confirmed_by_user_id is not None
+        else None
+    )
+    payload["confirmed_by"] = (
+        (confirmer.display_name or confirmer.email) if confirmer is not None else None
+    )
     return payload
 
 
@@ -276,7 +286,12 @@ def update_substack(
     return _substack_json(session, substack, user)
 
 
-def _confirm_content(session: Session, substack: Substack, content: SubstackContent) -> None:
+def _confirm_content(
+    session: Session,
+    substack: Substack,
+    content: SubstackContent,
+    user: User | None = None,
+) -> None:
     latest_proposed = session.scalar(
         select(SubstackContent)
         .where(SubstackContent.substack_id == substack.id, SubstackContent.status == "proposed")
@@ -294,6 +309,8 @@ def _confirm_content(session: Session, substack: Substack, content: SubstackCont
     for previous in confirmed:
         previous.status = "superseded"
     content.status = "confirmed"
+    content.confirmed_by_user_id = user.id if user is not None else None
+    content.confirmed_at = datetime.now(timezone.utc)
     substack.status = "confirmed"
     substack.review_state = "clean"
 
@@ -309,7 +326,7 @@ def confirm_content(
     content = session.get(SubstackContent, content_id)
     if content is None or content.substack_id != substack.id:
         raise HTTPException(status_code=404, detail="content_not_found")
-    _confirm_content(session, substack, content)
+    _confirm_content(session, substack, content, user)
     session.commit()
     return _substack_json(session, substack, user)
 
@@ -328,7 +345,7 @@ def confirm_substack(
         .limit(1)
     )
     if proposed is not None:
-        _confirm_content(session, substack, proposed)
+        _confirm_content(session, substack, proposed, user)
     else:
         substack.status = "confirmed"
         substack.review_state = "clean"
@@ -356,7 +373,7 @@ def confirm_all(
             .limit(1)
         )
         if proposed is not None:
-            _confirm_content(session, substack, proposed)
+            _confirm_content(session, substack, proposed, user)
             confirmed_count += 1
         elif substack.status != "confirmed" or substack.review_state in ("pending", "pending_update"):
             substack.status = "confirmed"
