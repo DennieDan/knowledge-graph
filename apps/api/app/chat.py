@@ -6,6 +6,10 @@ stores the question, the rewritten question actually retrieved on, the
 answer, its citations, the searches the agent ran, and the model and prompt
 versions behind it — so an answer can be audited later and scored against a
 labelled question set.
+
+Every answer carries a checked line: `checked` is true only when everything it
+cited is a record a person confirmed, and `checked_note` names who confirmed it
+and when. Content a generator confirmed on its own is *not* checked.
 """
 from uuid import UUID
 
@@ -24,6 +28,8 @@ router = APIRouter(tags=["chat"])
 
 TITLE_CHARS = 120
 NO_ANSWER_TEXT = "I could not find this in the sources I can see."
+UNCHECKED_NOTE = "Not confirmed by anyone yet"
+SOURCE_NOTE = "From sources, not yet confirmed"
 
 
 class ThreadIn(BaseModel):
@@ -52,12 +58,36 @@ def _thread_json(thread: ChatThread) -> dict:
     }
 
 
+def _checked_note(message: ChatMessage) -> str | None:
+    """The line under an answer: who checked what it was built from."""
+    if not message.answered:
+        return None
+    records = [citation for citation in message.citations or [] if citation.get("record_id")]
+    if not records:
+        return SOURCE_NOTE
+    people = []
+    for citation in records:
+        if citation.get("checked") != "person":
+            continue
+        person = citation.get("confirmed_by")
+        confirmed_at = (citation.get("confirmed_at") or "")[:10]
+        label = f"{person} on {confirmed_at}" if person and confirmed_at else person or confirmed_at
+        if label and label not in people:
+            people.append(label)
+    if not people:
+        return UNCHECKED_NOTE
+    note = f"Confirmed by {', '.join(people)}"
+    return note if message.checked else f"{note}; other parts are not confirmed yet"
+
+
 def _message_json(message: ChatMessage) -> dict:
     return {
         "id": str(message.id),
         "role": message.role,
         "text": message.text,
         "answered": message.answered,
+        "checked": message.checked,
+        "checked_note": _checked_note(message),
         "citations": message.citations,
         "steps": message.steps,
         "feedback": message.feedback,
@@ -142,6 +172,7 @@ def post_message(
         text=result.text if result.answered else NO_ANSWER_TEXT,
         resolved_question=resolved,
         answered=result.answered,
+        checked=result.checked,
         citations=result.citations,
         steps=result.steps,
         model=result.model,

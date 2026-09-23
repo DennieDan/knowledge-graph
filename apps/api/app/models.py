@@ -418,6 +418,10 @@ class SubstackContent(Base):
     content: Mapped[dict] = mapped_column(JSONB)
     status: Mapped[str] = mapped_column(String(20), default="proposed")
     inputs_fingerprint: Mapped[str] = mapped_column(String(64))
+    # NULL confirmed_by_user_id on confirmed content means a generator
+    # confirmed its own output; no person has checked it.
+    confirmed_by_user_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    confirmed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -479,6 +483,8 @@ class ChatMessage(Base):
     # The question actually retrieved on, after follow-ups are rewritten.
     resolved_question: Mapped[Optional[str]] = mapped_column(Text)
     answered: Mapped[Optional[bool]] = mapped_column(Boolean)
+    # True only when every citation is a record a person confirmed.
+    checked: Mapped[Optional[bool]] = mapped_column(Boolean)
     citations: Mapped[list] = mapped_column(JSONB, default=list)
     steps: Mapped[list] = mapped_column(JSONB, default=list)
     model: Mapped[Optional[str]] = mapped_column(String(255))
