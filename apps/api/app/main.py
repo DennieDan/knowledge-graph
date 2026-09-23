@@ -10,6 +10,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from .accounts import router as accounts_router
 from .analysis_api import router as analysis_router
 from .auth import router as auth_router
+from .chat import router as chat_router
 from .config import get_settings
 from .database import get_engine
 from .drive import router as drive_router
@@ -54,6 +55,7 @@ app.include_router(drive_sync_router)
 app.include_router(whatsapp_router)
 app.include_router(stacks_router)
 app.include_router(search_router)
+app.include_router(chat_router)
 
 
 @app.get("/health")
