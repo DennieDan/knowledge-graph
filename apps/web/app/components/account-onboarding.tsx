@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createAccount, loginUrl, loginWithInviteUrl, type Me } from "../lib/api";
+import { track } from "../lib/analytics";
 import styles from "./account-onboarding.module.css";
 
 export default function AccountOnboarding({ me, inviteToken, onCreated }: { me: Me | null; inviteToken: string | null; onCreated: () => void }) {
@@ -17,7 +18,7 @@ export default function AccountOnboarding({ me, inviteToken, onCreated }: { me: 
           <span className={styles.eyebrow}>crosspod</span>
           <h1>Turn company knowledge into checked records.</h1>
           <p>Continue with Google to create your account. Drive access is connected separately and remains optional.</p>
-          <a className={styles.primary} href={inviteToken ? loginWithInviteUrl(inviteToken) : loginUrl}>Continue with Google</a>
+          <a className={styles.primary} href={inviteToken ? loginWithInviteUrl(inviteToken) : loginUrl} onClick={() => track("sign_in_clicked", { invited: Boolean(inviteToken) })}>Continue with Google</a>
         </section>
       </main>
     );
@@ -29,6 +30,7 @@ export default function AccountOnboarding({ me, inviteToken, onCreated }: { me: 
     setError(null);
     try {
       await createAccount(type, name || undefined);
+      track("account_created", { account_type: type });
       onCreated();
     } catch (reason) {
       const detail = reason instanceof Error ? reason.message : "account_creation_failed";

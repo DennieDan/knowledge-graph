@@ -13,6 +13,7 @@ import {
   type WhatsappChatItem,
   type WhatsappImportItem,
 } from "../lib/api";
+import { track } from "../lib/analytics";
 import styles from "./whatsapp-connect.module.css";
 
 type Step = "link" | "chats" | "importing" | "done";
@@ -71,6 +72,7 @@ export default function WhatsAppConnect({
 
   useEffect(() => {
     let cancelled = false;
+    track("whatsapp_connect_started");
     whatsappConnect()
       .then((s) => {
         if (cancelled) return;
@@ -142,6 +144,7 @@ export default function WhatsAppConnect({
     setError(null);
     try {
       await whatsappImport([...selected], accountId);
+      track("whatsapp_import_started", { chat_count: selected.size });
       setImports(await whatsappImports());
       setStep("importing");
     } catch (e) {
