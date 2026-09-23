@@ -422,3 +422,23 @@ export function setChatFeedback(accountId: string, messageId: string, rating: "u
     body: JSON.stringify({ rating }),
   });
 }
+
+export interface FindingRow {
+  id: string;
+  check_key: string;
+  summary_sentence: string;
+  detected_at: string;
+  subject_kind: string;
+  subject_id: string;
+}
+
+export function listFindings(accountId: string): Promise<{ findings: FindingRow[]; dismissal_reasons: string[] }> {
+  return apiFetch(`/accounts/${accountId}/findings`);
+}
+
+export function dismissFinding(accountId: string, findingId: string, reason: string): Promise<unknown> {
+  return apiFetch(`/accounts/${accountId}/findings/${findingId}/dismiss`, {
+    method: "POST",
+    body: JSON.stringify({ reason }),
+  });
+}

@@ -306,7 +306,7 @@ class AnalysisRun(Base):
 class KnowledgeJob(Base):
     __tablename__ = "knowledge_jobs"
     __table_args__ = (
-        CheckConstraint("kind IN ('embed_version','discover_document','generate_substack','reconcile_scope')", name="valid_knowledge_job_kind"),
+        CheckConstraint("kind IN ('embed_version','discover_document','generate_substack','reconcile_scope','run_checks')", name="valid_knowledge_job_kind"),
         CheckConstraint("status IN ('queued','running','succeeded','failed','cancelled')", name="valid_knowledge_job_status"),
         Index("ix_knowledge_jobs_available", "status", "available_at"),
     )
@@ -494,3 +494,52 @@ class ChatMessage(Base):
     output_tokens: Mapped[Optional[int]] = mapped_column(Integer)
     feedback: Mapped[Optional[str]] = mapped_column(String(10))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+DISMISSAL_REASONS = (
+    "not_a_change",
+    "already_handled",
+    "source_is_wrong",
+    "duplicate",
+    "other_recorded_below",
+)
+
+
+class Finding(Base):
+    __tablename__ = "findings"
+    __table_args__ = (
+        CheckConstraint(
+            "decision IS NULL OR decision IN ('dismissed','acted','confirmed')",
+            name="valid_finding_decision",
+        ),
+        CheckConstraint(
+            "dismissal_reason IS NULL OR dismissal_reason IN ("
+            + ",".join(f"'{r}'" for r in DISMISSAL_REASONS)
+            + ")",
+            name="valid_finding_dismissal_reason",
+        ),
+        Index("ix_findings_check_key", "organization_id", "check_key"),
+        Index(
+            "ix_findings_open",
+            "organization_id",
+            "detected_at",
+            postgresql_where=text("decision IS NULL"),
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    owner_user_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    check_key: Mapped[str] = mapped_column(String(80))
+    subject_kind: Mapped[str] = mapped_column(String(50))
+    subject_id: Mapped[UUID] = mapped_column()
+    observed_value: Mapped[Optional[str]] = mapped_column(Text)
+    threshold_value: Mapped[Optional[str]] = mapped_column(Text)
+    summary_sentence: Mapped[str] = mapped_column(Text)
+    evidence: Mapped[dict] = mapped_column(JSONB, default=dict)
+    detected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    detector_version: Mapped[str] = mapped_column(String(50), default="checks-v1")
+    decision: Mapped[Optional[str]] = mapped_column(String(20))
+    decided_by_user_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    decided_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    dismissal_reason: Mapped[Optional[str]] = mapped_column(String(40))
+    dedupe_key: Mapped[str] = mapped_column(String(255), unique=True)
