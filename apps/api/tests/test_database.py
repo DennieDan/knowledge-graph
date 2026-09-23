@@ -37,6 +37,10 @@ class SettingsTests(unittest.TestCase):
         settings = self.settings(migration_database_url="postgresql://migration")
         self.assertEqual(settings.migration_url(), "postgresql+psycopg://migration")
 
+    def test_waha_private_hostport_gets_http_scheme(self):
+        self.assertEqual(self.settings(waha_base_url="kg-waha:3000").waha_base_url, "http://kg-waha:3000")
+        self.assertEqual(self.settings(waha_base_url="https://waha.example.com").waha_base_url, "https://waha.example.com")
+
     def test_session_cookie_defaults_are_local_development_safe(self):
         settings = self.settings()
         self.assertFalse(settings.session_https_only)

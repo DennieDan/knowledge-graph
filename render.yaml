@@ -1,0 +1,124 @@
+# Render Blueprint: production API, knowledge worker, and WAHA.
+# The database is Supabase (not managed here); the web app is on Vercel.
+# Deploys are manual (autoDeployTrigger: off) and are triggered by CD after approval.
+# Values marked `sync: false` are prompted for once, when the Blueprint is first created.
+
+services:
+  - type: web
+    name: kg-api
+    runtime: docker
+    region: singapore
+    plan: 0.5c-512mb
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: ./apps/api
+    healthCheckPath: /ready
+    preDeployCommand: python -m alembic upgrade head
+    autoDeployTrigger: "off"
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: MIGRATION_DATABASE_URL
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_URI
+        sync: false
+      - key: GOOGLE_DRIVE_REDIRECT_URI
+        sync: false
+      - key: WEB_ORIGIN
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: SESSION_HTTPS_ONLY
+        value: "true"
+      # "none" while web (vercel.app) and API (onrender.com) are different sites.
+      # Switch to "lax" once both run on subdomains of one custom domain.
+      - key: SESSION_SAME_SITE
+        value: none
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: EMBEDDING_DEVICE
+        value: cpu
+      - key: WAHA_BASE_URL
+        fromService:
+          type: pserv
+          name: kg-waha
+          property: hostport
+      - key: WAHA_API_KEY
+        fromService:
+          type: pserv
+          name: kg-waha
+          envVarKey: WAHA_API_KEY
+      # Optional: https://<api-host>/whatsapp/webhooks. Leave blank for poll-only mode.
+      - key: WAHA_WEBHOOK_URL
+        sync: false
+      - key: WAHA_WEBHOOK_SECRET
+        generateValue: true
+
+  - type: worker
+    name: kg-worker
+    runtime: docker
+    region: singapore
+    plan: 1c-2g
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: ./apps/api
+    dockerCommand: python -m scripts.worker
+    autoDeployTrigger: "off"
+    maxShutdownDelaySeconds: 120
+    envVars:
+      - key: DATABASE_URL
+        fromService:
+          type: web
+          name: kg-api
+          envVarKey: DATABASE_URL
+      - key: GOOGLE_CLIENT_ID
+        fromService:
+          type: web
+          name: kg-api
+          envVarKey: GOOGLE_CLIENT_ID
+      - key: GOOGLE_CLIENT_SECRET
+        fromService:
+          type: web
+          name: kg-api
+          envVarKey: GOOGLE_CLIENT_SECRET
+      - key: SESSION_SECRET
+        fromService:
+          type: web
+          name: kg-api
+          envVarKey: SESSION_SECRET
+      - key: OPENAI_API_KEY
+        fromService:
+          type: web
+          name: kg-api
+          envVarKey: OPENAI_API_KEY
+      - key: EMBEDDING_DEVICE
+        value: cpu
+
+  # WhatsApp HTTP API. Private network only; never exposed to browsers.
+  # A persistent disk pins this to one instance with brief downtime on deploys.
+  - type: pserv
+    name: kg-waha
+    runtime: image
+    region: singapore
+    plan: 0.5c-512mb
+    image:
+      url: docker.io/devlikeapro/waha:gows-2026.8.2
+    disk:
+      name: waha-sessions
+      mountPath: /app/.sessions
+      sizeGB: 1
+    envVars:
+      - key: WHATSAPP_DEFAULT_ENGINE
+        value: GOWS
+      - key: WHATSAPP_API_PORT
+        value: "3000"
+      - key: WAHA_API_KEY
+        generateValue: true
+      - key: WHATSAPP_RESTART_ALL_SESSIONS
+        value: "true"
+      - key: WAHA_DASHBOARD_ENABLED
+        value: "false"
+      - key: WHATSAPP_SWAGGER_ENABLED
+        value: "false"

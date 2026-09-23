@@ -2,7 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import SecretStr
+from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.models import EMBEDDING_MODEL
@@ -52,6 +52,12 @@ class Settings(BaseSettings):
     retrieval_limit_per_query: int = 8
     retrieval_max_chunks: int = 40
     retrieval_max_context_chars: int = 50000
+
+    @field_validator("waha_base_url")
+    @classmethod
+    def _waha_scheme(cls, value: str) -> str:
+        # Render's private network exposes services as bare host:port.
+        return value if "://" in value else f"http://{value}"
 
     @staticmethod
     def _psycopg_url(value: SecretStr) -> str:
