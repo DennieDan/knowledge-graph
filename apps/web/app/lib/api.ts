@@ -57,6 +57,10 @@ export interface DriveWorkspace {
   kind: "my_drive" | "shared_drive";
   private: boolean;
   updated_at: string;
+  last_success_at?: string | null;
+  last_error?: string | null;
+  last_error_at?: string | null;
+  health?: "fresh" | "stale" | "failed";
 }
 
 export interface DrivePermission {
@@ -397,7 +401,16 @@ export function fileAllSubstacks(accountId: string): Promise<{ filed: number }> 
   return apiFetch(`/accounts/${accountId}/stacks/file-all`, { method: "POST" });
 }
 
-export interface DriveSyncResult { synced: number; ingested: number; skipped: number; errors: string[] }
+export interface DriveSyncResult {
+  synced?: number;
+  ingested?: number;
+  skipped?: number;
+  errors?: string[];
+  queued?: boolean;
+  job_id?: string;
+  workspace_id?: string;
+  status?: string;
+}
 
 export function syncDriveWorkspace(workspaceId: string): Promise<DriveSyncResult> {
   return apiFetch(`/drive/workspaces/${workspaceId}/sync`, { method: "POST" });

@@ -363,6 +363,17 @@ def list_workspaces(organization_id: UUID, user: User = Depends(get_current_user
             "kind": workspace.kind,
             "private": workspace.kind == "my_drive",
             "updated_at": association.updated_at,
+            "last_success_at": workspace.last_success_at.isoformat() if workspace.last_success_at else None,
+            "last_error": workspace.last_error,
+            "last_error_at": workspace.last_error_at.isoformat() if workspace.last_error_at else None,
+            "health": (
+                "failed" if workspace.last_error
+                else "stale" if (
+                    workspace.last_success_at is None
+                    or (datetime.now(timezone.utc) - workspace.last_success_at).total_seconds() > 30 * 60
+                )
+                else "fresh"
+            ),
         }
         for workspace, association in rows
         if workspace.kind != "my_drive" or workspace.owner_user_id == user.id

@@ -35,6 +35,7 @@ from .models import (
     SubstackLink,
     SubstackSource,
 )
+from .spend import add_tokens
 from .prompts import (
     CLIENT_PROMPT,
     CLIENT_QUERIES,
@@ -250,6 +251,12 @@ def discover_document(session: Session, version_id: UUID, run_id: UUID | None, g
         raise ValueError("document_has_no_current_embeddings")
     result = get_llm_client().parse(
         prompt=DISCOVERY_PROMPT, evidence=_chunk_evidence(chunks, document), schema=DiscoveryOutput,
+    )
+    add_tokens(
+        session,
+        document.organization_id,
+        input_tokens=result.input_tokens or 0,
+        output_tokens=result.output_tokens or 0,
     )
     output = result.parsed
     if not isinstance(output, DiscoveryOutput):
@@ -546,6 +553,12 @@ def generate_substack(session: Session, substack_id: UUID, run_id: UUID | None, 
         prompt = f"{prompt}\n\n{DESCRIBED_RECORD_PROMPT}"
         evidence = f"<user_request>\n{escape(description)}\n</user_request>\n\n{evidence}"
     result = get_llm_client().parse(prompt=prompt, evidence=evidence, schema=schema)
+    add_tokens(
+        session,
+        substack.organization_id,
+        input_tokens=result.input_tokens or 0,
+        output_tokens=result.output_tokens or 0,
+    )
     extraction = result.parsed
     if not is_conversation and (
         len(getattr(extraction, "report", [])) < 2 or any(not paragraph.value for paragraph in extraction.report)

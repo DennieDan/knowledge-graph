@@ -14,6 +14,7 @@ from .models import (
     ContentCitation,
     Document,
     DocumentVersion,
+    DriveWorkspace,
     EntityMention,
     Substack,
     SubstackContent,
@@ -121,6 +122,37 @@ def source_changed(session: Session, organization_id: UUID) -> list[DraftFinding
                 fingerprint=observed_fingerprint(str(content.id), "deleted", str(citation.id)),
             )
         )
+
+    # Permission revoked: workspace last sync error looks like access denial.
+    revoked = session.scalars(
+        select(DriveWorkspace).where(
+            DriveWorkspace.organization_id == organization_id,
+            DriveWorkspace.last_error.is_not(None),
+        )
+    ).all()
+    for workspace in revoked:
+        err = (workspace.last_error or "").lower()
+        if not any(token in err for token in ("403", "401", "refused", "permission", "unauthorized", "access")):
+            continue
+        docs = session.scalars(
+            select(Document).where(Document.drive_workspace_id == workspace.id)
+        ).all()
+        for document in docs:
+            drafts.append(
+                DraftFinding(
+                    check_key="source_changed",
+                    subject_kind="document",
+                    subject_id=document.id,
+                    owner_user_id=workspace.owner_user_id,
+                    observed_value="permission_revoked",
+                    summary_sentence=(
+                        f"Access to {document.title} was refused by Google "
+                        f"({workspace.name})."
+                    ),
+                    evidence={"reason": "permission_revoked", "workspace_id": str(workspace.id), "error": workspace.last_error},
+                    fingerprint=observed_fingerprint(str(document.id), "permission_revoked", str(workspace.last_error_at)),
+                )
+            )
 
     # Extractor changed: content still cites evidence but its prompt_version is
     # behind the latest generation_run for that substack.
