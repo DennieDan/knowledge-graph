@@ -642,3 +642,18 @@ class TestResult(Base):
     latency_ms: Mapped[Optional[int]] = mapped_column(Integer)
     tokens: Mapped[Optional[int]] = mapped_column(Integer)
     detail: Mapped[dict] = mapped_column(JSONB, default=dict)
+
+
+class ConfirmEvent(Base):
+    __tablename__ = "confirm_events"
+    __table_args__ = (
+        CheckConstraint("kind IN ('person','bulk','auto')", name="valid_confirm_event_kind"),
+        Index("ix_confirm_events_at", "organization_id", "at"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    substack_id: Mapped[UUID] = mapped_column(ForeignKey("substacks.id", ondelete="CASCADE"))
+    content_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("substack_contents.id", ondelete="SET NULL"))
+    kind: Mapped[str] = mapped_column(String(20))
+    by_user_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -571,3 +571,29 @@ export function dismissFinding(accountId: string, findingId: string, reason: str
     body: JSON.stringify({ reason }),
   });
 }
+
+export interface HealthAlarm {
+  key: string;
+  message: string;
+}
+
+export interface HealthWindow {
+  confirms: Record<string, number>;
+  findings: { raised: number; dismissed: number; open: number; dismiss_rate: number };
+  model_spend_tokens?: number;
+}
+
+export interface HealthSnapshot {
+  at_rest: string;
+  alarms: HealthAlarm[];
+  windows: { "7d": HealthWindow; "28d": HealthWindow };
+  nightly_test: { status: string; started_at: string; recall_at_5_mean: number | null } | null;
+  queue_depth: number;
+  jobs?: { queue_depth: number; failures_last_24h: number };
+  model_spend_tokens_today: number;
+  daily_token_budget?: number;
+}
+
+export function getHealth(accountId: string): Promise<HealthSnapshot> {
+  return apiFetch(`/accounts/${accountId}/health`);
+}

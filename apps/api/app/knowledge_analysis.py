@@ -24,6 +24,7 @@ from .llm import get_llm_client
 from .models import (
     AnalysisRun,
     Chunk,
+    ConfirmEvent,
     ContentCitation,
     Document,
     DocumentVersion,
@@ -602,6 +603,10 @@ def generate_substack(session: Session, substack_id: UUID, run_id: UUID | None, 
     )
     session.add(content)
     session.flush()
+    if auto_confirm:
+        from datetime import datetime, timezone
+        content.confirmed_at = datetime.now(timezone.utc)
+        content.confirmed_by_user_id = None
     chunk_documents = {str(item.chunk.id): item.document.id for item in retrieved}
     for index, segment in enumerate(segments):
         for chunk_id in segment.citations:
@@ -637,6 +642,15 @@ def generate_substack(session: Session, substack_id: UUID, run_id: UUID | None, 
     if auto_confirm:
         substack.status = "confirmed"
         substack.review_state = "clean"
+        session.add(
+            ConfirmEvent(
+                organization_id=substack.organization_id,
+                substack_id=substack.id,
+                content_id=content.id,
+                kind="auto",
+                by_user_id=None,
+            )
+        )
     else:
         substack.review_state = "pending_update" if confirmed else "pending"
     complete_run_if_last(session, run_id)
