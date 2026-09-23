@@ -166,6 +166,9 @@ export default function SearchView({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
+  // Set when we create a thread ourselves: local state is already
+  // authoritative, so the thread-load effect must not clobber it.
+  const skipNextFetch = useRef(false);
 
   useEffect(() => {
     if (!accountId) return;
@@ -177,6 +180,10 @@ export default function SearchView({
   useEffect(() => {
     if (!accountId || !threadId) {
       setMessages([]);
+      return;
+    }
+    if (skipNextFetch.current) {
+      skipNextFetch.current = false;
       return;
     }
     setLoading(true);
@@ -200,6 +207,7 @@ export default function SearchView({
       if (!id) {
         const thread = await createChatThread(accountId);
         id = thread.id;
+        skipNextFetch.current = true;
         setThreadId(id);
       }
       setMessages((m) => [
@@ -217,16 +225,16 @@ export default function SearchView({
           created_at: null,
         },
       ]);
-      setInput("");
       const answer = await postChatMessage(accountId, id, text);
       setMessages((m) => [...m, answer]);
-      listChatThreads(accountId)
-        .then((d) => setThreads(d.threads))
-        .catch(() => {});
+      setInput("");
     } catch {
       setError("Could not get an answer. Try again.");
     } finally {
       setBusy(false);
+      listChatThreads(accountId)
+        .then((d) => setThreads(d.threads))
+        .catch(() => {});
     }
   };
 
