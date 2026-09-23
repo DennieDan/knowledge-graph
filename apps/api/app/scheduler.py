@@ -14,6 +14,7 @@ from .models import DriveWorkspace, Organization, Schedule
 DEFAULT_SCHEDULES = (
     ("drive_sync", "*/15 * * * *", timedelta(minutes=15)),
     ("run_checks", "0 2 * * *", timedelta(hours=24)),
+    ("score_questions", "0 3 * * *", timedelta(hours=24)),
 )
 
 
@@ -80,6 +81,17 @@ def _enqueue_for_schedule(session: Session, schedule: Schedule) -> int:
             kind="run_checks",
             payload={},
             dedupe_key=f"run_checks:{org_id}:{day}",
+            max_attempts=1,
+        )
+        enqueued += 1
+    elif schedule.key == "score_questions":
+        enqueue_job(
+            session,
+            organization_id=org_id,
+            owner_user_id=None,
+            kind="score_questions",
+            payload={},
+            dedupe_key=f"score_questions:{org_id}:{day}",
             max_attempts=1,
         )
         enqueued += 1

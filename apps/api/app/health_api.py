@@ -1,4 +1,4 @@
-"""Findings queue (#15) and job observability (#31) endpoints. Health (#21) joins later."""
+"""Findings queue (#15), job observability (#31) and nightly test runs (#19). Health (#21) joins later."""
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -13,7 +13,7 @@ from .accounts import membership_for
 from .auth import get_current_user
 from .database import get_session
 from .findings import dismiss_finding
-from .models import DISMISSAL_REASONS, Finding, KnowledgeJob, User
+from .models import DISMISSAL_REASONS, Finding, KnowledgeJob, TestRun, User
 
 router = APIRouter(tags=["health"])
 
@@ -119,4 +119,41 @@ def get_jobs(
             {"kind": kind, "status": status, "count": count}
             for kind, status, count in by_kind
         ],
+    }
+
+
+@router.get("/accounts/{organization_id}/health/tests")
+def get_health_tests(
+    organization_id: UUID,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """The last 30 runs per kind (retrieval, answer), newest first, for the Health trend."""
+    membership_for(organization_id, user, session)
+    runs: list[TestRun] = []
+    for kind in ("retrieval", "answer"):
+        runs.extend(
+            session.scalars(
+                select(TestRun)
+                .where(TestRun.organization_id == organization_id, TestRun.kind == kind)
+                .order_by(TestRun.started_at.desc())
+                .limit(30)
+            ).all()
+        )
+    runs.sort(key=lambda run: run.started_at, reverse=True)
+    return {
+        "runs": [
+            {
+                "id": str(run.id),
+                "kind": run.kind,
+                "status": run.status,
+                "started_at": run.started_at.isoformat(),
+                "finished_at": run.finished_at.isoformat() if run.finished_at else None,
+                "git_sha": run.git_sha,
+                "prompt_versions": run.prompt_versions,
+                "model": run.model,
+                "metrics": run.metrics,
+            }
+            for run in runs
+        ]
     }
