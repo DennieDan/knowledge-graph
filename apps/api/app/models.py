@@ -576,3 +576,28 @@ class Spend(Base):
     day: Mapped[date] = mapped_column(Date)
     input_tokens: Mapped[int] = mapped_column(Integer, default=0)
     output_tokens: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class TestQuestion(Base):
+    __tablename__ = "test_questions"
+    __table_args__ = (
+        CheckConstraint(
+            "origin IN ('synthetic','from_interview','invented_shape')",
+            name="valid_test_question_origin",
+        ),
+        CheckConstraint("language IN ('en','ms','zh')", name="valid_test_question_language"),
+        UniqueConstraint("organization_id", "external_key", name="uq_test_question_org_key"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    external_key: Mapped[str] = mapped_column(String(80))
+    question: Mapped[str] = mapped_column(Text)
+    language: Mapped[str] = mapped_column(String(10), default="en")
+    origin: Mapped[str] = mapped_column(String(30))
+    expected_substack_ids: Mapped[list] = mapped_column(JSONB, default=list)
+    expected_chunk_ids: Mapped[list] = mapped_column(JSONB, default=list)
+    expected_answer_notes: Mapped[Optional[str]] = mapped_column(Text)
+    answerable: Mapped[Optional[bool]] = mapped_column(Boolean)
+    meta: Mapped[dict] = mapped_column(JSONB, default=dict)
+    created_by_user_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
