@@ -114,6 +114,10 @@ class ReadinessTests(unittest.TestCase):
             self.assertEqual(response.json()["database"], "ok")
             self.assertTrue(response.json()["pgvector"])
 
+    def test_responses_are_not_cacheable(self):
+        with TestClient(app) as client:
+            self.assertEqual(client.get("/health").headers["cache-control"], "no-store")
+
     def test_unavailable_database_keeps_liveness_and_hides_details(self):
         with patch("app.main.get_engine", side_effect=OperationalError("secret connection details", {}, Exception("private"))):
             with TestClient(app) as client:

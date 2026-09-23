@@ -33,10 +33,10 @@ services:
         generateValue: true
       - key: SESSION_HTTPS_ONLY
         value: "true"
-      # "none" while web (vercel.app) and API (onrender.com) are different sites.
-      # Switch to "lax" once both run on subdomains of one custom domain.
+      # "lax": the browser reaches the API through the web app's /backend proxy
+      # (or later a same-site custom domain), so the cookie is first-party.
       - key: SESSION_SAME_SITE
-        value: none
+        value: lax
       - key: OPENAI_API_KEY
         sync: false
       - key: EMBEDDING_DEVICE
