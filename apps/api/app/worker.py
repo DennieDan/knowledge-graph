@@ -13,15 +13,16 @@ from .findings import create_finding
 from .jobs import JobNotReady, claim_job, defer_job, fail_job, finish_job, park_budget_exhausted
 from .knowledge_analysis import discover_document, generate_substack, regenerate_records
 from .models import DriveConnection, DriveWorkspace, DriveWorkspaceConnection, KnowledgeJob, Substack, User
+from .scoring import run_score_job
 from .spend import budget_exhausted
 
 # Tolerances (#31 step 3).
 # Prompt and idempotent, retried 4x with backoff: embed_version, sync_workspace, whatsapp_ingest.
 # Batchable, retried 4x then marked generation_error: discover_document, generate_substack.
-# Scheduled and skippable, never retried into the next night: run_checks.
-SCHEDULED_KINDS = ("run_checks",)
+# Scheduled and skippable, never retried into the next night: run_checks, score_questions.
+SCHEDULED_KINDS = ("run_checks", "score_questions")
 # Kinds that call a model check the daily token budget before running.
-BUDGETED_KINDS = ("generate_substack",)
+BUDGETED_KINDS = ("generate_substack", "score_questions")
 
 
 def _transient(error: Exception) -> bool:
@@ -132,6 +133,8 @@ def _dispatch(session: Session, job: KnowledgeJob) -> None:
         _handle_whatsapp_ingest(session, job)
     elif job.kind == "run_checks":
         run_all_checks(session, job.organization_id)
+    elif job.kind == "score_questions":
+        run_score_job(session, job.organization_id)
     else:
         raise ValueError(f"unsupported_job_kind:{job.kind}")
 

@@ -32,7 +32,7 @@ class SchedulerTests(unittest.TestCase):
             schedule.next_run_at = None
         self.session.flush()
         result = tick(self.session)
-        self.assertGreaterEqual(result["jobs_enqueued"], 1)
+        self.assertGreaterEqual(result["jobs_enqueued"], 2)
         kinds = {
             job.kind
             for job in self.session.scalars(
@@ -40,6 +40,7 @@ class SchedulerTests(unittest.TestCase):
             )
         }
         self.assertIn("run_checks", kinds)
+        self.assertIn("score_questions", kinds)
 
     def test_budget_parks_generation_until_tomorrow(self):
         self.org.daily_token_budget = 100

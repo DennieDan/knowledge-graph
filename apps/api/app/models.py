@@ -3,7 +3,7 @@ from typing import Optional
 from uuid import UUID, uuid4
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func, text
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -319,7 +319,7 @@ class AnalysisRun(Base):
 class KnowledgeJob(Base):
     __tablename__ = "knowledge_jobs"
     __table_args__ = (
-        CheckConstraint("kind IN ('embed_version','discover_document','generate_substack','reconcile_scope','run_checks','sync_workspace','whatsapp_ingest')", name="valid_knowledge_job_kind"),
+        CheckConstraint("kind IN ('embed_version','discover_document','generate_substack','reconcile_scope','run_checks','sync_workspace','whatsapp_ingest','score_questions')", name="valid_knowledge_job_kind"),
         CheckConstraint("status IN ('queued','running','succeeded','failed','cancelled','budget_exhausted')", name="valid_knowledge_job_status"),
         Index("ix_knowledge_jobs_available", "status", "available_at"),
     )
@@ -607,3 +607,38 @@ class TestQuestion(Base):
     meta: Mapped[dict] = mapped_column(JSONB, default=dict)
     created_by_user_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class TestRun(Base):
+    __tablename__ = "test_runs"
+    __table_args__ = (
+        CheckConstraint("kind IN ('retrieval','answer')", name="valid_test_run_kind"),
+        CheckConstraint("status IN ('running','passed','failed','skipped')", name="valid_test_run_status"),
+        Index("ix_test_runs_organization_id", "organization_id", "started_at"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"))
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    git_sha: Mapped[Optional[str]] = mapped_column(String(64))
+    prompt_versions: Mapped[dict] = mapped_column(JSONB, default=dict)
+    model: Mapped[Optional[str]] = mapped_column(String(255))
+    kind: Mapped[str] = mapped_column(String(20))
+    status: Mapped[str] = mapped_column(String(20), default="running")
+    metrics: Mapped[dict] = mapped_column(JSONB, default=dict)
+
+
+class TestResult(Base):
+    __tablename__ = "test_results"
+    __table_args__ = (UniqueConstraint("run_id", "question_id", name="uq_test_result_run_question"),)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    run_id: Mapped[UUID] = mapped_column(ForeignKey("test_runs.id", ondelete="CASCADE"))
+    question_id: Mapped[UUID] = mapped_column(ForeignKey("test_questions.id", ondelete="CASCADE"))
+    rank_of_first_expected: Mapped[Optional[int]] = mapped_column(Integer)
+    recall_at_5: Mapped[Optional[float]] = mapped_column(Float)
+    recall_at_20: Mapped[Optional[float]] = mapped_column(Float)
+    cited_expected: Mapped[Optional[bool]] = mapped_column(Boolean)
+    answered: Mapped[Optional[bool]] = mapped_column(Boolean)
+    latency_ms: Mapped[Optional[int]] = mapped_column(Integer)
+    tokens: Mapped[Optional[int]] = mapped_column(Integer)
+    detail: Mapped[dict] = mapped_column(JSONB, default=dict)
