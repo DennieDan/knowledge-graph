@@ -1,7 +1,8 @@
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
-from pydantic import SecretStr
+from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.models import EMBEDDING_MODEL
@@ -20,11 +21,14 @@ class Settings(BaseSettings):
         extra="ignore",
     )
     database_url: SecretStr
+    migration_database_url: SecretStr | None = None
     google_client_id: SecretStr
     google_client_secret: SecretStr
     google_redirect_uri: str = "http://localhost:8000/auth/google/callback"
     google_drive_redirect_uri: str = "http://localhost:8000/drive/callback"
     session_secret: SecretStr
+    session_https_only: bool = False
+    session_same_site: Literal["lax", "strict", "none"] = "lax"
     web_origin: str = "http://localhost:3000"
     waha_base_url: str = "http://localhost:3100"
     waha_api_key: SecretStr | None = None
@@ -48,6 +52,27 @@ class Settings(BaseSettings):
     retrieval_limit_per_query: int = 8
     retrieval_max_chunks: int = 40
     retrieval_max_context_chars: int = 50000
+
+    @field_validator("waha_base_url")
+    @classmethod
+    def _waha_scheme(cls, value: str) -> str:
+        # Render's private network exposes services as bare host:port.
+        return value if "://" in value else f"http://{value}"
+
+    @staticmethod
+    def _psycopg_url(value: SecretStr) -> str:
+        url = value.get_secret_value()
+        if url.startswith("postgresql://"):
+            return url.replace("postgresql://", "postgresql+psycopg://", 1)
+        if url.startswith("postgres://"):
+            return url.replace("postgres://", "postgresql+psycopg://", 1)
+        return url
+
+    def runtime_url(self) -> str:
+        return self._psycopg_url(self.database_url)
+
+    def migration_url(self) -> str:
+        return self._psycopg_url(self.migration_database_url or self.database_url)
 
 
 @lru_cache

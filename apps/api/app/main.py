@@ -19,18 +19,19 @@ from .stacks import router as stacks_router
 from .whatsapp import router as whatsapp_router
 
 app = FastAPI(title="Knowledge Graph API")
+settings = get_settings()
 
 app.add_middleware(
     SessionMiddleware,
-    secret_key=get_settings().session_secret.get_secret_value(),
+    secret_key=settings.session_secret.get_secret_value(),
     session_cookie="kg_session",
-    same_site="lax",
-    https_only=False,
+    same_site=settings.session_same_site,
+    https_only=settings.session_https_only,
     max_age=60 * 60 * 24 * 14,
 )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[get_settings().web_origin],
+    allow_origins=[settings.web_origin],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
