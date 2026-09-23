@@ -18,6 +18,7 @@ from .database import get_session
 from .filing import file_document, substack_for_document
 from .models import (
     STACK_TYPES,
+    ConfirmEvent,
     ContentCitation,
     Document,
     DocumentVersion,
@@ -291,7 +292,10 @@ def _confirm_content(
     substack: Substack,
     content: SubstackContent,
     user: User | None = None,
+    *,
+    kind: str = "person",
 ) -> None:
+    """kind is 'person' (one item), 'bulk' (confirm-all) or 'auto' (a generator confirmed its own output)."""
     latest_proposed = session.scalar(
         select(SubstackContent)
         .where(SubstackContent.substack_id == substack.id, SubstackContent.status == "proposed")
@@ -313,6 +317,15 @@ def _confirm_content(
     content.confirmed_at = datetime.now(timezone.utc)
     substack.status = "confirmed"
     substack.review_state = "clean"
+    session.add(
+        ConfirmEvent(
+            organization_id=substack.organization_id,
+            substack_id=substack.id,
+            content_id=content.id,
+            kind=kind,
+            by_user_id=user.id if user is not None else None,
+        )
+    )
 
 
 @router.post("/substacks/{substack_id}/contents/{content_id}/confirm")
@@ -349,6 +362,15 @@ def confirm_substack(
     else:
         substack.status = "confirmed"
         substack.review_state = "clean"
+        session.add(
+            ConfirmEvent(
+                organization_id=substack.organization_id,
+                substack_id=substack.id,
+                content_id=None,
+                kind="person",
+                by_user_id=user.id,
+            )
+        )
     session.commit()
     return _substack_json(session, substack, user)
 
@@ -373,12 +395,21 @@ def confirm_all(
             .limit(1)
         )
         if proposed is not None:
-            _confirm_content(session, substack, proposed, user)
+            _confirm_content(session, substack, proposed, user, kind="bulk")
             confirmed_count += 1
         elif substack.status != "confirmed" or substack.review_state in ("pending", "pending_update"):
             substack.status = "confirmed"
             if substack.review_state in ("pending", "pending_update"):
                 substack.review_state = "clean"
+            session.add(
+                ConfirmEvent(
+                    organization_id=substack.organization_id,
+                    substack_id=substack.id,
+                    content_id=None,
+                    kind="bulk",
+                    by_user_id=user.id,
+                )
+            )
             confirmed_count += 1
     session.commit()
     return {"confirmed": confirmed_count}
