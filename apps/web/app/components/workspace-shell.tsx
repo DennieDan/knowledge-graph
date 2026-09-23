@@ -7,6 +7,7 @@ import SearchView from "./search-view";
 import SourcesView from "./sources-view";
 import StacksView from "./stacks-view";
 import SubstackDetail from "./substack-detail";
+import ToCheckView from "./to-check-view";
 import WhatsAppConnect from "./whatsapp-connect";
 import DrivePicker from "./drive-picker";
 import AccountOnboarding from "./account-onboarding";
@@ -25,6 +26,7 @@ import {
   acceptInvitation,
   activateAccount,
   confirmAllSubstacks,
+  confirmSubstack,
   confirmSubstackContent,
   convertToCompany,
   createSubstack,
@@ -41,13 +43,14 @@ import {
 } from "../lib/api";
 import styles from "./workspace-shell.module.css";
 
-type NavId = "stacks" | "sources" | "search" | "maintenance";
+type NavId = "tocheck" | "stacks" | "sources" | "search" | "maintenance";
 
 type ModalState =
   | null
   | { kind: "createSubstack"; typeId: string };
 
 const NAV_ITEMS = [
+  { icon: "inbox", label: "To check", id: "tocheck" },
   { icon: "search", label: "Search", id: "search" },
   { icon: "layers", label: "Stacks", id: "stacks" },
   { icon: "database", label: "Sources", id: "sources" },
@@ -222,6 +225,18 @@ export default function WorkspaceShell() {
       .finally(() => setAnalysisBusy(false));
   };
 
+  const handleConfirmItem = (ss: Substack) => {
+    if (analysisBusy) return;
+    setAnalysisBusy(true);
+    confirmSubstack(ss.id)
+      .then(() => {
+        refreshSubstacks();
+        showNotice(`"${ss.name}" confirmed.`);
+      })
+      .catch((reason) => showNotice(reason instanceof Error ? reason.message : "Proposal could not be confirmed."))
+      .finally(() => setAnalysisBusy(false));
+  };
+
   const handleConfirmContent = (substackId: string, contentId: string) => {
     confirmSubstackContent(substackId, contentId)
       .then(() => {
@@ -293,13 +308,15 @@ export default function WorkspaceShell() {
   };
 
   const crumbLabel =
-    activeNav === "sources"
-      ? "Sources"
-      : activeNav === "search"
-        ? "Search"
-        : activeNav === "maintenance"
-          ? "Maintenance"
-          : null;
+    activeNav === "tocheck"
+      ? "To check"
+      : activeNav === "sources"
+        ? "Sources"
+        : activeNav === "search"
+          ? "Search"
+          : activeNav === "maintenance"
+            ? "Maintenance"
+            : null;
 
   return (
     <div className={styles.app}>
@@ -479,6 +496,16 @@ export default function WorkspaceShell() {
             </div>
           </header>
 
+          {activeNav === "tocheck" && (
+            <ToCheckView
+              stackTypes={stackTypes}
+              substacks={substacks}
+              busy={analysisBusy}
+              notice={notice}
+              onOpen={(ss) => openSubstack(ss.id)}
+              onConfirm={handleConfirmItem}
+            />
+          )}
           {activeNav === "sources" && (
             <SourcesView
               me={me}
