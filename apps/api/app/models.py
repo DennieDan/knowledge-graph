@@ -253,6 +253,13 @@ class Chunk(Base):
         UniqueConstraint("document_version_id", "position"),
         CheckConstraint("position >= 0", name="nonnegative_position"),
         CheckConstraint("(embedding IS NULL) = (embedding_model IS NULL)", name="embedding_has_model"),
+        Index(
+            "ix_chunks_embedding_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+            postgresql_with={"m": 16, "ef_construction": 64},
+        ),
     )
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     document_version_id: Mapped[UUID] = mapped_column(ForeignKey("document_versions.id", ondelete="CASCADE"), index=True)

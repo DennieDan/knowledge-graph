@@ -34,6 +34,41 @@ def _latest_version_filter():
     )
 
 
+def search_chunks(
+    session: Session,
+    organization_id: UUID,
+    owner_user_id: UUID | None,
+    query: str,
+    limit: int,
+) -> list[RetrievedChunk]:
+    """Rank chunks for a person's query.
+
+    Unlike `retrieve_chunks`, which widens the set with keyword hits and
+    neighbouring chunks so a generator has context, every row here is a hit the
+    reader asked for, ordered by distance.
+    """
+    settings = get_settings()
+    distance = Chunk.embedding.cosine_distance(embed_query(query))
+    rows = session.execute(
+        select(Chunk, Document, distance.label("distance"))
+        .join(DocumentVersion, Chunk.document_version_id == DocumentVersion.id)
+        .join(Document, DocumentVersion.document_id == Document.id)
+        .where(
+            Document.organization_id == organization_id,
+            visibility_filter(owner_user_id),
+            _latest_version_filter(),
+            Chunk.embedding.is_not(None),
+            Chunk.embedding_model == settings.embedding_model,
+        )
+        .order_by(distance, Chunk.id)
+        .limit(limit)
+    ).all()
+    return [
+        RetrievedChunk(chunk=chunk, document=document, score=float(row_distance))
+        for chunk, document, row_distance in rows
+    ]
+
+
 def retrieve_chunks(
     session: Session,
     organization_id: UUID,
