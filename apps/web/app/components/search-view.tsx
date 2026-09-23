@@ -1,188 +1,322 @@
 "use client";
 
-import { useState } from "react";
-import DriveFiles from "./drive-files";
+import { useEffect, useRef, useState } from "react";
 import Icon from "./icons";
-import type { Me } from "../lib/api";
+import {
+  createChatThread,
+  getChatThread,
+  isRecordCitation,
+  listChatThreads,
+  postChatMessage,
+  setChatFeedback,
+  type ChatCitation,
+  type ChatMessage,
+  type ChatThread,
+} from "../lib/api";
 import styles from "./search-view.module.css";
 
-type Source = "Drive" | "WhatsApp" | "Knowledge record";
-
-interface KnowledgeItem {
-  title: string;
-  source: Source;
-  path: string;
-  text: string;
-  access: string;
-  relation: string;
-  updated: string;
+function checkedClass(note: string | null): string {
+  if (!note) return "";
+  if (note.startsWith("Confirmed by")) return styles.checkedYes ?? "";
+  return styles.checkedNo ?? "";
 }
 
-const ITEMS: KnowledgeItem[] = [
-  {
-    title: "Project Atlas — Launch brief",
-    source: "Drive",
-    path: "Company Drive / Projects / Atlas / Launch brief",
-    text: "Launch plan, deliverables and proposed schedule.",
-    access: "Atlas team · View",
-    relation: "Document belongs to Project Atlas",
-    updated: "12 Sep · Maya Chen",
-  },
-  {
-    title: "Maya ↔ Alex — Launch discussion",
-    source: "WhatsApp",
-    path: "Imported 1:1 chat / Maya ↔ Alex / 13 Sep",
-    text: "“Can we move the Atlas launch to 25 September?”",
-    access: "Chat participants + explicitly authorized viewers",
-    relation: "Conversation discusses Project Atlas",
-    updated: "13 Sep · Maya Chen",
-  },
-  {
-    title: "Project Atlas — Meeting notes",
-    source: "Drive",
-    path: "Company Drive / Projects / Atlas / Meeting notes",
-    text: "Decisions, owners and follow-up actions.",
-    access: "Atlas team · View",
-    relation: "AI-linked to Project Atlas",
-    updated: "11 Sep · Alex Tan",
-  },
-  {
-    title: "Project Atlas",
-    source: "Knowledge record",
-    path: "Workspace / Projects / Atlas",
-    text: "Launch project connecting its brief, discussion and meeting notes.",
-    access: "Derived from accessible sources only",
-    relation: "Project groups the visible connected items",
-    updated: "14 Sep · AI maintenance",
-  },
-  {
-    title: "Maya Chen",
-    source: "Knowledge record",
-    path: "Workspace / People / Maya Chen",
-    text: "Project owner named in the launch brief.",
-    access: "Atlas team · View",
-    relation: "Maya owns Project Atlas",
-    updated: "12 Sep · Source: launch brief",
-  },
-];
-
-const SEARCHABLE = ITEMS.slice(0, 3);
-
-export default function SearchView({ me }: { me: Me | null }) {
-  const [query, setQuery] = useState("");
-  const [sources, setSources] = useState({ Drive: true, WhatsApp: true });
-  const [selected, setSelected] = useState(0);
-
-  const q = query.trim().toLowerCase();
-  const results = SEARCHABLE.map((item, index) => ({ item, index })).filter(
-    ({ item }) =>
-      sources[item.source as "Drive" | "WhatsApp"] &&
-      (q === "" || `${item.title} ${item.text}`.toLowerCase().includes(q)),
+function CitationChip({
+  citation,
+  onOpenRecord,
+}: {
+  citation: ChatCitation;
+  onOpenRecord: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  if (isRecordCitation(citation)) {
+    return (
+      <button
+        type="button"
+        className={`${styles.cite} ${styles.citeRecord}`}
+        onClick={() => onOpenRecord(citation.record_id)}
+        title={citation.stack_type}
+      >
+        <Icon
+          name={citation.checked === "person" ? "badge-check" : "file-text"}
+          size={12}
+        />
+        {citation.name}
+      </button>
+    );
+  }
+  return (
+    <span className={styles.citeWrap}>
+      <button
+        type="button"
+        className={styles.cite}
+        onClick={() => setOpen((v) => !v)}
+        title={citation.source}
+      >
+        <Icon name="file-text" size={12} />
+        {citation.title}
+      </button>
+      {open && <span className={styles.snippet}>{citation.snippet}</span>}
+    </span>
   );
-  const detail = ITEMS[selected] as KnowledgeItem;
+}
+
+function AnswerBlock({
+  message,
+  accountId,
+  onOpenRecord,
+}: {
+  message: ChatMessage;
+  accountId: string;
+  onOpenRecord: (id: string) => void;
+}) {
+  const [feedback, setFeedback] = useState(message.feedback);
+  const [stepsOpen, setStepsOpen] = useState(false);
+
+  const rate = (rating: "up" | "down") => {
+    setFeedback(rating);
+    setChatFeedback(accountId, message.id, rating).catch(() =>
+      setFeedback(message.feedback),
+    );
+  };
+
+  const queries = (message.steps ?? [])
+    .map((s) => s.query)
+    .filter((q): q is string => Boolean(q));
 
   return (
-    <div className={styles.searchShell}>
-      <div className={styles.content}>
-        <h1 className={styles.title}>Find company knowledge</h1>
-        <p className={styles.subtitle}>Search across connected sources</p>
-
-        <form
-          className={styles.searchBar}
-          role="search"
-          onSubmit={(e) => e.preventDefault()}
-        >
-          <Icon name="search" size={18} />
-          <input
-            type="search"
-            aria-label="Search company knowledge"
-            placeholder="Search files, conversations, people…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        </form>
-
-        <div className={styles.filters}>
-          <label className={styles.check}>
-            <input
-              type="checkbox"
-              checked={sources.Drive}
-              onChange={() =>
-                setSources((s) => ({ ...s, Drive: !s.Drive }))
-              }
+    <div className={styles.answer}>
+      <p className={message.answered ? styles.answerText : styles.answerTextNone}>
+        {message.text}
+      </p>
+      {message.checked_note && (
+        <p className={`${styles.checkedNote} ${checkedClass(message.checked_note)}`}>
+          <Icon name="shield" size={12} />
+          {message.checked_note}
+        </p>
+      )}
+      {message.citations?.length > 0 && (
+        <div className={styles.cites}>
+          {message.citations.map((c, i) => (
+            <CitationChip
+              key={isRecordCitation(c) ? c.record_id : c.chunk_id ?? i}
+              citation={c}
+              onOpenRecord={onOpenRecord}
             />
-            Google Drive
-          </label>
-          <label className={styles.check}>
-            <input
-              type="checkbox"
-              checked={sources.WhatsApp}
-              onChange={() =>
-                setSources((s) => ({ ...s, WhatsApp: !s.WhatsApp }))
-              }
-            />
-            WhatsApp · 1:1
-          </label>
-          <span className={styles.visibility}>
-            <Icon name="lock" size={14} /> Only information you can access
-          </span>
+          ))}
         </div>
-
-        <section className={styles.summaryCard}>
-          <span className={styles.cardOverline}>Suggestion</span>
-          <h2 className={styles.cardTitle}>Project Atlas</h2>
-          <p>
-            Launch timing differs between the project brief and the latest
-            conversation.
-          </p>
-          <div className={styles.cardActions}>
-            <button type="button" className={styles.btnTonal} disabled>
-              Review conflicting information
-            </button>
-          </div>
-        </section>
-
-        <div className={styles.results} aria-live="polite">
-          <p className={styles.muted}>
-            {results.length} accessible result
-            {results.length === 1 ? "" : "s"}
-          </p>
-          {results.map(({ item, index }) => (
+      )}
+      <div className={styles.answerMeta}>
+        {message.answered && (
+          <span className={styles.feedback}>
             <button
-              key={item.title}
               type="button"
-              className={styles.result}
-              data-selected={selected === index}
-              onClick={() => setSelected(index)}
+              className={`${styles.rateBtn} ${feedback === "up" ? styles.rateOn : ""}`}
+              onClick={() => rate("up")}
+              aria-label="Helpful"
+              aria-pressed={feedback === "up"}
             >
-              <span className={styles.resultTitle}>{item.title}</span>
-              <span className={styles.resultMeta}>
-                {item.source} · {item.updated}
-              </span>
-              <span className={styles.resultText}>{item.text}</span>
+              <Icon name="thumbs-up" size={14} />
+            </button>
+            <button
+              type="button"
+              className={`${styles.rateBtn} ${feedback === "down" ? styles.rateOn : ""}`}
+              onClick={() => rate("down")}
+              aria-label="Not helpful"
+              aria-pressed={feedback === "down"}
+            >
+              <Icon name="thumbs-down" size={14} />
+            </button>
+          </span>
+        )}
+        {queries.length > 0 && (
+          <button
+            type="button"
+            className={styles.stepsBtn}
+            onClick={() => setStepsOpen((v) => !v)}
+          >
+            <Icon name="search" size={12} />
+            {stepsOpen ? "Hide searches" : `Searched ${queries.length}×`}
+          </button>
+        )}
+      </div>
+      {stepsOpen && (
+        <ul className={styles.stepsList}>
+          {queries.map((q, i) => (
+            <li key={i}>“{q}”</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+export default function SearchView({
+  accountId,
+  onOpenRecord,
+}: {
+  accountId: string | null;
+  onOpenRecord: (id: string) => void;
+}) {
+  const [threads, setThreads] = useState<ChatThread[]>([]);
+  const [threadId, setThreadId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const bottomRef = useRef<HTMLDivElement>(null);
+  // Set when we create a thread ourselves: local state is already
+  // authoritative, so the thread-load effect must not clobber it.
+  const skipNextFetch = useRef(false);
+
+  useEffect(() => {
+    if (!accountId) return;
+    listChatThreads(accountId)
+      .then((d) => setThreads(d.threads))
+      .catch(() => setThreads([]));
+  }, [accountId]);
+
+  useEffect(() => {
+    if (!accountId || !threadId) {
+      setMessages([]);
+      return;
+    }
+    if (skipNextFetch.current) {
+      skipNextFetch.current = false;
+      return;
+    }
+    setLoading(true);
+    getChatThread(accountId, threadId)
+      .then((d) => setMessages(d.messages))
+      .catch(() => setError("Could not load this conversation."))
+      .finally(() => setLoading(false));
+  }, [accountId, threadId]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, busy]);
+
+  const send = async () => {
+    const text = input.trim();
+    if (!text || !accountId || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      let id = threadId;
+      if (!id) {
+        const thread = await createChatThread(accountId);
+        id = thread.id;
+        skipNextFetch.current = true;
+        setThreadId(id);
+      }
+      setMessages((m) => [
+        ...m,
+        {
+          id: `local-${Date.now()}`,
+          role: "user",
+          text,
+          answered: true,
+          checked: false,
+          checked_note: null,
+          citations: [],
+          steps: [],
+          feedback: null,
+          created_at: null,
+        },
+      ]);
+      const answer = await postChatMessage(accountId, id, text);
+      setMessages((m) => [...m, answer]);
+      setInput("");
+    } catch {
+      setError("Could not get an answer. Try again.");
+    } finally {
+      setBusy(false);
+      listChatThreads(accountId)
+        .then((d) => setThreads(d.threads))
+        .catch(() => {});
+    }
+  };
+
+  return (
+    <div className={styles.askShell}>
+      <aside className={styles.threadRail}>
+        <button
+          type="button"
+          className={styles.newThread}
+          onClick={() => setThreadId(null)}
+        >
+          <Icon name="plus" size={14} /> New question
+        </button>
+        <div className={styles.threadList}>
+          {threads.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              className={`${styles.threadItem} ${t.id === threadId ? styles.threadOn : ""}`}
+              onClick={() => setThreadId(t.id)}
+            >
+              {t.title ?? "Untitled"}
             </button>
           ))}
         </div>
-
-        {me?.drive_linked && me.active_account_id && <DriveFiles accountId={me.active_account_id} />}
-      </div>
-
-      <aside className={styles.detail} aria-live="polite">
-        <span className={styles.sectionLabel}>Item details</span>
-        <h2 className={styles.cardTitle}>{detail.title}</h2>
-        <p>{detail.text}</p>
-        <dl className={styles.detailList}>
-          <dt>Source location</dt>
-          <dd>{detail.path}</dd>
-          <dt>Last updated</dt>
-          <dd>{detail.updated}</dd>
-          <dt>Permission</dt>
-          <dd>{detail.access}</dd>
-          <dt>Relationship</dt>
-          <dd>{detail.relation}</dd>
-        </dl>
-        <p className={styles.muted}>Source preview · Demo record</p>
       </aside>
+
+      <div className={styles.chat}>
+        <div className={styles.messages} aria-live="polite">
+          {loading ? (
+            <p className={styles.empty}>Loading…</p>
+          ) : messages.length === 0 && !busy ? (
+            <p className={styles.empty}>
+              Ask a question about your checked records and sources.
+            </p>
+          ) : (
+            messages.map((m) =>
+              m.role === "user" ? (
+                <p key={m.id} className={styles.question}>
+                  {m.text}
+                </p>
+              ) : (
+                <AnswerBlock
+                  key={m.id}
+                  message={m}
+                  accountId={accountId ?? ""}
+                  onOpenRecord={onOpenRecord}
+                />
+              ),
+            )
+          )}
+          {busy && <p className={styles.pending}>Reading sources…</p>}
+          {error && <p className={styles.error}>{error}</p>}
+          <div ref={bottomRef} />
+        </div>
+
+        <form
+          className={styles.composer}
+          onSubmit={(e) => {
+            e.preventDefault();
+            send();
+          }}
+        >
+          <input
+            type="text"
+            aria-label="Ask a question"
+            placeholder="Ask about orders, clients, documents…"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            disabled={!accountId || busy}
+            maxLength={1000}
+          />
+          <button
+            type="submit"
+            className={styles.sendBtn}
+            disabled={!accountId || busy || !input.trim()}
+            aria-label="Send"
+          >
+            <Icon name="arrow-right" size={16} />
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
