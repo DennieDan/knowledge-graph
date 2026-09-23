@@ -449,3 +449,42 @@ class GenerationRun(Base):
     status: Mapped[str] = mapped_column(String(10), default="ok")
     error: Mapped[Optional[str]] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ChatThread(Base):
+    __tablename__ = "chat_threads"
+    __table_args__ = (Index("ix_chat_threads_org_user", "organization_id", "user_id"),)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    # Threads are private to the person who asked: answers can quote that
+    # person's owner-only documents, so they must not be shared org-wide.
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    title: Mapped[Optional[str]] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+    __table_args__ = (
+        CheckConstraint("role IN ('user','assistant')", name="valid_chat_message_role"),
+        CheckConstraint("feedback IN ('up','down')", name="valid_chat_feedback"),
+        CheckConstraint("role = 'assistant' OR feedback IS NULL", name="feedback_on_assistant_only"),
+        Index("ix_chat_messages_thread_created", "thread_id", "created_at"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    thread_id: Mapped[UUID] = mapped_column(ForeignKey("chat_threads.id", ondelete="CASCADE"), index=True)
+    role: Mapped[str] = mapped_column(String(20))
+    text: Mapped[str] = mapped_column(Text)
+    # The question actually retrieved on, after follow-ups are rewritten.
+    resolved_question: Mapped[Optional[str]] = mapped_column(Text)
+    answered: Mapped[Optional[bool]] = mapped_column(Boolean)
+    citations: Mapped[list] = mapped_column(JSONB, default=list)
+    steps: Mapped[list] = mapped_column(JSONB, default=list)
+    model: Mapped[Optional[str]] = mapped_column(String(255))
+    prompt_version: Mapped[Optional[str]] = mapped_column(String(50))
+    retrieval_version: Mapped[Optional[str]] = mapped_column(String(50))
+    input_tokens: Mapped[Optional[int]] = mapped_column(Integer)
+    output_tokens: Mapped[Optional[int]] = mapped_column(Integer)
+    feedback: Mapped[Optional[str]] = mapped_column(String(10))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

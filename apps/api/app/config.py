@@ -49,6 +49,11 @@ class Settings(BaseSettings):
     analysis_max_chunks_per_document: int = 60
     analysis_max_candidates_per_document: int = 30
     analysis_max_candidates_per_run: int = 200
+    # A chat turn costs one model call per step, so the cap bounds both
+    # latency and spend on a single question.
+    chat_max_steps: int = 4
+    chat_search_limit: int = 8
+    chat_history_turns: int = 6
     retrieval_limit_per_query: int = 8
     retrieval_max_chunks: int = 40
     retrieval_max_context_chars: int = 50000
