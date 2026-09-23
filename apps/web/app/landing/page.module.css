@@ -11,6 +11,7 @@
 
 .page section {
   padding: 96px 32px;
+  scroll-margin-top: 72px;
 }
 
 /* nav */
