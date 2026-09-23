@@ -12,6 +12,7 @@ import {
   type DriveTreeItem,
   type DriveWorkspace,
 } from "../lib/api";
+import { track } from "../lib/analytics";
 import Icon from "./icons";
 import modal from "./stacks.module.css";
 import styles from "./drive-picker.module.css";
@@ -148,7 +149,11 @@ export default function DrivePicker({ accountId, onClose }: { accountId: string;
   const save = async () => {
     if (!workspaceId) return;
     setSaving(true); setError(null);
-    try { await putDriveSelection(workspaceId, shareAll, [...checked]); onClose() }
+    try {
+      await putDriveSelection(workspaceId, shareAll, [...checked]);
+      track("drive_selection_saved", { share_all: shareAll, item_count: checked.size });
+      onClose();
+    }
     catch (reason) { setError(reason instanceof Error ? reason.message : "save_failed"); setSaving(false) }
   };
 

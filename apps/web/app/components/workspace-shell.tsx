@@ -41,6 +41,7 @@ import {
   type AnalysisRun,
   type Me,
 } from "../lib/api";
+import { identifyUser, resetAnalytics, track } from "../lib/analytics";
 import styles from "./workspace-shell.module.css";
 
 type NavId = "tocheck" | "stacks" | "sources" | "search" | "maintenance";
@@ -121,6 +122,7 @@ export default function WorkspaceShell() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("drive") === "connected") {
+      if (!driveSetupPending.current) track("drive_connected");
       driveSetupPending.current = true;
       window.history.replaceState(null, "", window.location.pathname);
     }
@@ -145,6 +147,15 @@ export default function WorkspaceShell() {
   }, [me, refreshMe]);
 
   const activeAccount = me?.accounts.find((account) => account.id === me.active_account_id) ?? me?.accounts[0] ?? null;
+
+  useEffect(() => {
+    if (me) identifyUser(me, activeAccount);
+  }, [me, activeAccount]);
+
+  const signOut = () => {
+    resetAnalytics();
+    logout().then(() => setMe(null));
+  };
 
   const refreshSubstacks = useCallback(() => {
     if (!activeAccount) return;
@@ -195,6 +206,7 @@ export default function WorkspaceShell() {
   const handleAnalyze = () => {
     if (!activeAccount || analysisBusy) return;
     setAnalysisBusy(true);
+    track("analyze_workspace_clicked", { substack_count: substacks.length });
     startAnalysis(activeAccount.id)
       .then((runs) => {
         setAnalysisRuns(runs);
@@ -209,6 +221,7 @@ export default function WorkspaceShell() {
     setAnalysisBusy(true);
     confirmAllSubstacks(activeAccount.id)
       .then(({ confirmed }) => {
+        track("confirm_all", { count: confirmed });
         refreshSubstacks();
         if (selectedSubstackId) ensureDetail(selectedSubstackId);
         showNotice(`Confirmed ${confirmed} proposed ${confirmed === 1 ? "record" : "records"}.`);
@@ -230,6 +243,7 @@ export default function WorkspaceShell() {
     setAnalysisBusy(true);
     confirmSubstack(ss.id)
       .then(() => {
+        track("substack_confirmed", { method: "single", stack_type: ss.typeId });
         refreshSubstacks();
         showNotice(`"${ss.name}" confirmed.`);
       })
@@ -240,6 +254,10 @@ export default function WorkspaceShell() {
   const handleConfirmContent = (substackId: string, contentId: string) => {
     confirmSubstackContent(substackId, contentId)
       .then(() => {
+        track("substack_confirmed", {
+          method: "content",
+          stack_type: substacks.find((item) => item.id === substackId)?.typeId ?? null,
+        });
         refreshSubstacks();
         ensureDetail(substackId);
         showNotice("Proposed content confirmed.");
@@ -252,6 +270,7 @@ export default function WorkspaceShell() {
     const typeId = modal.typeId;
     createSubstack(activeAccount.id, { stack_type: typeId, name: input.name, summary: input.desc })
       .then((row) => {
+        track("substack_created", { stack_type: typeId });
         setSubstacks((prev) => [toSubstack(row), ...prev]);
         showNotice(`"${row.name}" added to ${stackTypes.find((t) => t.id === typeId)?.name ?? typeId}.`);
         setModal(null);
@@ -262,6 +281,7 @@ export default function WorkspaceShell() {
   const openSubstack = (id: string) => {
     const target = substacks.find((item) => item.id === id);
     if (!target) return;
+    track("substack_opened", { stack_type: target.typeId, status: target.status, from_view: activeNav });
     setActiveNav("stacks");
     setSelectedType(target.typeId);
     setSelectedSubstackId(id);
@@ -299,6 +319,7 @@ export default function WorkspaceShell() {
     : null;
 
   const selectNav = (id: NavId) => {
+    if (id !== activeNav) track("view_changed", { view: id, from_view: activeNav });
     setActiveNav(id);
     if (id !== "stacks") {
       setSelectedType(null);
@@ -341,7 +362,10 @@ export default function WorkspaceShell() {
               <select
                 value={activeAccount?.id ?? ""}
                 aria-label="Active account"
-                onChange={(event) => activateAccount(event.target.value).then(refreshMe)}
+                onChange={(event) => {
+                  track("account_switched");
+                  activateAccount(event.target.value).then(refreshMe);
+                }}
               >
                 {me.accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
               </select>
@@ -351,7 +375,10 @@ export default function WorkspaceShell() {
             )}
             {activeAccount?.account_type === "personal" && me.hosted_domain &&
              !me.accounts.some((a) => a.account_type === "company" && a.google_domain === me.hosted_domain) && (
-              <button type="button" className={styles.inviteMembers} onClick={() => convertToCompany(activeAccount.id).then(refreshMe)}>Convert to company</button>
+              <button type="button" className={styles.inviteMembers} onClick={() => convertToCompany(activeAccount.id).then(() => {
+                track("converted_to_company");
+                refreshMe();
+              })}>Convert to company</button>
             )}
           </div>
 
@@ -409,7 +436,7 @@ export default function WorkspaceShell() {
                 <button
                   type="button"
                   className={styles.signOut}
-                  onClick={() => logout().then(() => setMe(null))}
+                  onClick={signOut}
                 >
                   Sign out
                 </button>
@@ -483,7 +510,7 @@ export default function WorkspaceShell() {
                   <button
                     type="button"
                     className={styles.signOut}
-                    onClick={() => logout().then(() => setMe(null))}
+                    onClick={signOut}
                   >
                     Sign out
                   </button>

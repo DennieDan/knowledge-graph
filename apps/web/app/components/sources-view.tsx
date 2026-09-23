@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { driveConnectUrl, listDriveWorkspaces, loginUrl, syncDriveWorkspace, type Account, type Me } from "../lib/api";
+import { track } from "../lib/analytics";
 import Icon from "./icons";
 import styles from "./sources.module.css";
 
@@ -47,9 +48,11 @@ export default function SourcesView({
     if (!activeAccount || syncing) return;
     setSyncMsg("");
     setSyncState({ done: 0, total: 0 });
+    const startedAt = performance.now();
     try {
       const workspaces = await listDriveWorkspaces(activeAccount.id);
       setSyncState({ done: 0, total: workspaces.length });
+      track("drive_sync_started", { workspaces: workspaces.length });
       let synced = 0, ingested = 0;
       const errors: string[] = [];
       for (const [index, workspace] of workspaces.entries()) {
@@ -59,6 +62,13 @@ export default function SourcesView({
         errors.push(...result.errors);
         setSyncState({ done: index + 1, total: workspaces.length });
       }
+      track("drive_sync_completed", {
+        workspaces: workspaces.length,
+        synced,
+        ingested,
+        errors: errors.length,
+        duration_ms: Math.round(performance.now() - startedAt),
+      });
       if (workspaces.length === 0) {
         setSyncMsg("No Drive workspaces to sync.");
       } else {
@@ -119,7 +129,7 @@ export default function SourcesView({
                 </button>
               </>
             ) : me && activeAccount ? (
-              <a href={driveConnectUrl(activeAccount.id)}>Connect Drive</a>
+              <a href={driveConnectUrl(activeAccount.id)} onClick={() => track("drive_connect_clicked", { account_type: activeAccount.account_type })}>Connect Drive</a>
             ) : (
               <a href={loginUrl}>Sign in to connect</a>
             )}

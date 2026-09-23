@@ -90,6 +90,9 @@ Remind the user of these items when deployment is set up:
   - `NEXT_PUBLIC_API_URL=/backend` (build-time; the build fails without it)
   - `API_PROXY_TARGET=https://kg-api-xxxx.onrender.com` (server-side only)
   - `ENABLE_EXPERIMENTAL_COREPACK=1` so Vercel uses the repo's pinned pnpm
+  - `NEXT_PUBLIC_POSTHOG_KEY` — PostHog project token (analytics is a no-op
+    when unset); `NEXT_PUBLIC_POSTHOG_HOST` only if not on US Cloud (e.g.
+    `https://eu.i.posthog.com`). Events are proxied first-party via `/ingest`.
   - Never put database, OpenAI, Google secret, session, or WAHA values in
     Vercel, and never in `NEXT_PUBLIC_*` variables.
 

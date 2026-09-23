@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Icon from "./icons";
 import { type StackType, type Substack, type UiSubstackDetail } from "../lib/stacks";
+import { track } from "../lib/analytics";
 import styles from "./substack-detail.module.css";
 
 interface Props {
@@ -41,6 +42,10 @@ export default function SubstackDetail({ substack, stackTypes, detail, details, 
   const relatedTypes = useMemo(() => [...new Set(related.map((item) => item.typeId))], [related]);
   const visibleRelated = related.filter((item) => relatedTypeFilter.size === 0 || relatedTypeFilter.has(item.typeId));
   const displayed = showPending && detail?.pending ? detail.pending : detail;
+  const togglePanel = (open: boolean) => {
+    track("evidence_panel_toggled", { open, stack_type: substack.typeId });
+    setPanelOpen(open);
+  };
 
   const matchingSegments = useMemo(
     () => (displayed?.segments ?? []).filter((segment) => `${segment.name ?? ""} ${segment.value}`.toLowerCase().includes(query.toLowerCase())),
@@ -60,7 +65,7 @@ export default function SubstackDetail({ substack, stackTypes, detail, details, 
             <button onClick={onForward} disabled={!canGoForward} aria-label="Next"><Icon name="arrow-right" size={19} /></button>
           </div>
           <h1>{substack.name}</h1><span>{type?.name ?? "Stack"}</span>
-          <button className={styles.panelToggle} onClick={() => setPanelOpen((open) => !open)} aria-label={panelOpen ? "Close side panel" : "Open side panel"} aria-expanded={panelOpen}><Icon name="panel-right" size={18} /></button>
+          <button className={styles.panelToggle} onClick={() => togglePanel(!panelOpen)} aria-label={panelOpen ? "Close side panel" : "Open side panel"} aria-expanded={panelOpen}><Icon name="panel-right" size={18} /></button>
         </header>
 
         {substack.reviewState === "unsupported" && (
@@ -149,15 +154,15 @@ export default function SubstackDetail({ substack, stackTypes, detail, details, 
           )}
           {relatedOpen && <div className={styles.relatedGrid}>{visibleRelated.map((item) => {
             const relatedType = stackTypes.find((candidate) => candidate.id === item.typeId);
-            return <button key={item.id} onClick={() => onOpen(item.id)} onMouseEnter={() => { setRelatedPreviewId(item.id); setHoveredSourceIds(null); onEnsureDetail(item.id); }} onMouseLeave={() => setRelatedPreviewId(null)}><span>{relatedType?.name}</span><strong>{item.name}</strong></button>;
+            return <button key={item.id} onClick={() => { track("related_opened", { stack_type: substack.typeId, target_type: item.typeId }); onOpen(item.id); }} onMouseEnter={() => { setRelatedPreviewId(item.id); setHoveredSourceIds(null); onEnsureDetail(item.id); }} onMouseLeave={() => setRelatedPreviewId(null)}><span>{relatedType?.name}</span><strong>{item.name}</strong></button>;
           })}</div>}
         </section>
       </section>
 
       {panelOpen && <aside className={styles.sources}>
-        <div className={styles.sourcesHeader}><h2>{isConversation ? "Attachments" : "Sources"}</h2><button onClick={() => setPanelOpen(false)} aria-label="Close side panel"><Icon name="x" size={16} /></button></div>
+        <div className={styles.sourcesHeader}><h2>{isConversation ? "Attachments" : "Sources"}</h2><button onClick={() => togglePanel(false)} aria-label="Close side panel"><Icon name="x" size={16} /></button></div>
         <div className={styles.sourceList}>
-          {visibleSources.map((source, index) => <button key={`${source.id}-${index}`} onClick={() => source.substackId && onOpen(source.substackId)}><b>{String(index + 1).padStart(2, "0")}</b><span><strong>{source.name}</strong><small>{source.type} · {source.origin} · {source.updated}</small><small>{source.note}</small></span></button>)}
+          {visibleSources.map((source, index) => <button key={`${source.id}-${index}`} onClick={() => { track("source_opened", { stack_type: substack.typeId, source_type: source.type }); if (source.substackId) onOpen(source.substackId); }}><b>{String(index + 1).padStart(2, "0")}</b><span><strong>{source.name}</strong><small>{source.type} · {source.origin} · {source.updated}</small><small>{source.note}</small></span></button>)}
           {visibleSources.length === 0 && <div className={styles.emptyPanel}><Icon name="file-text" size={20} /><p>No sources linked to this content.</p></div>}
         </div>
         <button className={styles.chat}>Chat with POPO <Icon name="chevron-down" /></button>
