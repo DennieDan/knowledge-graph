@@ -31,6 +31,7 @@ import {
   confirmAllSubstacks,
   confirmSubstack,
   confirmSubstackContent,
+  keepCurrentSubstackContent,
   convertToCompany,
   createSubstack,
   deleteSubstack,
@@ -439,6 +440,21 @@ export default function WorkspaceShell() {
       .catch((reason) => showNotice(reason instanceof Error ? reason.message : "Content could not be confirmed."));
   };
 
+  const handleKeepCurrentContent = (substackId: string, contentId: string) => {
+    const advanceTo = substackId === selectedSubstackId ? queueNav?.nextId ?? null : null;
+    keepCurrentSubstackContent(substackId, contentId)
+      .then(() => {
+        track("substack_update_dismissed", {
+          stack_type: substacks.find((item) => item.id === substackId)?.typeId ?? null,
+        });
+        refreshSubstacks();
+        ensureDetail(substackId);
+        if (advanceTo) stepQueue(advanceTo, "auto");
+        showNotice(advanceTo ? "Kept current version. Showing the next item to check." : "Kept current version.");
+      })
+      .catch((reason) => showNotice(reason instanceof Error ? reason.message : "Update could not be dismissed."));
+  };
+
   const handleAddSubstack = async (input: { name: string; desc: string; generate: boolean }) => {
     if (!activeAccount || modal?.kind !== "createSubstack") return;
     const typeId = modal.typeId;
@@ -811,6 +827,7 @@ export default function WorkspaceShell() {
                 onOpen={openSubstack}
                 onEnsureDetail={ensureDetail}
                 onConfirmContent={(contentId) => handleConfirmContent(selectedSubstack.id, contentId)}
+                onKeepCurrentContent={(contentId) => handleKeepCurrentContent(selectedSubstack.id, contentId)}
               />
             ) : selectedSubstackId ? (
               substacksLoaded && (

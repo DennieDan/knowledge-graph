@@ -319,6 +319,10 @@ export function confirmSubstackContent(id: string, contentId: string): Promise<A
   return apiFetch(`/substacks/${id}/contents/${contentId}/confirm`, { method: "POST" });
 }
 
+export function keepCurrentSubstackContent(id: string, contentId: string): Promise<ApiSubstack> {
+  return apiFetch(`/substacks/${id}/contents/${contentId}/keep-current`, { method: "POST" });
+}
+
 export function confirmAllSubstacks(accountId: string): Promise<{ confirmed: number }> {
   return apiFetch(`/accounts/${accountId}/substacks/confirm-all`, { method: "POST" });
 }

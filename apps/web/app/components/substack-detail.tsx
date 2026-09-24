@@ -18,7 +18,11 @@ interface Props {
   onOpen: (id: string) => void;
   onEnsureDetail: (id: string) => void;
   onConfirmContent: (contentId: string) => void;
+  onKeepCurrentContent: (contentId: string) => void;
 }
+
+type UpdateAction = "confirm" | "keep";
+const UPDATE_ACTIONS: Record<UpdateAction, string> = { confirm: "Confirm update", keep: "Keep current version" };
 
 const TOPIC_KINDS: Record<string, string> = { topic: "Topic", decision: "Decision", key_point: "Key point" };
 
@@ -32,9 +36,11 @@ function HighlightedToken({ children, sourceIds, onHover }: { children: React.Re
   return <mark className={styles.highlightedToken} onMouseEnter={() => onHover(sourceIds)} onMouseLeave={() => onHover(null)}>{children}</mark>;
 }
 
-export default function SubstackDetail({ substack, stackTypes, detail, details, backLabel, onBack, queue, onOpen, onEnsureDetail, onConfirmContent }: Props) {
+export default function SubstackDetail({ substack, stackTypes, detail, details, backLabel, onBack, queue, onOpen, onEnsureDetail, onConfirmContent, onKeepCurrentContent }: Props) {
   const [query, setQuery] = useState("");
   const [showPending, setShowPending] = useState(false);
+  const [updateMenuOpen, setUpdateMenuOpen] = useState(false);
+  const [updateAction, setUpdateAction] = useState<UpdateAction>("confirm");
   const [hoveredSourceIds, setHoveredSourceIds] = useState<string[] | null>(null);
   const [relatedPreviewId, setRelatedPreviewId] = useState<string | null>(null);
   const [relatedOpen, setRelatedOpen] = useState(true);
@@ -113,7 +119,41 @@ export default function SubstackDetail({ substack, stackTypes, detail, details, 
           <div className={styles.reviewBanner} role="status">
             <span>{showPending ? "Reviewing proposed update" : "A proposed update is ready for review"}</span>
             <button onClick={() => setShowPending((value) => !value)}>{showPending ? "View current" : "Review update"}</button>
-            {showPending && detail.pending.id && <button className={styles.confirmButton} onClick={() => onConfirmContent(detail.pending!.id)}>Confirm update</button>}
+            {showPending && detail.pending.id && (
+              <div
+                className={styles.splitButton}
+                onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setUpdateMenuOpen(false); }}
+                onKeyDown={(event) => { if (event.key === "Escape") setUpdateMenuOpen(false); }}
+              >
+                <button
+                  className={styles.confirmButton}
+                  onClick={() => {
+                    if (updateAction === "keep") {
+                      setShowPending(false);
+                      onKeepCurrentContent(detail.pending!.id);
+                    } else onConfirmContent(detail.pending!.id);
+                  }}
+                >
+                  {UPDATE_ACTIONS[updateAction]}
+                </button>
+                <button className={styles.splitToggle} onClick={() => setUpdateMenuOpen((open) => !open)} aria-label="Choose update action" aria-haspopup="menu" aria-expanded={updateMenuOpen}><Icon name="chevron-down" size={14} /></button>
+                {updateMenuOpen && (
+                  <div className={styles.splitMenu} role="menu">
+                    {(Object.keys(UPDATE_ACTIONS) as UpdateAction[]).map((action) => (
+                      <button
+                        key={action}
+                        role="menuitemradio"
+                        aria-checked={updateAction === action}
+                        onClick={() => { setUpdateAction(action); setUpdateMenuOpen(false); }}
+                      >
+                        <span className={styles.splitMenuCheck}>{updateAction === action && <Icon name="check" size={14} />}</span>
+                        {UPDATE_ACTIONS[action]}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
         {!detail?.pending && detail?.status === "proposed" && detail.id && (

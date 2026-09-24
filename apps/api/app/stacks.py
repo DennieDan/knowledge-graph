@@ -387,6 +387,24 @@ def confirm_content(
     return _substack_json(session, substack, user)
 
 
+@router.post("/substacks/{substack_id}/contents/{content_id}/keep-current")
+def keep_current_content(
+    substack_id: UUID,
+    content_id: UUID,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Dismiss a proposed update; the confirmed content stays current."""
+    substack = _get_substack(substack_id, user, session)
+    confirmed, pending = _content_pair(session, substack.id)
+    if pending is None or pending.id != content_id or confirmed is None or confirmed.status != "confirmed":
+        raise HTTPException(status_code=409, detail="content_not_current_proposal")
+    pending.status = "superseded"
+    substack.review_state = "clean"
+    session.commit()
+    return _substack_json(session, substack, user)
+
+
 @router.post("/substacks/{substack_id}/confirm")
 def confirm_substack(
     substack_id: UUID,
