@@ -1,15 +1,15 @@
 """test_questions: the labelled question set (#34)
 
-Revision ID: 0017
-Revises: 0016
+Revision ID: 0019
+Revises: 0018
 """
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 
-revision = "0017"
-down_revision = "0016"
+revision = "0019"
+down_revision = "0018"
 branch_labels = None
 depends_on = None
 
