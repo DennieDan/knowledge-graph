@@ -24,7 +24,10 @@ export type AnalyticsEvent =
   | "whatsapp_import_started"
   | "evidence_panel_toggled"
   | "source_opened"
-  | "related_opened";
+  | "related_opened"
+  | "nav_back_clicked"
+  | "breadcrumb_clicked"
+  | "review_queue_step";
 
 const enabled = () => Boolean(process.env.NEXT_PUBLIC_POSTHOG_KEY);
 

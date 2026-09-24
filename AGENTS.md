@@ -127,6 +127,11 @@ Remind the user of these items when deployment is set up:
   #3c6e71, #ffffff, #d9d9d9, #284b63).
 - Components live in `apps/web/app/components/` as
   `<name>.tsx` + `<name>.module.css`.
+- Navigation: destinations are URLs (`/analyze`, `/search`, `/stacks/[type]/[id]`,
+  …) defined in `apps/web/app/lib/routes.ts`, rendered by the persistent shell in
+  `app/(workspace)/layout.tsx`; modals and micro-toggles stay in component state.
+  PostHog records every URL as a pageview, so URLs may only contain internal IDs
+  and stack type IDs — never names, message text, or search queries.
 
 ## AI-Human working style
 

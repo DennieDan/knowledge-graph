@@ -169,6 +169,7 @@
   font-family: inherit;
   line-height: inherit;
   text-align: left;
+  text-decoration: none;
 }
 
 .navItemActive {
@@ -199,6 +200,7 @@
   font-family: inherit;
   line-height: inherit;
   text-align: left;
+  text-decoration: none;
 }
 
 .recentIcon {
@@ -331,6 +333,11 @@
   font-family: inherit;
   font-size: inherit;
   font-weight: 400;
+  text-decoration: none;
+}
+
+.crumbBtn:hover {
+  color: var(--cp-ink);
 }
 
 .crumbActive {
@@ -365,6 +372,10 @@
 
 .hiddenView {
   display: none;
+}
+
+.view {
+  display: contents;
 }
 
 /* ---- Maintenance placeholder ---- */

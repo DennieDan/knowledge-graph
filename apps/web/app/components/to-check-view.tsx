@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
+import Link from "next/link";
 import Icon from "./icons";
 import styles from "./to-check-view.module.css";
 import type { StackType, Substack } from "../lib/stacks";
+import type { ReviewFilter } from "../lib/routes";
+import { reviewQueue, type QueueKind } from "../lib/review-queue";
 import {
   dismissFinding,
   listFindings,
@@ -11,9 +14,7 @@ import {
   type FindingRow,
 } from "../lib/api";
 
-type QueueKind = "new" | "update" | "attention";
-
-const FILTERS: [QueueKind | "all" | "findings", string][] = [
+const FILTERS: [ReviewFilter, string][] = [
   ["all", "All"],
   ["new", "New proposals"],
   ["update", "Updates"],
@@ -35,15 +36,6 @@ const DEFAULT_REASONS = [
   "other_recorded_below",
 ];
 
-function queueKind(ss: Substack): QueueKind | null {
-  if (ss.reviewState === "unsupported" || ss.reviewState === "generation_error") {
-    return "attention";
-  }
-  if (ss.status !== "confirmed") return "new";
-  if (ss.reviewState === "pending_update") return "update";
-  return null;
-}
-
 function kindLabel(ss: Substack, kind: QueueKind): string {
   if (ss.reviewState === "generation_error") return "Generation failed";
   return KIND_LABEL[kind];
@@ -56,6 +48,9 @@ export default function ToCheckView({
   busy,
   notice,
   analysisRuns,
+  filter,
+  onFilterChange,
+  substackHref,
   onOpen,
   onConfirm,
   onAnalyze,
@@ -68,7 +63,10 @@ export default function ToCheckView({
   busy: boolean;
   notice: string;
   analysisRuns: AnalysisRun[];
-  onOpen: (ss: Substack) => void;
+  filter: ReviewFilter;
+  onFilterChange: (filter: ReviewFilter) => void;
+  substackHref: (ss: Substack) => string;
+  onOpen: (event: MouseEvent, href: string) => void;
   onConfirm: (ss: Substack) => void;
   onAnalyze: () => void;
   onConfirmAll: () => void;
@@ -83,7 +81,6 @@ export default function ToCheckView({
   const generationPercent = activeRun?.generation_total
     ? Math.round(((activeRun.generation_completed + activeRun.generation_failed) / activeRun.generation_total) * 100)
     : 0;
-  const [filter, setFilter] = useState<QueueKind | "all" | "findings">("all");
   const [findings, setFindings] = useState<FindingRow[]>([]);
   const [reasons, setReasons] = useState<string[]>(DEFAULT_REASONS);
   const [dismissBusy, setDismissBusy] = useState<string | null>(null);
@@ -106,10 +103,8 @@ export default function ToCheckView({
     if (!analyzing) refreshFindings();
   }, [accountId, analyzing]);
 
-  const queue = substacks
-    .map((ss) => ({ ss, kind: queueKind(ss) }))
-    .filter((item): item is { ss: Substack; kind: QueueKind } => item.kind !== null);
-  const visible = queue.filter((item) => filter === "all" || item.kind === filter);
+  const queue = reviewQueue(substacks, "all");
+  const visible = reviewQueue(substacks, filter);
   const showFindings = filter === "all" || filter === "findings";
   const total = queue.length + findings.length;
 
@@ -182,7 +177,7 @@ export default function ToCheckView({
             key={kind}
             type="button"
             aria-pressed={filter === kind}
-            onClick={() => setFilter(kind)}
+            onClick={() => onFilterChange(kind)}
             className={`${styles.filterChip} ${filter === kind ? styles.filterChipActive : ""}`}
           >
             {label}
@@ -200,12 +195,14 @@ export default function ToCheckView({
           {filter !== "findings" &&
             visible.map(({ ss, kind }) => {
               const type = stackTypes.find((t) => t.id === ss.typeId);
+              const href = substackHref(ss);
               return (
                 <div key={ss.id} className={styles.row}>
-                  <button
-                    type="button"
+                  <Link
+                    href={href}
+                    scroll={false}
                     className={styles.rowMain}
-                    onClick={() => onOpen(ss)}
+                    onClick={(event) => onOpen(event, href)}
                     aria-label={`Open ${ss.name}`}
                   >
                     <span className={styles.rowIcon}>
@@ -226,7 +223,7 @@ export default function ToCheckView({
                         {ss.updated}
                       </span>
                     </span>
-                  </button>
+                  </Link>
                   <div className={styles.rowActions}>
                     {kind === "new" ? (
                       <button
@@ -238,9 +235,9 @@ export default function ToCheckView({
                         <Icon name="check" size={13} /> Confirm
                       </button>
                     ) : (
-                      <button type="button" className={styles.reviewBtn} onClick={() => onOpen(ss)}>
+                      <Link href={href} scroll={false} className={styles.reviewBtn} onClick={(event) => onOpen(event, href)}>
                         {kind === "update" ? "Review update" : "Review"}
-                      </button>
+                      </Link>
                     )}
                   </div>
                 </div>
