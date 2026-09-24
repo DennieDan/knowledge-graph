@@ -160,10 +160,8 @@ export default function LandingPage() {
               Every order, <em>confirmed</em> in one place.
             </h1>
             <p className={styles.heroBody}>
-              Your customers order by PO, WhatsApp, email and scanned form.
-              crossPOd reads all of it, proposes structured records with the
-              evidence attached, and keeps the confirmed version as the one your
-              team, your floor and your AI assistants answer from.
+              POs, WhatsApp, email, scans — crossPOd turns all of it into one
+              confirmed order your whole team can trust.
             </p>
             <div className={styles.heroActions}>
               <DemoDialog

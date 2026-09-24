@@ -5,6 +5,7 @@
   --mist: #d9d9d9;
 
   font-size: 16px;
+  font-family: var(--landing-font-body), system-ui, sans-serif;
   color: var(--ink);
   background: var(--md-sys-color-surface);
 }
@@ -73,13 +74,18 @@
 
 /* hero */
 
-.hero {
+.page .hero {
   display: grid;
   grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
   gap: 56px;
   align-items: center;
-  padding: 88px 32px 112px;
+  padding: 88px 32px 260px;
   background:
+    linear-gradient(
+      to bottom,
+      transparent calc(100% - 200px),
+      var(--md-sys-color-surface)
+    ),
     radial-gradient(
       120% 90% at 85% 0%,
       color-mix(in srgb, var(--teal) 55%, transparent),
@@ -104,14 +110,15 @@
 }
 
 .heroTitle {
-  font-size: clamp(40px, 6vw, 68px);
-  font-weight: 700;
-  line-height: 1.02;
-  letter-spacing: -0.03em;
+  font-family: var(--landing-font-display), Georgia, serif;
+  font-size: clamp(44px, 6.4vw, 76px);
+  font-weight: 400;
+  line-height: 1.04;
+  letter-spacing: -0.02em;
 }
 
 .heroTitle em {
-  font-style: normal;
+  font-style: italic;
   color: color-mix(in srgb, var(--teal) 55%, #ffffff);
 }
 
@@ -293,10 +300,11 @@
 
 .page h2 {
   margin-top: 12px;
-  font-size: clamp(30px, 4vw, 44px);
-  font-weight: 700;
+  font-family: var(--landing-font-display), Georgia, serif;
+  font-size: clamp(34px, 4.4vw, 50px);
+  font-weight: 400;
   line-height: 1.1;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
 }
 
 .sectionBody {
@@ -307,6 +315,14 @@
 }
 
 /* how it works */
+
+.how {
+  background: radial-gradient(
+    70% 60% at 18% 45%,
+    color-mix(in srgb, var(--teal) 8%, transparent),
+    transparent 70%
+  );
+}
 
 .steps {
   max-width: 1160px;
@@ -320,8 +336,12 @@
 .steps li {
   padding: 28px 24px;
   border-radius: 20px;
-  border: 1px solid var(--md-sys-color-outline-variant);
-  background: var(--md-sys-color-surface-container-low);
+  border: 1px solid color-mix(in srgb, var(--deep) 12%, transparent);
+  background: linear-gradient(
+    170deg,
+    color-mix(in srgb, #ffffff 92%, transparent),
+    color-mix(in srgb, var(--teal) 7%, #ffffff)
+  );
 }
 
 .stepNumber {
@@ -350,9 +370,7 @@
 
 /* sources */
 
-.sources {
-  border-top: 1px solid var(--md-sys-color-outline-variant);
-}
+
 
 .sources .sectionHead {
   margin-bottom: 40px;
@@ -366,7 +384,13 @@
 /* features */
 
 .features {
-  background: var(--md-sys-color-surface-container-low);
+  background: linear-gradient(
+    180deg,
+    transparent,
+    color-mix(in srgb, var(--deep) 7%, transparent) 22%,
+    color-mix(in srgb, var(--deep) 7%, transparent) 78%,
+    transparent
+  );
 }
 
 .featureGrid {
@@ -381,8 +405,8 @@
 .featureCard {
   padding: 28px 24px;
   border-radius: 20px;
-  border: 1px solid var(--md-sys-color-outline-variant);
-  background: var(--md-sys-color-surface);
+  border: 1px solid color-mix(in srgb, var(--deep) 10%, transparent);
+  background: color-mix(in srgb, #ffffff 88%, transparent);
 }
 
 .featureCard h3 {
@@ -410,8 +434,8 @@
   gap: 12px;
   padding: 32px 28px;
   border-radius: 24px;
-  border: 1px solid var(--md-sys-color-outline-variant);
-  background: var(--md-sys-color-surface);
+  border: 1px solid color-mix(in srgb, var(--deep) 12%, transparent);
+  background: color-mix(in srgb, #ffffff 90%, transparent);
 }
 
 .planCardFeatured {
@@ -492,10 +516,6 @@
 
 /* faq */
 
-.faq {
-  border-top: 1px solid var(--md-sys-color-outline-variant);
-}
-
 .faq h2 {
   max-width: 1160px;
   margin-inline: auto;
@@ -528,9 +548,18 @@
 
 /* demo */
 
-.demo {
+.page .demo {
   text-align: center;
-  background: linear-gradient(140deg, var(--deep), var(--ink));
+  padding-top: 240px;
+  padding-bottom: 200px;
+  background:
+    linear-gradient(to bottom, var(--md-sys-color-surface), transparent 200px),
+    linear-gradient(
+      to top,
+      var(--md-sys-color-surface),
+      transparent 160px
+    ),
+    linear-gradient(140deg, var(--deep), var(--ink));
   color: #ffffff;
 }
 
@@ -561,11 +590,10 @@
   padding: 24px 32px;
   font-size: 14px;
   color: var(--md-sys-color-on-surface-variant);
-  border-top: 1px solid var(--md-sys-color-outline-variant);
 }
 
 @media (max-width: 960px) {
-  .hero {
+  .page .hero {
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -592,7 +620,7 @@
     padding: 64px 20px;
   }
 
-  .hero {
-    padding: 64px 20px 72px;
+  .page .hero {
+    padding: 64px 20px 140px;
   }
 }
