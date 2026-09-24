@@ -1,4 +1,5 @@
 """Durable Postgres-backed jobs for embedding and knowledge analysis."""
+import heapq
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
@@ -12,6 +13,10 @@ from .models import AnalysisRun, KnowledgeJob
 LEASE_SECONDS = 300
 RETRY_DELAYS_SECONDS = (10, 30, 120, 600)
 RUN_JOB_KINDS = ("embed_version", "discover_document", "generate_substack", "reconcile_scope")
+DURATION_SAMPLES = 20
+DURATION_HISTORY_DAYS = 7
+WORKER_WINDOW_SECONDS = 600
+QUEUE_SCAN_LIMIT = 2000
 
 
 class JobNotReady(Exception):
@@ -123,8 +128,6 @@ def finish_job(session: Session, job_id: UUID) -> None:
     if job is None:
         return
     job.status = "succeeded"
-    job.locked_at = None
-    job.locked_by = None
     job.last_error = None
     session.commit()
 
@@ -183,3 +186,84 @@ def retry_failed_run(session: Session, run: AnalysisRun) -> int:
         run.completed_at = None
     session.flush()
     return len(jobs)
+
+
+def _median_durations(session: Session, now: datetime) -> dict[str, float]:
+    """Median seconds per kind over each kind's most recent successful jobs."""
+    recent = (
+        select(
+            KnowledgeJob.kind,
+            func.extract("epoch", KnowledgeJob.updated_at - KnowledgeJob.locked_at).label("seconds"),
+            func.row_number()
+            .over(partition_by=KnowledgeJob.kind, order_by=KnowledgeJob.updated_at.desc())
+            .label("rank"),
+        )
+        .where(
+            KnowledgeJob.status == "succeeded",
+            KnowledgeJob.locked_at.is_not(None),
+            KnowledgeJob.updated_at >= now - timedelta(days=DURATION_HISTORY_DAYS),
+        )
+        .subquery()
+    )
+    return {
+        kind: float(seconds)
+        for kind, seconds in session.execute(
+            select(recent.c.kind, func.percentile_cont(0.5).within_group(recent.c.seconds))
+            .where(recent.c.rank <= DURATION_SAMPLES)
+            .group_by(recent.c.kind)
+        ).all()
+    }
+
+
+def simulate_finish(
+    now: datetime, pending: list, durations: dict[str, float], workers: int, run_id: UUID,
+) -> datetime | None:
+    """Replays pending jobs (in claim order) on the workers: each lasts its kind's median
+    duration, and a queued job never starts before its retry backoff ends."""
+    default = durations.get("generate_substack")
+    if default is None:
+        return None
+    running = [job for job in pending if job.status == "running"]
+    workers = max(1, workers, len(running))
+    finish: datetime | None = None
+    free_at: list[datetime] = []
+    for job in running:
+        end = max(now, job.locked_at + timedelta(seconds=durations.get(job.kind, default)))
+        heapq.heappush(free_at, end)
+        if job.analysis_run_id == run_id:
+            finish = max(finish or end, end)
+    free_at += [now] * (workers - len(free_at))
+    heapq.heapify(free_at)
+    for job in pending:
+        if job.status != "queued":
+            continue
+        end = max(heapq.heappop(free_at), job.available_at) + timedelta(seconds=durations.get(job.kind, default))
+        heapq.heappush(free_at, end)
+        if job.analysis_run_id == run_id:
+            finish = max(finish or end, end)
+    return finish
+
+
+def estimate_run_finish(session: Session, run_id: UUID) -> datetime | None:
+    now = utcnow()
+    pending = session.execute(
+        select(
+            KnowledgeJob.analysis_run_id,
+            KnowledgeJob.kind,
+            KnowledgeJob.status,
+            KnowledgeJob.available_at,
+            KnowledgeJob.locked_at,
+        )
+        .where(KnowledgeJob.status.in_(("queued", "running")))
+        .order_by(KnowledgeJob.available_at, KnowledgeJob.created_at)
+        .limit(QUEUE_SCAN_LIMIT)
+    ).all()
+    if len(pending) == QUEUE_SCAN_LIMIT:
+        return None
+    workers = session.scalar(
+        select(func.count(func.distinct(KnowledgeJob.locked_by))).where(
+            KnowledgeJob.locked_by.is_not(None),
+            KnowledgeJob.updated_at >= now - timedelta(seconds=WORKER_WINDOW_SECONDS),
+        )
+    ) or 0
+    return simulate_finish(now, list(pending), _median_durations(session, now), workers, run_id)

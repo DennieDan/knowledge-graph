@@ -1,5 +1,6 @@
 """Stacks API: filing, owner-only visibility, detail shape, confirm, backfill."""
 import unittest
+from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
@@ -10,6 +11,7 @@ from app.auth import get_current_user
 from app.database import get_engine, get_session
 from app.filing import ingest_and_file
 from app.ingest import SourceDocument, ingest_document
+from app.jobs import create_run
 from app.main import app
 from app.models import (
     Chunk,
@@ -121,6 +123,28 @@ class StacksApiTests(unittest.TestCase):
         self.assertEqual(0, private_run["generation_total"])
         self.assertEqual(0, private_run["generation_completed"])
         self.assertEqual(0, private_run["generation_failed"])
+
+    def test_analysis_run_projects_generation_finish_time(self):
+        run = create_run(self.session, self.organization.id, self.alice.id, "manual")
+        now = datetime.now(timezone.utc)
+        for index, status in enumerate(["succeeded", "succeeded", "queued", "queued"]):
+            done = status == "succeeded"
+            self.session.add(KnowledgeJob(
+                organization_id=self.organization.id,
+                owner_user_id=self.alice.id,
+                analysis_run_id=run.id,
+                kind="generate_substack",
+                payload={},
+                dedupe_key=f"test-generate:{run.id}:{index}",
+                status=status,
+                locked_at=now - timedelta(minutes=5) if done else None,
+                locked_by="test-worker" if done else None,
+                updated_at=now - timedelta(minutes=4) if done else now,
+            ))
+        self.session.commit()
+        listed = self.client.get(f"/accounts/{self.organization.id}/analysis").json()
+        projected = next(row for row in listed if row["id"] == str(run.id))
+        self.assertGreater(datetime.fromisoformat(projected["generation_estimated_finish_at"]), now)
 
     def mark_discovered(self, external_id):
         document = self.session.scalar(select(Document).where(Document.external_id == external_id))

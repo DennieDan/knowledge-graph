@@ -347,6 +347,8 @@ export interface AnalysisRun {
   generation_running: number;
   generation_queued: number;
   generation_failed: number;
+  /** Projected from this run's throughput; null until a generation job has finished. */
+  generation_estimated_finish_at: string | null;
   failures: number;
   error: string | null;
 }

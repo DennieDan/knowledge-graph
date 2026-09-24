@@ -56,6 +56,17 @@ function pageList(current: number, count: number): (number | "…")[] {
   return pages.flatMap((page, i) => (i > 0 && page - pages[i - 1]! > 1 ? ["…" as const, page] : [page]));
 }
 
+/** "Should finish around 3:40 PM" from the run's projected finish time. */
+function finishEstimate(run: AnalysisRun): string | null {
+  if (run.generation_queued + run.generation_running === 0) return null;
+  if (!run.generation_estimated_finish_at) return "Estimating finish time…";
+  const finishAt = new Date(run.generation_estimated_finish_at);
+  if (finishAt.getTime() <= Date.now()) return "Finishing up…";
+  const sameDay = finishAt.toDateString() === new Date().toDateString();
+  const time = finishAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  return `Should finish around ${sameDay ? time : `${finishAt.toLocaleDateString([], { weekday: "short" })} ${time}`}`;
+}
+
 export default function ToCheckView({
   accountId,
   stackTypes,
@@ -100,6 +111,7 @@ export default function ToCheckView({
   const generationPercent = activeRun?.generation_total
     ? Math.round(((activeRun.generation_completed + activeRun.generation_failed) / activeRun.generation_total) * 100)
     : 0;
+  const estimate = activeRun ? finishEstimate(activeRun) : null;
   const [findings, setFindings] = useState<FindingRow[]>([]);
   const [reasons, setReasons] = useState<string[]>(DEFAULT_REASONS);
   const [dismissBusy, setDismissBusy] = useState<string | null>(null);
@@ -212,7 +224,7 @@ export default function ToCheckView({
               <div className={styles.progressTrack} role="progressbar" aria-label="LLM content generation" aria-valuemin={0} aria-valuemax={activeRun.generation_total} aria-valuenow={activeRun.generation_completed + activeRun.generation_failed}>
                 <span style={{ width: `${generationPercent}%` }} />
               </div>
-              <span>{activeRun.generation_running > 0 ? `${activeRun.generation_running} generating · ` : ""}{activeRun.generation_queued} queued{activeRun.generation_failed > 0 ? ` · ${activeRun.generation_failed} failed` : ""}</span>
+              <span>{estimate && <strong>{estimate} · </strong>}{activeRun.generation_running > 0 ? `${activeRun.generation_running} generating · ` : ""}{activeRun.generation_queued} queued{activeRun.generation_failed > 0 ? ` · ${activeRun.generation_failed} failed` : ""}</span>
             </div>
           )}
         </div>
