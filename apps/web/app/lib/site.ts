@@ -1,16 +1,16 @@
 export const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "https://canon.sg";
+  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "https://crosspod.sg";
 
 export const landingOnly = process.env.NEXT_PUBLIC_LANDING_ONLY === "true";
 
 export const site = {
-  name: "Canon",
+  name: "crossPOd",
   tagline: "Every order, confirmed in one place",
   description:
-    "Canon reads the purchase orders, WhatsApp messages, scanned forms and Drive files your customers already send, turns them into confirmed records with evidence, and answers questions about them. Built for B2B suppliers and Singapore SMEs.",
+    "crossPOd reads the purchase orders, WhatsApp messages, scanned forms and Drive files your customers already send, turns them into confirmed records with evidence, and answers questions about them. Built for B2B suppliers and Singapore SMEs.",
   locale: "en_SG",
-  twitter: "@canonhq",
-  contactEmail: "hello@canon.sg",
+  twitter: "@crosspodhq",
+  contactEmail: "hello@crosspod.sg",
 } as const;
 
 export const plans = [
@@ -41,7 +41,7 @@ export const plans = [
       "2,000 documents a month",
       "All connectors, including PDF, scans and Google Drive",
       "All 12 Stacks with revision tracking and change alerts",
-      "Ask Canon with citations, plus API access",
+      "Ask crossPOd with citations, plus API access",
     ],
     cta: "Start a 14-day trial",
     featured: true,
@@ -66,17 +66,17 @@ export const plans = [
 
 export const faqs = [
   {
-    question: "Does Canon change how my customers send orders?",
+    question: "Does crossPOd change how my customers send orders?",
     answer:
-      "No. Customers keep sending POs, WhatsApp messages, scanned forms and email attachments exactly as they do today. Canon reads those sources and proposes structured records from them.",
+      "No. Customers keep sending POs, WhatsApp messages, scanned forms and email attachments exactly as they do today. crossPOd reads those sources and proposes structured records from them.",
   },
   {
-    question: "Can Canon enter orders into my system on its own?",
+    question: "Can crossPOd enter orders into my system on its own?",
     answer:
-      "Canon proposes; a person confirms. Every proposed field carries a link to the message or document line it came from, so your coordinator checks it in seconds before it becomes a confirmed record.",
+      "crossPOd proposes; a person confirms. Every proposed field carries a link to the message or document line it came from, so your coordinator checks it in seconds before it becomes a confirmed record.",
   },
   {
-    question: "How does Canon handle PDPA?",
+    question: "How does crossPOd handle PDPA?",
     answer:
       "Consent, retention windows, access control and a full audit history are part of ingestion rather than an afterthought. You can see who confirmed what, when, and from which source.",
   },

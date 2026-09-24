@@ -43,7 +43,7 @@ export const metadata: Metadata = {
 const steps = [
   {
     step: "Read",
-    body: "Canon watches the channels your customers already use and pulls out orders, quantities, dates and revisions — including the ones buried in a WhatsApp voice note or a scanned fax.",
+    body: "crossPOd watches the channels your customers already use and pulls out orders, quantities, dates and revisions — including the ones buried in a WhatsApp voice note or a scanned fax.",
   },
   {
     step: "Confirm",
@@ -62,7 +62,7 @@ const features = [
   },
   {
     title: "Evidence on every field",
-    body: "A quantity is never just a number. Canon keeps the line, page or message it came from attached to the record forever.",
+    body: "A quantity is never just a number. crossPOd keeps the line, page or message it came from attached to the record forever.",
   },
   {
     title: "12 Stacks, ready on day one",
@@ -156,7 +156,7 @@ export default function LandingPage() {
             </h1>
             <p className={styles.heroBody}>
               Your customers order by PO, WhatsApp, email and scanned form.
-              Canon reads all of it, proposes structured records with the
+              crossPOd reads all of it, proposes structured records with the
               evidence attached, and keeps the confirmed version as the one your
               team, your floor and your AI assistants answer from.
             </p>
@@ -208,7 +208,7 @@ export default function LandingPage() {
               <p>Material shortfall flagged to Suppliers Stack</p>
             </div>
             <div className={`${styles.card} ${styles.cardAsk}`}>
-              <span className={styles.cardTag}>Ask Canon</span>
+              <span className={styles.cardTag}>Ask crossPOd</span>
               <p>Which orders changed since Monday?</p>
               <strong>3 revisions · all confirmed</strong>
             </div>
@@ -220,7 +220,7 @@ export default function LandingPage() {
             <p className={styles.sectionLabel}>01 / How it works</p>
             <h2>Read, confirm, ask.</h2>
             <p className={styles.sectionBody}>
-              Canon never quietly becomes the record of truth. Sources produce
+              crossPOd never quietly becomes the record of truth. Sources produce
               proposals, people confirm them, and everything downstream reads
               the confirmed version.
             </p>
@@ -319,12 +319,12 @@ export default function LandingPage() {
           <h2>Bring one week of messy orders. We&apos;ll run them through.</h2>
           <p className={styles.sectionBody}>
             A 20-minute walkthrough on your own POs and WhatsApp threads — you
-            will see exactly what Canon proposes and what your team would
+            will see exactly what crossPOd proposes and what your team would
             confirm.
           </p>
           <a
             className={styles.primaryCta}
-            href={`mailto:${site.contactEmail}?subject=Canon%20walkthrough`}
+            href={`mailto:${site.contactEmail}?subject=crossPOd%20walkthrough`}
           >
             Book a walkthrough
           </a>
