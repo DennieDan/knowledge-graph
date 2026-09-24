@@ -72,7 +72,11 @@ class OrganizationMembership(Base):
     __tablename__ = "organization_memberships"
     __table_args__ = (
         UniqueConstraint("organization_id", "user_id"),
-        CheckConstraint("role IN ('admin','member')", name="valid_membership_role"),
+        # Dual vocabulary (#101 vs #9): keep admin|member; add owner|sales|planner|supervisor.
+        CheckConstraint(
+            "role IN ('admin','member','owner','sales','planner','supervisor')",
+            name="valid_membership_role",
+        ),
         Index("uq_company_admin", "organization_id", unique=True, postgresql_where=text("role = 'admin'")),
     )
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
