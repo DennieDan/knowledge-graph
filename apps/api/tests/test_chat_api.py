@@ -28,8 +28,10 @@ class ScriptedLLM:
         self.outputs = list(outputs)
         self.calls = []
 
-    def parse(self, *, prompt, evidence, schema):
-        self.calls.append({"prompt": prompt, "evidence": evidence, "schema": schema})
+    def parse(self, *, prompt, evidence, schema, effort=None):
+        self.calls.append(
+            {"prompt": prompt, "evidence": evidence, "schema": schema, "effort": effort}
+        )
         output = self.outputs.pop(0) if self.outputs else Answer(answered=False, sentences=[])
         return LLMResult(parsed=output, request_id="fake-request", input_tokens=10, output_tokens=5)
 
@@ -131,9 +133,47 @@ class ChatApiTests(unittest.TestCase):
         self.assertIn("120", body["text"])
         self.assertEqual([chunk_id], [citation["chunk_id"] for citation in body["citations"]])
         self.assertEqual("PO2431.pdf", body["citations"][0]["title"])
-        self.assertEqual(["search_sources", "answer"], [step["tool"] for step in body["steps"]])
+        self.assertEqual(
+            ["search_records", "search_sources", "search_sources", "answer"],
+            [step["tool"] for step in body["steps"]],
+        )
+        self.assertEqual([True, True], [step["opening"] for step in body["steps"][:2]])
         # The evidence the model saw is data, not instructions.
         self.assertIn("<evidence", llm.calls[1]["evidence"])
+        self.assertEqual(
+            [get_settings().chat_reasoning_effort] * 2, [call["effort"] for call in llm.calls]
+        )
+
+    def test_passages_are_retrieved_even_when_the_model_only_asks_for_records(self):
+        version = self.ingest("Priya chat.txt", "Priya Raman: push PO2431 brackets from 120 to 150.")
+        chunk_id = self.chunk_id(version)
+        llm = ScriptedLLM([
+            AgentStep(tool="search_records", query="PO2431 brackets"),
+            answer_step("Priya asked to raise PO2431 brackets to 150.", [chunk_id]),
+        ])
+        thread_id = self.thread().json()["id"]
+
+        body = self.ask(thread_id, "what did Priya say about the brackets?", llm).json()
+
+        self.assertTrue(body["answered"])
+        self.assertEqual([chunk_id], [citation["chunk_id"] for citation in body["citations"]])
+
+    def test_repeated_query_ends_the_loop_instead_of_burning_steps(self):
+        self.ingest("Priya chat.txt", "Priya Raman: push PO2431 brackets from 120 to 150.")
+        repeated = AgentStep(tool="search_records", query="PO2431 brackets")
+        llm = ScriptedLLM([repeated, repeated])
+        thread_id = self.thread().json()["id"]
+
+        body = self.ask(thread_id, "how many brackets?", llm).json()
+
+        tools = [step["tool"] for step in body["steps"]]
+        self.assertEqual(
+            ["search_records", "search_sources", "search_records", "search_records", "answer"], tools
+        )
+        self.assertEqual("duplicate", body["steps"][3]["skipped"])
+        self.assertTrue(body["steps"][-1]["forced"])
+        # Two agent turns plus the forced answer, not the full step budget.
+        self.assertEqual(3, len(llm.calls))
 
     def test_refuses_to_answer_without_evidence(self):
         self.ingest("Menu.txt", "Lunch menu for the staff canteen.")

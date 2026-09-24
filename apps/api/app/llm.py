@@ -19,7 +19,9 @@ class LLMResult:
 
 
 class LLMClient(Protocol):
-    def parse(self, *, prompt: str, evidence: str, schema: type[T]) -> LLMResult: ...
+    def parse(
+        self, *, prompt: str, evidence: str, schema: type[T], effort: str | None = None
+    ) -> LLMResult: ...
 
 
 class OpenAIClient:
@@ -36,15 +38,20 @@ class OpenAIClient:
             max_retries=0,
         )
 
-    def parse(self, *, prompt: str, evidence: str, schema: type[T]) -> LLMResult:
+    def parse(
+        self, *, prompt: str, evidence: str, schema: type[T], effort: str | None = None
+    ) -> LLMResult:
+        """Parse one response. `effort` trades reasoning tokens for latency."""
         from .prompts import SYSTEM_POLICY
 
+        extra = {"reasoning": {"effort": effort}} if effort else {}
         response = self._client.responses.parse(
             model=self._model,
             instructions=f"{SYSTEM_POLICY}\n\n{prompt}",
             input=evidence,
             text_format=schema,
             store=False,
+            **extra,
         )
         if response.output_parsed is None:
             raise ValueError("model_returned_no_structured_output")

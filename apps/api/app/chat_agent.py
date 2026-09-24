@@ -179,6 +179,7 @@ def resolve_question(session: Session, thread_id: UUID, question: str) -> str:
         prompt=REWRITE_PROMPT,
         evidence=f"<conversation>\n{transcript}\n</conversation>\n\n<question>\n{question}\n</question>",
         schema=StandaloneQuestion,
+        effort=get_settings().chat_reasoning_effort,
     )
     rewritten = result.parsed.question.strip()
     return rewritten or question
@@ -193,6 +194,55 @@ def _agent_input(question: str, evidence: _Evidence, searches: list[str]) -> str
     body = evidence_text(evidence.ordered())
     blocks.append(f"<evidence>\n{body}\n</evidence>" if body else "<evidence>none</evidence>")
     return "\n\n".join(blocks)
+
+
+def _search_note(label: str, hits: int, new: int) -> str:
+    if hits == 0:
+        return f"{label} -> nothing found"
+    if new == 0:
+        return f"{label} -> {hits} hit(s), none new"
+    return f"{label} -> {new} new"
+
+
+class _Searcher:
+    """Runs the two retrieval tools, remembers what was asked, and narrates it.
+
+    The narration goes back to the model as `<searches_already_run>`: without
+    it the model repeats one query until the step budget runs out.
+    """
+
+    def __init__(self, session: Session, organization_id: UUID, user_id: UUID) -> None:
+        self._session = session
+        self._organization_id = organization_id
+        self._user_id = user_id
+        self._limit = get_settings().chat_search_limit
+        self.evidence = _Evidence()
+        self.notes: list[str] = []
+        self._seen: set[tuple[str, str]] = set()
+
+    def already_run(self, tool: str, query: str) -> bool:
+        return (tool, query.casefold()) in self._seen
+
+    def run(self, tool: str, query: str) -> dict:
+        self._seen.add((tool, query.casefold()))
+        if tool == "search_records":
+            records = search_records(
+                self._session, self._organization_id, self._user_id, query, self._limit
+            )
+            new = self.evidence.add_records(records)
+            self.notes.append(_search_note(f"records: {query}", len(records), new))
+            return {
+                "tool": "search_records",
+                "query": query,
+                "hits": len(records),
+                "new_records": new,
+            }
+        hits = search_chunks(
+            self._session, self._organization_id, self._user_id, query, self._limit
+        )
+        new = self.evidence.add(hits)
+        self.notes.append(_search_note(f"sources: {query}", len(hits), new))
+        return {"tool": "search_sources", "query": query, "hits": len(hits), "new_chunks": new}
 
 
 def _validated(answer: Answer, allowed: set[str]) -> Answer:
@@ -253,17 +303,25 @@ def answer_question(
     """Run the loop for one question and return an answer with its citations."""
     settings = get_settings()
     client = get_llm_client()
-    evidence = _Evidence()
-    steps: list[dict] = []
-    searches: list[str] = []
+    searcher = _Searcher(session, organization_id, user_id)
+    evidence = searcher.evidence
     usage: list[tuple[int | None, int | None]] = []
     answer: Answer | None = None
+
+    # Both stores are searched for the question itself before the model is asked
+    # anything: a record lookup and a passage lookup answer most questions
+    # between them, and the model cannot leave one of them unsearched.
+    steps: list[dict] = [
+        {**searcher.run("search_records", question), "opening": True},
+        {**searcher.run("search_sources", question), "opening": True},
+    ]
 
     for _ in range(settings.chat_max_steps):
         result = client.parse(
             prompt=AGENT_PROMPT,
-            evidence=_agent_input(question, evidence, searches),
+            evidence=_agent_input(question, evidence, searcher.notes),
             schema=AgentStep,
+            effort=settings.chat_reasoning_effort,
         )
         usage.append((result.input_tokens, result.output_tokens))
         step = result.parsed
@@ -274,25 +332,20 @@ def answer_question(
         query = (step.query or "").strip()
         if not query:
             break
-        if step.tool == "search_records":
-            records = search_records(session, organization_id, user_id, query, settings.chat_search_limit)
-            found = evidence.add_records(records)
-            searches.append(f"records: {query}")
-            steps.append(
-                {"tool": "search_records", "query": query, "hits": len(records), "new_records": found}
-            )
-            continue
-        hits = search_chunks(session, organization_id, user_id, query, settings.chat_search_limit)
-        found = evidence.add(hits)
-        searches.append(query)
-        steps.append({"tool": "search_sources", "query": query, "hits": len(hits), "new_chunks": found})
+        if searcher.already_run(step.tool, query):
+            # Re-running a query cannot add evidence, so spend the step on the
+            # answer instead of letting the model loop on it.
+            steps.append({"tool": step.tool, "query": query, "skipped": "duplicate"})
+            break
+        steps.append(searcher.run(step.tool, query))
 
     if answer is None:
         # Out of steps: answer once from whatever the searches found.
         final = client.parse(
             prompt=FINAL_PROMPT,
-            evidence=_agent_input(question, evidence, searches),
+            evidence=_agent_input(question, evidence, searcher.notes),
             schema=Answer,
+            effort=settings.chat_reasoning_effort,
         )
         usage.append((final.input_tokens, final.output_tokens))
         answer = _validated(final.parsed, evidence.allowed_ids())
