@@ -17,7 +17,7 @@ from .accounts import membership_for
 from .auth import get_current_user
 from .database import get_session
 from .findings import create_finding, dismiss_finding
-from .golden import acceptance_for_template, golden_panel
+from .golden import acceptance_for_template, fixture_golden_metrics, golden_panel
 from .models import (
     DISMISSAL_REASONS,
     STACK_TYPES,
@@ -299,6 +299,8 @@ def get_health(
             },
         },
         "nightly_test": test_summary,
+        # Harness/fixture metrics only until live golden cut (#106).
+        "golden": fixture_golden_metrics(),
         "queue_depth": queue_depth,
         "jobs": jobs,
         "model_spend_tokens_today": spend_today,

@@ -431,10 +431,13 @@ def build_precision_engineering() -> dict[str, list[tuple]]:
     folders["Delivery Orders"] = deliveries[0::2]
     folders["Invoices"] = deliveries[1::2]
 
+    # Golden v1 (#106): eight planted conflicts (see tests/fixtures/verdicts.json).
+    # Chats name only Drive-backed POs, except C5 (order mentioned before it exists).
     folders["Meetings"] = [
         ("Meeting Notes - Meridian Q3 review", "doc", doc_html(
-            "Meridian Q3 Review — 14 Aug 2026", [
-                "Attendees: Studio North PM, Meridian procurement lead.",
+            # C8: deliberate client-name misspelling "Meridiam" (not Meridian).
+            "Meridiam Q3 Review — 14 Aug 2026", [
+                "Attendees: Studio North PM, Meridiam procurement lead.",
                 "Action: Meridian to consolidate SN-1001 orders into monthly releases.",
                 "Action: Studio North to quote titanium bracket SN-1004 with Rev C drawing by 28 Aug.",
                 "Concern raised on DO-7300 late delivery; root cause was anodizing backlog."])),

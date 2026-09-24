@@ -1,4 +1,4 @@
-"""Golden acceptance metrics for Health (#102 / F-11).
+"""Golden acceptance metrics for Health (#102 / F-11) and golden dataset stubs (#106).
 
 Until #106 lands a live nightly golden run, Health reads invented fixture
 metrics (status ``fixture``). When a live acceptance TestRun or a
@@ -109,3 +109,76 @@ def golden_panel(session: Session | None = None, organization_id: UUID | None = 
     if live_module is not None:
         return {"status": "live", "metrics": live_module}
     return {"status": "fixture", "metrics": fixture_metrics()}
+
+
+# ---- #106: golden dataset fixtures and nightly stub ----
+
+FIXTURES = Path(__file__).resolve().parent.parent / "tests" / "fixtures"
+VERDICTS_PATH = FIXTURES / "verdicts.json"
+QUESTIONS_PATH = FIXTURES / "questions.json"
+
+# Fixture-only rollups — not measured on a live corpus. Do not treat as a gate.
+FIXTURE_METRICS = {
+    "answers": {"scored": 0, "correct": 0, "rate": None, "source": "fixture_stub"},
+    "refusals": {"expected": 10, "correct": 0, "rate": None, "source": "fixture_stub"},
+    "conflicts": {"planted": 8, "surfaced": 0, "rate": None, "source": "fixture_stub"},
+    "provenance": {"checked": 0, "ok": 0, "rate": None, "source": "fixture_stub"},
+    "completeness": {
+        "drive_files_expected": 49,
+        "drive_files_stored": None,
+        "whatsapp_messages_expected": 15,
+        "whatsapp_messages_stored": None,
+        "reimport_growth": None,
+        "ok": False,
+        "source": "fixture_stub",
+        "note": "live golden cut not done",
+    },
+}
+
+
+def load_verdicts() -> dict[str, Any]:
+    return json.loads(VERDICTS_PATH.read_text())
+
+
+def load_questions_fixture() -> dict[str, Any]:
+    return json.loads(QUESTIONS_PATH.read_text())
+
+
+def planted_conflict_ids() -> list[str]:
+    return [c["id"] for c in load_verdicts()["planted_conflicts"]]
+
+
+def fixture_golden_metrics() -> dict[str, Any]:
+    """Harness numbers safe to show on Health before the live cut."""
+    verdicts = load_verdicts()
+    questions = load_questions_fixture()
+    synthetic = questions.get("synthetic", [])
+    held_out = sum(1 for q in synthetic if q.get("held_out"))
+    with_conflict = sum(1 for q in synthetic if q.get("conflict_id"))
+    return {
+        "version": verdicts.get("version"),
+        "live_cut": bool(verdicts.get("live_cut")),
+        "corpus": verdicts.get("corpus"),
+        "question_count": len(synthetic),
+        "held_out_count": held_out,
+        "scored_question_count": len(synthetic) - held_out,
+        "questions_with_conflict_id": with_conflict,
+        "planted_conflict_ids": planted_conflict_ids(),
+        **FIXTURE_METRICS,
+    }
+
+
+def run_golden(session: Session, organization_id: UUID, *, held_out: bool = False) -> dict[str, Any]:
+    """Stub nightly golden run. Does not call the chat agent or touch live Drive.
+
+    ``session`` / ``organization_id`` / ``held_out`` reserved for the live
+    implementation (#106 step 4). Returns fixture metrics only.
+    """
+    _ = (session, organization_id, held_out)
+    metrics = fixture_golden_metrics()
+    return {
+        "status": "skipped",
+        "reason": "live_golden_cut_not_done",
+        "held_out": held_out,
+        "metrics": metrics,
+    }

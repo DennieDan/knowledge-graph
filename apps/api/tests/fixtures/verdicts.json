@@ -1,0 +1,161 @@
+{
+  "_comment": "Golden v1 planted conflicts (#106). CI asserts every id C1–C8 is present and named. This file is expected behaviour for the scorer — NOT a substitute for two human labellers on questions.json (see apps/api/docs/golden-labelling.md).",
+  "version": 1,
+  "corpus": "studionorth",
+  "live_cut": false,
+  "decisions": [
+    "VERDICT ≠ TRUTH VALUE: when PO says 39 and chat says 60, the right answer states both and that the change is not yet confirmed.",
+    "CI CHECK ONLY: unknown conflict keys fail tests; presence here does not mean dual human labels are done.",
+    "LIVE CUT OUTSTANDING: Drive re-seed + WhatsApp send + golden-v1 tag are follow-up work."
+  ],
+  "planted_conflicts": [
+    {
+      "id": "C1",
+      "name": "qty_changed_in_chat",
+      "description": "Meridian chat asks for qty 60 on MER-PO-4124 line 2; PO PDF confirms 39 (SN-1006).",
+      "sources": [
+        {"doc": "MER-PO-4124 Rev A.pdf", "quote": "SN-1006 ... 39"},
+        {"chat": "Meridian Procurement", "quote": "qty 60 on line 2"}
+      ],
+      "record": {
+        "line2.qty": {
+          "confirmed": 39,
+          "proposed": 60,
+          "proposed_from": "whatsapp"
+        }
+      },
+      "answer_must_say": ["39", "60", "not yet confirmed"],
+      "answer_must_not_say": ["confirmed 60"],
+      "checked_line": "MER-PO-4124 Rev A.pdf, line 2"
+    },
+    {
+      "id": "C2",
+      "name": "rev_approved_without_drawing",
+      "description": "Meridian chat approves SN-1004 Rev C; Specifications folder stops at Rev B — no Rev C drawing.",
+      "sources": [
+        {"chat": "Meridian Procurement", "quote": "Approved Rev C today"},
+        {"doc": "Spec SN-1004 Rev B", "quote": "Rev B"}
+      ],
+      "record": {
+        "SN-1004.revision": {
+          "confirmed": "B",
+          "proposed": "C",
+          "proposed_from": "whatsapp"
+        }
+      },
+      "answer_must_say": ["Rev B", "Rev C", "no drawing"],
+      "answer_must_not_say": ["Rev C confirmed in the record"],
+      "checked_line": "Spec SN-1004 Rev B; WhatsApp Meridian Procurement"
+    },
+    {
+      "id": "C3",
+      "name": "chat_and_spec_disagree_unconfirmed",
+      "description": "Harbour chat says manifold Rev B is correct for HAR-PO-4127; PO was issued against the wrong rev; nothing confirmed.",
+      "sources": [
+        {"chat": "Harbour Marine Engineering", "quote": "Rev B in your spec folder is correct"},
+        {"doc": "HAR-PO-4127 Rev B.pdf", "quote": "HAR-PO-4127"}
+      ],
+      "record": {
+        "HAR-PO-4127.drawing_rev": {
+          "confirmed": null,
+          "proposed": "B",
+          "proposed_from": "whatsapp"
+        }
+      },
+      "answer_must_say": ["Rev B", "not yet confirmed"],
+      "answer_must_not_say": ["confirmed Rev B on the PO"],
+      "checked_line": "HAR-PO-4127; WhatsApp Harbour Marine"
+    },
+    {
+      "id": "C4",
+      "name": "delivery_pulled_forward_in_chat",
+      "description": "Semicon chat pulls SEM-PO-4121 delivery forward / split shipment; PO due date unchanged until confirmed.",
+      "sources": [
+        {"chat": "Semicon Orders", "quote": "pull in delivery for SEM-PO-4121"},
+        {"doc": "SEM-PO-4121 Rev A.pdf", "quote": "delivery date"}
+      ],
+      "record": {
+        "SEM-PO-4121.due_date": {
+          "confirmed": "po_due_date",
+          "proposed": "one_week_early_split",
+          "proposed_from": "whatsapp"
+        }
+      },
+      "answer_must_say": ["PO due date", "WhatsApp", "not yet confirmed"],
+      "answer_must_not_say": ["confirmed early delivery"],
+      "checked_line": "SEM-PO-4121 Rev A.pdf; WhatsApp Semicon Orders"
+    },
+    {
+      "id": "C5",
+      "name": "order_mentioned_before_exists",
+      "description": "Semicon chat mentions PO-4132 titanium brackets next week; no Sales Orders file for PO-4132.",
+      "sources": [
+        {"chat": "Semicon Orders", "quote": "PO-4132 coming next week, titanium brackets"}
+      ],
+      "record": {
+        "PO-4132": {
+          "confirmed": null,
+          "proposed": "mentioned",
+          "proposed_from": "whatsapp"
+        }
+      },
+      "answer_must_say": ["no PO-4132", "mentioned in chat"],
+      "answer_must_not_say": ["PO-4132 quantity"],
+      "checked_line": "WhatsApp Semicon Orders only"
+    },
+    {
+      "id": "C6",
+      "name": "superseded_rev_beside_current",
+      "description": "HAR-PO-4123 Rev A.pdf sits beside HAR-PO-4123 Rev B.pdf — superseded revision retained on purpose.",
+      "sources": [
+        {"doc": "HAR-PO-4123 Rev A.pdf", "quote": "Rev A"},
+        {"doc": "HAR-PO-4123 Rev B.pdf", "quote": "Rev B"}
+      ],
+      "record": {
+        "HAR-PO-4123.revision": {
+          "confirmed": "B",
+          "superseded": "A"
+        }
+      },
+      "answer_must_say": ["Rev B", "Rev A"],
+      "answer_must_not_say": ["only Rev A"],
+      "checked_line": "HAR-PO-4123 Rev B.pdf (current); Rev A retained"
+    },
+    {
+      "id": "C7",
+      "name": "scan_beside_pdf",
+      "description": "HAR-PO-4131 Rev B PDF sits beside Scanned PO - Harbour Marine HAR-PO-4131.png.",
+      "sources": [
+        {"doc": "HAR-PO-4131 Rev B.pdf", "quote": "HAR-PO-4131"},
+        {"doc": "Scanned PO - Harbour Marine HAR-PO-4131.png", "quote": "scan"}
+      ],
+      "record": {
+        "HAR-PO-4131.sources": {
+          "pdf": "HAR-PO-4131 Rev B.pdf",
+          "scan": "Scanned PO - Harbour Marine HAR-PO-4131.png"
+        }
+      },
+      "answer_must_say": ["PDF", "scanned"],
+      "answer_must_not_say": ["scan is the only copy"],
+      "checked_line": "HAR-PO-4131 Rev B.pdf; Scanned Forms"
+    },
+    {
+      "id": "C8",
+      "name": "client_name_misspelt_in_notes",
+      "description": "Meeting notes use 'Meridiam' for Meridian Aerospace — planted name variant.",
+      "sources": [
+        {"doc": "Meeting Notes - Meridian Q3 review", "quote": "Meridiam Q3 Review"},
+        {"doc": "Client Profile - Meridian Aerospace Components Pte Ltd", "quote": "Meridian"}
+      ],
+      "record": {
+        "client.name_variant": {
+          "canonical": "Meridian",
+          "variant_in_notes": "Meridiam"
+        }
+      },
+      "answer_must_say": ["Meridian", "Meridiam"],
+      "answer_must_not_say": ["different client"],
+      "checked_line": "Meeting Notes - Meridian Q3 review"
+    }
+  ]
+}

@@ -5,19 +5,23 @@
     "INTERVIEWS UNAVAILABLE: invented shapes use origin=invented_shape (not from_interview) so scoring never reports a fictional real group.",
     "SINGLE LABEL PASS: agent_v1 only; second human label outstanding before treating scores as release gates.",
     "CHUNK IDS EMPTY: expected_chunk_ids/substack_ids filled after sample workspace ingest + dual human label.",
-    "PRICES: synthetic questions rewritten to avoid quoting invented unit prices."
+    "PRICES: synthetic questions rewritten to avoid quoting invented unit prices.",
+    "DUAL LABEL SCHEMA (#106): label_a / label_b / agreed hold quote lists; second_human_label stays outstanding until teammate reconcile.",
+    "PLANTED CONFLICTS (#106): conflict_id points at verdicts.json C1\u2013C8; held_out ten are release-only.",
+    "PO ALIGNMENT (#106): Meridian qty conflict is MER-PO-4124 (not 4123); Harbour hold is HAR-PO-4127 (not 4126)."
   ],
   "synthetic": [
     {
       "id": "syn-001",
-      "question": "What quantity did Meridian confirm on line 2 of MER-PO-4123?",
+      "question": "What quantity is on line 2 of MER-PO-4124, and what did Meridian ask for in WhatsApp?",
       "language": "en",
       "origin": "synthetic",
       "shape": "single_value",
       "answerable": true,
       "corpus": "studionorth",
-      "expected_answer_notes": "WhatsApp says qty 60 on line 2.",
+      "expected_answer_notes": "PO confirms 39; WhatsApp asks for 60 on line 2; change not yet confirmed (C1).",
       "expected_source_hints": [
+        "MER-PO-4124 Rev A.pdf",
         "WhatsApp - Meridian Procurement.txt"
       ],
       "expected_stack_hints": [
@@ -27,7 +31,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": "C1"
     },
     {
       "id": "syn-002",
@@ -47,7 +62,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "syn-003",
@@ -67,7 +93,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "syn-004",
@@ -87,7 +124,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "syn-005",
@@ -108,7 +156,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "syn-006",
@@ -129,7 +188,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "syn-007",
@@ -149,7 +219,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "syn-008",
@@ -169,7 +250,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "syn-009",
@@ -189,7 +281,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "syn-010",
@@ -209,20 +312,31 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "syn-011",
-      "question": "What changed on HAR-PO-4126 after Harbour's WhatsApp message?",
+      "question": "What changed on HAR-PO-4127 after Harbour's WhatsApp message?",
       "language": "en",
       "origin": "synthetic",
       "shape": "change_over_time",
       "answerable": true,
       "corpus": "studionorth",
-      "expected_answer_notes": "Hold then re-ack against Rev B; PO was against wrong rev.",
+      "expected_answer_notes": "Hold then re-ack against Rev B; PO was against wrong rev; nothing confirmed (C3).",
       "expected_source_hints": [
         "WhatsApp - Harbour Marine.txt",
-        "HAR-PO-4126"
+        "HAR-PO-4127"
       ],
       "expected_stack_hints": [
         "sales-orders",
@@ -231,19 +345,31 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": "C3"
     },
     {
       "id": "syn-012",
-      "question": "What changed between Rev A and Rev B on a Meridian PO that has both revisions?",
+      "question": "What revisions of HAR-PO-4123 exist in Sales Orders?",
       "language": "en",
       "origin": "synthetic",
       "shape": "change_over_time",
       "answerable": true,
       "corpus": "studionorth",
-      "expected_answer_notes": "Rev B POs exist when i%4==3; Rev A retained for same po_no.",
+      "expected_answer_notes": "HAR-PO-4123 has Rev A beside Rev B (C6); Rev B is current.",
       "expected_source_hints": [
-        "Sales Orders"
+        "HAR-PO-4123 Rev A.pdf",
+        "HAR-PO-4123 Rev B.pdf"
       ],
       "expected_stack_hints": [
         "sales-orders"
@@ -251,7 +377,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": "C6"
     },
     {
       "id": "syn-013",
@@ -272,7 +409,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": "C2"
     },
     {
       "id": "syn-014",
@@ -282,7 +430,7 @@
       "shape": "change_over_time",
       "answerable": true,
       "corpus": "studionorth",
-      "expected_answer_notes": "Anodizing backlog.",
+      "expected_answer_notes": "Anodizing backlog; notes spell client as Meridiam (C8).",
       "expected_source_hints": [
         "Meeting Notes - Meridian Q3 review"
       ],
@@ -292,7 +440,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": "C8"
     },
     {
       "id": "syn-015",
@@ -302,7 +461,7 @@
       "shape": "change_over_time",
       "answerable": true,
       "corpus": "studionorth",
-      "expected_answer_notes": "Yes — split shipment fine; first batch Friday.",
+      "expected_answer_notes": "Yes \u2014 split shipment fine; first batch Friday.",
       "expected_source_hints": [
         "WhatsApp - Semicon Orders.txt"
       ],
@@ -312,7 +471,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": "C4"
     },
     {
       "id": "syn-016",
@@ -333,7 +503,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "syn-017",
@@ -354,7 +535,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "syn-018",
@@ -375,7 +567,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "syn-019",
@@ -395,7 +598,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "syn-020",
@@ -415,7 +629,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "syn-021",
@@ -425,7 +650,7 @@
       "shape": "status_list",
       "answerable": true,
       "corpus": "studionorth",
-      "expected_answer_notes": "HAR-PO-4126 hold; HAR-PO-4131 scanned form.",
+      "expected_answer_notes": "HAR-PO-4127 hold in chat; HAR-PO-4131 PDF + scanned form (C7).",
       "expected_source_hints": [
         "WhatsApp - Harbour Marine.txt",
         "Scanned PO - Harbour Marine HAR-PO-4131.png"
@@ -437,7 +662,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": "C7"
     },
     {
       "id": "syn-022",
@@ -458,7 +694,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "syn-023",
@@ -478,7 +725,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "syn-024",
@@ -499,7 +757,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "syn-025",
@@ -519,7 +788,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "syn-026",
@@ -539,7 +819,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "syn-027",
@@ -560,11 +851,22 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "syn-028",
-      "question": "Which client is tied to MER-PO-4123?",
+      "question": "Which client is tied to MER-PO-4124?",
       "language": "en",
       "origin": "synthetic",
       "shape": "relation",
@@ -573,7 +875,7 @@
       "expected_answer_notes": "Meridian Aerospace Components.",
       "expected_source_hints": [
         "WhatsApp - Meridian Procurement.txt",
-        "MER-PO-4123"
+        "MER-PO-4124"
       ],
       "expected_stack_hints": [
         "sales-orders",
@@ -582,7 +884,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": "C1"
     },
     {
       "id": "syn-029",
@@ -603,7 +916,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "syn-030",
@@ -623,7 +947,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "syn-031",
@@ -644,7 +979,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": true,
+      "conflict_id": null
     },
     {
       "id": "syn-032",
@@ -665,7 +1011,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": true,
+      "conflict_id": null
     },
     {
       "id": "syn-033",
@@ -686,7 +1043,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": true,
+      "conflict_id": null
     },
     {
       "id": "syn-034",
@@ -696,7 +1064,7 @@
       "shape": "relation",
       "answerable": true,
       "corpus": "studionorth",
-      "expected_answer_notes": "All Studio North client profiles state CoC requirement — answer should cite a specific profile.",
+      "expected_answer_notes": "All Studio North client profiles state CoC requirement \u2014 answer should cite a specific profile.",
       "expected_source_hints": [
         "Client Profile - Meridian Aerospace Components Pte Ltd"
       ],
@@ -706,7 +1074,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": true,
+      "conflict_id": null
     },
     {
       "id": "syn-035",
@@ -727,17 +1106,28 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": true,
+      "conflict_id": null
     },
     {
       "id": "syn-036",
-      "question": "Berapa kuantiti yang Meridian minta pada line 2 untuk MER-PO-4123?",
+      "question": "Berapa kuantiti yang Meridian minta pada line 2 untuk MER-PO-4124?",
       "language": "ms",
       "origin": "synthetic",
       "shape": "single_value",
       "answerable": true,
       "corpus": "studionorth",
-      "expected_answer_notes": "Same as EN: qty 60 on line 2.",
+      "expected_answer_notes": "Same as EN C1: PO 39 vs WhatsApp 60; not yet confirmed.",
       "expected_source_hints": [
         "WhatsApp - Meridian Procurement.txt"
       ],
@@ -747,7 +1137,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": "C1"
     },
     {
       "id": "syn-037",
@@ -767,11 +1168,22 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "syn-038",
-      "question": "SN-1001 的单价是多少？",
+      "question": "SN-1001 \u7684\u5355\u4ef7\u662f\u591a\u5c11\uff1f",
       "language": "zh",
       "origin": "synthetic",
       "shape": "single_value",
@@ -787,11 +1199,22 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "syn-039",
-      "question": "金锅餐饮把茉莉香米改成几包？",
+      "question": "\u91d1\u9505\u9910\u996e\u628a\u8309\u8389\u9999\u7c73\u6539\u6210\u51e0\u5305\uff1f",
       "language": "zh",
       "origin": "synthetic",
       "shape": "change_over_time",
@@ -807,7 +1230,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "syn-040",
@@ -828,7 +1262,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "syn-041",
@@ -844,27 +1289,53 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "syn-042",
-      "question": "What is Kestrel Dynamics' credit limit?",
+      "question": "What quantity is on Semicon's PO-4132?",
       "language": "en",
       "origin": "synthetic",
       "shape": "not_in_sources",
       "answerable": false,
       "corpus": "studionorth",
-      "expected_answer_notes": "Kestrel does not exist in sample data.",
-      "expected_source_hints": [],
-      "expected_stack_hints": [],
+      "expected_answer_notes": "No PO-4132 file; Semicon mentioned titanium brackets in chat only (C5). Refuse.",
+      "expected_source_hints": [
+        "WhatsApp - Semicon Orders.txt"
+      ],
+      "expected_stack_hints": [
+        "conversations"
+      ],
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": "C5"
     },
     {
       "id": "syn-043",
-      "question": "SN-1001 的零件描述是什么？",
+      "question": "SN-1001 \u7684\u96f6\u4ef6\u63cf\u8ff0\u662f\u4ec0\u4e48\uff1f",
       "language": "zh",
       "origin": "synthetic",
       "shape": "single_value",
@@ -876,7 +1347,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "syn-044",
@@ -892,7 +1374,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "syn-045",
@@ -908,7 +1401,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "syn-046",
@@ -924,7 +1428,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": true,
+      "conflict_id": null
     },
     {
       "id": "syn-047",
@@ -940,7 +1455,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": true,
+      "conflict_id": null
     },
     {
       "id": "syn-048",
@@ -956,7 +1482,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": true,
+      "conflict_id": null
     },
     {
       "id": "syn-049",
@@ -972,7 +1509,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": true,
+      "conflict_id": null
     },
     {
       "id": "syn-050",
@@ -988,7 +1536,18 @@
       "expected_chunk_ids": [],
       "expected_substack_ids": [],
       "label_pass": "agent_v1",
-      "second_human_label": "outstanding"
+      "second_human_label": "outstanding",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": true,
+      "conflict_id": null
     }
   ],
   "from_interview_shapes": [
@@ -1008,7 +1567,18 @@
       "label_pass": null,
       "second_human_label": "n/a",
       "contains_names_or_abbreviations": true,
-      "notes": "Invented anonymised shape — real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence."
+      "notes": "Invented anonymised shape \u2014 real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence.",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "int-002",
@@ -1026,7 +1596,18 @@
       "label_pass": null,
       "second_human_label": "n/a",
       "contains_names_or_abbreviations": true,
-      "notes": "Invented anonymised shape — real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence."
+      "notes": "Invented anonymised shape \u2014 real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence.",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "int-003",
@@ -1044,7 +1625,18 @@
       "label_pass": null,
       "second_human_label": "n/a",
       "contains_names_or_abbreviations": true,
-      "notes": "Invented anonymised shape — real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence."
+      "notes": "Invented anonymised shape \u2014 real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence.",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "int-004",
@@ -1062,7 +1654,18 @@
       "label_pass": null,
       "second_human_label": "n/a",
       "contains_names_or_abbreviations": true,
-      "notes": "Invented anonymised shape — real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence."
+      "notes": "Invented anonymised shape \u2014 real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence.",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "int-005",
@@ -1080,7 +1683,18 @@
       "label_pass": null,
       "second_human_label": "n/a",
       "contains_names_or_abbreviations": true,
-      "notes": "Invented anonymised shape — real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence."
+      "notes": "Invented anonymised shape \u2014 real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence.",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "int-006",
@@ -1098,7 +1712,18 @@
       "label_pass": null,
       "second_human_label": "n/a",
       "contains_names_or_abbreviations": true,
-      "notes": "Invented anonymised shape — real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence."
+      "notes": "Invented anonymised shape \u2014 real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence.",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "int-007",
@@ -1116,7 +1741,18 @@
       "label_pass": null,
       "second_human_label": "n/a",
       "contains_names_or_abbreviations": true,
-      "notes": "Invented anonymised shape — real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence."
+      "notes": "Invented anonymised shape \u2014 real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence.",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "int-008",
@@ -1134,7 +1770,18 @@
       "label_pass": null,
       "second_human_label": "n/a",
       "contains_names_or_abbreviations": true,
-      "notes": "Invented anonymised shape — real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence."
+      "notes": "Invented anonymised shape \u2014 real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence.",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "int-009",
@@ -1152,7 +1799,18 @@
       "label_pass": null,
       "second_human_label": "n/a",
       "contains_names_or_abbreviations": true,
-      "notes": "Invented anonymised shape — real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence."
+      "notes": "Invented anonymised shape \u2014 real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence.",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "int-010",
@@ -1170,7 +1828,18 @@
       "label_pass": null,
       "second_human_label": "n/a",
       "contains_names_or_abbreviations": true,
-      "notes": "Invented anonymised shape — real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence."
+      "notes": "Invented anonymised shape \u2014 real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence.",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "int-011",
@@ -1188,7 +1857,18 @@
       "label_pass": null,
       "second_human_label": "n/a",
       "contains_names_or_abbreviations": true,
-      "notes": "Invented anonymised shape — real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence."
+      "notes": "Invented anonymised shape \u2014 real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence.",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "int-012",
@@ -1206,11 +1886,22 @@
       "label_pass": null,
       "second_human_label": "n/a",
       "contains_names_or_abbreviations": true,
-      "notes": "Invented anonymised shape — real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence."
+      "notes": "Invented anonymised shape \u2014 real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence.",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "int-013",
-      "question": "这个单还有没有未交的？",
+      "question": "\u8fd9\u4e2a\u5355\u8fd8\u6709\u6ca1\u6709\u672a\u4ea4\u7684\uff1f",
       "language": "zh",
       "origin": "invented_shape",
       "shape": "interview_mined",
@@ -1224,11 +1915,22 @@
       "label_pass": null,
       "second_human_label": "n/a",
       "contains_names_or_abbreviations": true,
-      "notes": "Invented anonymised shape — real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence."
+      "notes": "Invented anonymised shape \u2014 real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence.",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "int-014",
-      "question": "客户在群里改数量了吗？",
+      "question": "\u5ba2\u6237\u5728\u7fa4\u91cc\u6539\u6570\u91cf\u4e86\u5417\uff1f",
       "language": "zh",
       "origin": "invented_shape",
       "shape": "interview_mined",
@@ -1242,7 +1944,18 @@
       "label_pass": null,
       "second_human_label": "n/a",
       "contains_names_or_abbreviations": true,
-      "notes": "Invented anonymised shape — real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence."
+      "notes": "Invented anonymised shape \u2014 real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence.",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     },
     {
       "id": "int-015",
@@ -1260,7 +1973,18 @@
       "label_pass": null,
       "second_human_label": "n/a",
       "contains_names_or_abbreviations": true,
-      "notes": "Invented anonymised shape — real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence."
+      "notes": "Invented anonymised shape \u2014 real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence.",
+      "label_a": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "label_b": {
+        "status": "outstanding",
+        "quotes": []
+      },
+      "agreed": null,
+      "held_out": false,
+      "conflict_id": null
     }
   ]
 }
