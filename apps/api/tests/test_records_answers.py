@@ -34,8 +34,10 @@ class ScriptedLLM:
         self.outputs = list(outputs)
         self.calls = []
 
-    def parse(self, *, prompt, evidence, schema):
-        self.calls.append({"prompt": prompt, "evidence": evidence, "schema": schema})
+    def parse(self, *, prompt, evidence, schema, effort=None):
+        self.calls.append(
+            {"prompt": prompt, "evidence": evidence, "schema": schema, "effort": effort}
+        )
         output = self.outputs.pop(0) if self.outputs else Answer(answered=False, sentences=[])
         return LLMResult(parsed=output, request_id="fake-request", input_tokens=10, output_tokens=5)
 

@@ -51,8 +51,11 @@ class Settings(BaseSettings):
     analysis_max_candidates_per_run: int = 200
     # A chat turn costs one model call per step, so the cap bounds both
     # latency and spend on a single question.
-    chat_max_steps: int = 4
+    chat_max_steps: int = 3
     chat_search_limit: int = 8
+    # Chat is interactive: the searches are already done when the model runs, so
+    # it spends reasoning tokens on latency the user waits through.
+    chat_reasoning_effort: str = "low"
     chat_history_turns: int = 6
     retrieval_limit_per_query: int = 8
     retrieval_max_chunks: int = 40

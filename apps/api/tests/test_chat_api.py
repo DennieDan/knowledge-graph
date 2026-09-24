@@ -28,8 +28,10 @@ class ScriptedLLM:
         self.outputs = list(outputs)
         self.calls = []
 
-    def parse(self, *, prompt, evidence, schema):
-        self.calls.append({"prompt": prompt, "evidence": evidence, "schema": schema})
+    def parse(self, *, prompt, evidence, schema, effort=None):
+        self.calls.append(
+            {"prompt": prompt, "evidence": evidence, "schema": schema, "effort": effort}
+        )
         output = self.outputs.pop(0) if self.outputs else Answer(answered=False, sentences=[])
         return LLMResult(parsed=output, request_id="fake-request", input_tokens=10, output_tokens=5)
 
@@ -138,6 +140,9 @@ class ChatApiTests(unittest.TestCase):
         self.assertEqual([True, True], [step["opening"] for step in body["steps"][:2]])
         # The evidence the model saw is data, not instructions.
         self.assertIn("<evidence", llm.calls[1]["evidence"])
+        self.assertEqual(
+            [get_settings().chat_reasoning_effort] * 2, [call["effort"] for call in llm.calls]
+        )
 
     def test_passages_are_retrieved_even_when_the_model_only_asks_for_records(self):
         version = self.ingest("Priya chat.txt", "Priya Raman: push PO2431 brackets from 120 to 150.")

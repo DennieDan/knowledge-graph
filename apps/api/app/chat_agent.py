@@ -179,6 +179,7 @@ def resolve_question(session: Session, thread_id: UUID, question: str) -> str:
         prompt=REWRITE_PROMPT,
         evidence=f"<conversation>\n{transcript}\n</conversation>\n\n<question>\n{question}\n</question>",
         schema=StandaloneQuestion,
+        effort=get_settings().chat_reasoning_effort,
     )
     rewritten = result.parsed.question.strip()
     return rewritten or question
@@ -320,6 +321,7 @@ def answer_question(
             prompt=AGENT_PROMPT,
             evidence=_agent_input(question, evidence, searcher.notes),
             schema=AgentStep,
+            effort=settings.chat_reasoning_effort,
         )
         usage.append((result.input_tokens, result.output_tokens))
         step = result.parsed
@@ -343,6 +345,7 @@ def answer_question(
             prompt=FINAL_PROMPT,
             evidence=_agent_input(question, evidence, searcher.notes),
             schema=Answer,
+            effort=settings.chat_reasoning_effort,
         )
         usage.append((final.input_tokens, final.output_tokens))
         answer = _validated(final.parsed, evidence.allowed_ids())
