@@ -75,6 +75,9 @@
 /* hero */
 
 .page .hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   display: grid;
   grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
   gap: 56px;
@@ -95,7 +98,55 @@
   color: #ffffff;
 }
 
+.hero::before,
+.hero::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.55;
+  mask-image: linear-gradient(to bottom, #000 60%, transparent);
+}
+
+.hero::before {
+  top: -140px;
+  right: -120px;
+  width: 720px;
+  height: 720px;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--teal) 85%, transparent),
+    transparent 70%
+  );
+  animation: drift 24s ease-in-out infinite alternate;
+}
+
+.hero::after {
+  top: 120px;
+  left: -200px;
+  width: 640px;
+  height: 640px;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--deep) 90%, var(--teal)),
+    transparent 70%
+  );
+  animation: drift 30s ease-in-out 2s infinite alternate-reverse;
+}
+
+@keyframes drift {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  to {
+    transform: translate3d(-80px, 60px, 0) scale(1.18);
+  }
+}
+
 .heroCopy {
+  position: relative;
   max-width: 620px;
   margin-left: auto;
 }
@@ -187,6 +238,7 @@
   position: relative;
   min-height: 540px;
   max-width: 520px;
+  perspective: 1200px;
 }
 
 .card {
@@ -195,10 +247,38 @@
   border-radius: 16px;
   border: 1px solid color-mix(in srgb, #ffffff 16%, transparent);
   background: color-mix(in srgb, var(--ink) 80%, transparent);
-  box-shadow: 0 24px 48px rgb(0 0 0 / 28%);
-  backdrop-filter: blur(6px);
+  box-shadow:
+    0 30px 60px -20px rgb(0 0 0 / 55%),
+    0 8px 20px -8px rgb(0 0 0 / 35%);
+  backdrop-filter: blur(10px);
   font-size: 14px;
   line-height: 1.45;
+  animation: float 9s ease-in-out infinite;
+  transition:
+    translate 220ms ease,
+    scale 220ms ease,
+    box-shadow 220ms ease;
+  will-change: transform;
+}
+
+.card:hover {
+  translate: 0 -10px;
+  scale: 1.02;
+  box-shadow:
+    0 46px 80px -24px rgb(0 0 0 / 60%),
+    0 12px 24px -10px rgb(0 0 0 / 40%);
+  animation-play-state: paused;
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+
+  50% {
+    transform: translateY(-14px) rotate(-0.5deg);
+  }
 }
 
 .card strong {
@@ -256,6 +336,7 @@
   top: 0;
   left: 0;
   width: 300px;
+  animation-duration: 9.5s;
 }
 
 .cardProposal {
@@ -263,6 +344,8 @@
   right: 0;
   width: 320px;
   background: color-mix(in srgb, var(--deep) 88%, transparent);
+  animation-duration: 11s;
+  animation-delay: -3s;
 }
 
 .cardConfirmed {
@@ -270,12 +353,24 @@
   left: 0;
   width: 290px;
   background: color-mix(in srgb, var(--teal) 55%, var(--ink));
+  animation-duration: 12.5s;
+  animation-delay: -6s;
 }
 
 .cardAsk {
   bottom: 0;
   right: 24px;
   width: 250px;
+  animation-duration: 10.5s;
+  animation-delay: -1.5s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .hero::before,
+  .hero::after {
+    animation: none;
+  }
 }
 
 /* shared section styles */
