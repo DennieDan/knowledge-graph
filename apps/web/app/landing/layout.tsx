@@ -1,10 +1,9 @@
-import { Instrument_Serif, Manrope } from "next/font/google";
+import { Manrope, Playfair_Display } from "next/font/google";
 
 import "./tailwind.css";
 
-const display = Instrument_Serif({
+const display = Playfair_Display({
   subsets: ["latin"],
-  weight: "400",
   style: ["normal", "italic"],
   variable: "--landing-font-display",
 });
