@@ -1,0 +1,25 @@
+{
+  "corpus": "studio-north-precision",
+  "question_count": 50,
+  "labelled_count": 0,
+  "acceptance_mean": 0.0,
+  "right_reader_rate": null,
+  "missing_or_invented_lines": null,
+  "planted_conflicts": 8,
+  "conflicts_surfaced": null,
+  "note": "Invented fixture until #106 live golden cut. Telemetry carries no PO content.",
+  "per_template": {
+    "sales-orders": { "acceptance": 0.0 },
+    "clients": { "acceptance": 0.0 },
+    "items": { "acceptance": 0.0 },
+    "invoices": { "acceptance": 0.0 },
+    "suppliers": { "acceptance": 0.0 },
+    "supplier-orders": { "acceptance": 0.0 },
+    "production-jobs": { "acceptance": 0.0 },
+    "specifications": { "acceptance": 0.0 },
+    "conversations": { "acceptance": 0.0 },
+    "pics": { "acceptance": 0.0 },
+    "meetings": { "acceptance": 0.0 },
+    "files": { "acceptance": 0.0 }
+  }
+}

@@ -109,6 +109,41 @@ export default function MaintenanceView({ accountId }: { accountId: string | nul
               {health.windows["28d"].model_spend_tokens ?? "—"}
             </p>
           </section>
+          <section>
+            <h2>Per template (7d)</h2>
+            {health.per_template && health.per_template.length > 0 ? (
+              <ul className={styles.metricList}>
+                {health.per_template.map((row) => (
+                  <li key={row.template_or_stack_key}>
+                    <span className={styles.metricKey}>{row.template_or_stack_key}</span>
+                    {" · "}
+                    review {Math.round(row.review_rate * 100)}% · edits {row.edit_count} ·
+                    acceptance{" "}
+                    {row.acceptance == null ? "—" : `${Math.round(row.acceptance * 100)}%`}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p>No template activity yet.</p>
+            )}
+          </section>
+          <section>
+            <h2>Golden dataset</h2>
+            <p>
+              {health.golden
+                ? `${health.golden.status === "fixture" ? "Fixture" : "Live"} · ${
+                    health.golden.metrics.corpus ?? "corpus"
+                  } · ${health.golden.metrics.question_count ?? "—"} questions · acceptance mean ${
+                    health.golden.metrics.acceptance_mean == null
+                      ? "—"
+                      : `${Math.round(Number(health.golden.metrics.acceptance_mean) * 100)}%`
+                  }`
+                : "No golden panel yet"}
+            </p>
+            {health.golden?.metrics.note ? (
+              <p className={styles.note}>{String(health.golden.metrics.note)}</p>
+            ) : null}
+          </section>
         </div>
       )}
     </div>

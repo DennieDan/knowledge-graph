@@ -583,6 +583,25 @@ export interface HealthWindow {
   model_spend_tokens?: number;
 }
 
+export interface HealthTemplateMetric {
+  template_or_stack_key: string;
+  review_rate: number;
+  edit_count: number;
+  acceptance: number | null;
+}
+
+export interface HealthGoldenPanel {
+  status: "fixture" | "live";
+  metrics: {
+    corpus?: string;
+    question_count?: number;
+    labelled_count?: number;
+    acceptance_mean?: number | null;
+    note?: string;
+    [key: string]: unknown;
+  };
+}
+
 export interface HealthSnapshot {
   at_rest: string;
   alarms: HealthAlarm[];
@@ -592,6 +611,10 @@ export interface HealthSnapshot {
   jobs?: { queue_depth: number; failures_last_24h: number };
   model_spend_tokens_today: number;
   daily_token_budget?: number;
+  /** #102 — per-template ladder metrics (7d). */
+  per_template?: HealthTemplateMetric[];
+  /** #102 — golden acceptance; fixture until #106 live cut. */
+  golden?: HealthGoldenPanel;
 }
 
 export function getHealth(accountId: string): Promise<HealthSnapshot> {

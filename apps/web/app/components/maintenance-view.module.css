@@ -58,3 +58,25 @@
   margin: 0;
   font-size: 14px;
 }
+
+.metricList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.metricKey {
+  font-variant-numeric: tabular-nums;
+  color: var(--md-sys-color-on-surface);
+}
+
+.note {
+  margin-top: 6px !important;
+  color: var(--cp-muted);
+  font-size: 13px;
+  line-height: 1.4;
+  max-width: 48ch;
+}

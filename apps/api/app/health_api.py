@@ -1,4 +1,8 @@
-"""Health (#21), findings queue (#15), job observability (#31) and nightly test runs (#19)."""
+"""Health (#21), findings queue (#15), job observability (#31) and nightly test runs (#19).
+
+#102 extends this with per-template ladder metrics and a golden panel — additive
+only; existing alarms / windows / jobs shape is preserved.
+"""
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -13,13 +17,17 @@ from .accounts import membership_for
 from .auth import get_current_user
 from .database import get_session
 from .findings import create_finding, dismiss_finding
+from .golden import acceptance_for_template, golden_panel
 from .models import (
     DISMISSAL_REASONS,
+    STACK_TYPES,
     ConfirmEvent,
     Finding,
     KnowledgeJob,
     Organization,
     Spend,
+    Substack,
+    SubstackContent,
     TestRun,
     User,
 )
@@ -30,6 +38,69 @@ router = APIRouter(tags=["health"])
 
 def utcnow() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def per_template_metrics(
+    session: Session,
+    organization_id: UUID,
+    since: datetime,
+    golden_metrics: dict,
+) -> list[dict]:
+    """Review rate, edit count and acceptance per stack/template key (7d window).
+
+    Counts only — no PO content, file names, product names or prices.
+    ``review_rate`` = person confirms / all confirms for that template.
+    ``edit_count`` = sum of (revision - 1) on contents confirmed in the window
+    (extra revisions stand in for edits until dedicated edit telemetry lands).
+    ``acceptance`` comes from the golden panel (fixture until #106 live cut).
+    """
+    confirm_rows = session.execute(
+        select(Substack.stack_type, ConfirmEvent.kind, func.count())
+        .join(Substack, Substack.id == ConfirmEvent.substack_id)
+        .where(
+            ConfirmEvent.organization_id == organization_id,
+            ConfirmEvent.at >= since,
+        )
+        .group_by(Substack.stack_type, ConfirmEvent.kind)
+    ).all()
+    by_key: dict[str, dict[str, int]] = {}
+    for stack_type, kind, count in confirm_rows:
+        bucket = by_key.setdefault(stack_type, {"person": 0, "bulk": 0, "auto": 0})
+        if kind in bucket:
+            bucket[kind] = count
+
+    edit_rows = session.execute(
+        select(
+            Substack.stack_type,
+            func.coalesce(func.sum(SubstackContent.revision - 1), 0),
+        )
+        .join(Substack, Substack.id == SubstackContent.substack_id)
+        .where(
+            Substack.organization_id == organization_id,
+            SubstackContent.confirmed_at.is_not(None),
+            SubstackContent.confirmed_at >= since,
+            SubstackContent.revision > 1,
+        )
+        .group_by(Substack.stack_type)
+    ).all()
+    edits = {stack_type: int(total) for stack_type, total in edit_rows}
+
+    # Include every known stack type plus any orphan keys seen in confirms.
+    keys = list(STACK_TYPES) + [key for key in by_key if key not in STACK_TYPES]
+    result: list[dict] = []
+    for key in keys:
+        kinds = by_key.get(key, {"person": 0, "bulk": 0, "auto": 0})
+        total = kinds["person"] + kinds["bulk"] + kinds["auto"]
+        review_rate = (kinds["person"] / total) if total else 0.0
+        result.append(
+            {
+                "template_or_stack_key": key,
+                "review_rate": review_rate,
+                "edit_count": edits.get(key, 0),
+                "acceptance": acceptance_for_template(golden_metrics, key),
+            }
+        )
+    return result
 
 
 class DismissBody(BaseModel):
@@ -204,6 +275,14 @@ def get_health(
     else:
         rest_line = "Review open findings."
 
+    golden = golden_panel(session, organization_id)
+    per_template = per_template_metrics(
+        session,
+        organization_id,
+        windows["7d"],
+        golden.get("metrics") or {},
+    )
+
     return {
         "at_rest": rest_line,
         "alarms": alarms,
@@ -224,6 +303,9 @@ def get_health(
         "jobs": jobs,
         "model_spend_tokens_today": spend_today,
         "daily_token_budget": budget,
+        # #102 — ladder metrics + golden panel (extend, do not replace above).
+        "per_template": per_template,
+        "golden": golden,
     }
 
 
