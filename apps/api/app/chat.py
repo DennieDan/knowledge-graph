@@ -11,20 +11,26 @@ Every answer carries a checked line: `checked` is true only when everything it
 cited is a record a person confirmed, and `checked_note` names who confirmed it
 and when. Content a generator confirmed on its own is *not* checked.
 """
+import json
+import logging
+from collections.abc import Callable, Iterator
+from contextlib import AbstractContextManager
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import case, select
 from sqlalchemy.orm import Session
 
 from .accounts import membership_for
 from .auth import get_current_user
-from .chat_agent import answer_question, resolve_question
-from .database import get_session
+from .chat_agent import AgentResult, answer_question, resolve_question, run_agent
+from .database import get_engine, get_session
 from .models import ChatMessage, ChatThread, User
 
 router = APIRouter(tags=["chat"])
+logger = logging.getLogger(__name__)
 
 TITLE_CHARS = 120
 NO_ANSWER_TEXT = "I could not find this in the sources I can see."
@@ -154,24 +160,16 @@ def get_thread(
     return {**_thread_json(thread), "messages": [_message_json(message) for message in messages]}
 
 
-@router.post("/accounts/{organization_id}/chat/threads/{thread_id}/messages", status_code=201)
-def post_message(
-    organization_id: UUID,
-    thread_id: UUID,
-    body: MessageIn,
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    thread = _get_thread(organization_id, thread_id, user, session)
+def _question(body: MessageIn) -> str:
     question = body.text.strip()
     if not question:
         raise HTTPException(status_code=422, detail="empty_question")
+    return question
 
-    resolved = resolve_question(session, thread.id, question)
-    session.add(ChatMessage(thread_id=thread.id, role="user", text=question, resolved_question=resolved))
-    session.flush()
 
-    result = answer_question(session, organization_id, user.id, resolved)
+def _save_answer(
+    session: Session, thread: ChatThread, question: str, resolved: str, result: AgentResult
+) -> ChatMessage:
     answer = ChatMessage(
         thread_id=thread.id,
         role="assistant",
@@ -191,7 +189,82 @@ def post_message(
     if thread.title is None:
         thread.title = question[:TITLE_CHARS]
     session.commit()
-    return _message_json(answer)
+    return answer
+
+
+@router.post("/accounts/{organization_id}/chat/threads/{thread_id}/messages", status_code=201)
+def post_message(
+    organization_id: UUID,
+    thread_id: UUID,
+    body: MessageIn,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    thread = _get_thread(organization_id, thread_id, user, session)
+    question = _question(body)
+
+    resolved = resolve_question(session, thread.id, question)
+    session.add(ChatMessage(thread_id=thread.id, role="user", text=question, resolved_question=resolved))
+    session.flush()
+
+    result = answer_question(session, organization_id, user.id, resolved)
+    return _message_json(_save_answer(session, thread, question, resolved, result))
+
+
+def get_session_factory() -> Callable[[], AbstractContextManager[Session]]:
+    return lambda: Session(get_engine())
+
+
+def _event_line(event: dict) -> bytes:
+    return (json.dumps(event, default=str) + "\n").encode()
+
+
+@router.post("/accounts/{organization_id}/chat/threads/{thread_id}/messages/stream")
+def stream_message(
+    organization_id: UUID,
+    thread_id: UUID,
+    body: MessageIn,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+    open_session: Callable[[], AbstractContextManager[Session]] = Depends(get_session_factory),
+):
+    """Answer like `post_message`, streaming the agent's progress as NDJSON.
+
+    Each line is one event from `run_agent`, then a final `message` line with
+    the saved answer (or an `error` line). Access is checked before streaming
+    starts, so an unknown thread is still a plain 404. The turn runs in its own
+    session: the request's session is closed once the response starts.
+    """
+    _get_thread(organization_id, thread_id, user, session)
+    question = _question(body)
+    user_id = user.id
+
+    def events() -> Iterator[bytes]:
+        with open_session() as turn:
+            try:
+                thread = turn.get_one(ChatThread, thread_id)
+                resolved = resolve_question(turn, thread.id, question)
+                turn.add(ChatMessage(thread_id=thread.id, role="user", text=question, resolved_question=resolved))
+                turn.flush()
+                agent = run_agent(turn, organization_id, user_id, resolved)
+                while True:
+                    try:
+                        yield _event_line(next(agent))
+                    except StopIteration as done:
+                        result = done.value
+                        break
+                answer = _save_answer(turn, thread, question, resolved, result)
+                yield _event_line({"type": "message", "message": _message_json(answer)})
+            except Exception:
+                logger.exception("chat_stream_failed")
+                turn.rollback()
+                yield _event_line({"type": "error"})
+
+    return StreamingResponse(
+        events(),
+        media_type="application/x-ndjson",
+        headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.post("/accounts/{organization_id}/chat/messages/{message_id}/feedback")

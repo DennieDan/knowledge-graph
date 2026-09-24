@@ -244,10 +244,57 @@
   color: var(--md-sys-color-on-surface-variant);
 }
 
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.progressDone {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
 .pending {
+  margin: 0;
   font-size: 13px;
   font-style: italic;
   color: var(--md-sys-color-on-surface-variant);
+}
+
+.dots span {
+  animation: dot 1.2s infinite ease-in-out;
+  opacity: 0.2;
+}
+
+.dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes dot {
+  0%,
+  80%,
+  100% {
+    opacity: 0.2;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dots span {
+    animation: none;
+    opacity: 0.6;
+  }
 }
 
 .error {

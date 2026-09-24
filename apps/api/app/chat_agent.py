@@ -18,6 +18,7 @@ The loop is deliberately small and closed:
   model's wording: `AgentResult.checked` is true only when every citation is a
   record a *person* confirmed, computed from the rows, not from the answer text.
 """
+from collections.abc import Generator
 from dataclasses import dataclass, field
 from typing import Literal
 from uuid import UUID
@@ -294,29 +295,44 @@ def _result(
     )
 
 
-def answer_question(
+def run_agent(
     session: Session,
     organization_id: UUID,
     user_id: UUID,
     question: str,
-) -> AgentResult:
-    """Run the loop for one question and return an answer with its citations."""
+) -> Generator[dict, None, AgentResult]:
+    """Run the loop for one question, yielding progress events as it goes.
+
+    Events are what the asker can be shown while waiting: `searching` before a
+    search runs, `step` once it has, and `thinking` before each model call. The
+    generator's return value is the finished answer.
+    """
     settings = get_settings()
     client = get_llm_client()
     searcher = _Searcher(session, organization_id, user_id)
     evidence = searcher.evidence
     usage: list[tuple[int | None, int | None]] = []
     answer: Answer | None = None
+    steps: list[dict] = []
+
+    def search(tool: str, query: str, **extra) -> Generator[dict, None, None]:
+        yield {"type": "searching", "tool": tool, "query": query}
+        step = {**searcher.run(tool, query), **extra}
+        steps.append(step)
+        yield {"type": "step", **step}
+
+    def record(step: dict) -> dict:
+        steps.append(step)
+        return {"type": "step", **step}
 
     # Both stores are searched for the question itself before the model is asked
     # anything: a record lookup and a passage lookup answer most questions
     # between them, and the model cannot leave one of them unsearched.
-    steps: list[dict] = [
-        {**searcher.run("search_records", question), "opening": True},
-        {**searcher.run("search_sources", question), "opening": True},
-    ]
+    yield from search("search_records", question, opening=True)
+    yield from search("search_sources", question, opening=True)
 
     for _ in range(settings.chat_max_steps):
+        yield {"type": "thinking", "stage": "deciding"}
         result = client.parse(
             prompt=AGENT_PROMPT,
             evidence=_agent_input(question, evidence, searcher.notes),
@@ -327,7 +343,7 @@ def answer_question(
         step = result.parsed
         if step.tool == "answer" and step.answer is not None:
             answer = _validated(step.answer, evidence.allowed_ids())
-            steps.append({"tool": "answer", "answered": answer.answered})
+            yield record({"tool": "answer", "answered": answer.answered})
             break
         query = (step.query or "").strip()
         if not query:
@@ -335,12 +351,13 @@ def answer_question(
         if searcher.already_run(step.tool, query):
             # Re-running a query cannot add evidence, so spend the step on the
             # answer instead of letting the model loop on it.
-            steps.append({"tool": step.tool, "query": query, "skipped": "duplicate"})
+            yield record({"tool": step.tool, "query": query, "skipped": "duplicate"})
             break
-        steps.append(searcher.run(step.tool, query))
+        yield from search(step.tool, query)
 
     if answer is None:
         # Out of steps: answer once from whatever the searches found.
+        yield {"type": "thinking", "stage": "answering"}
         final = client.parse(
             prompt=FINAL_PROMPT,
             evidence=_agent_input(question, evidence, searcher.notes),
@@ -349,6 +366,21 @@ def answer_question(
         )
         usage.append((final.input_tokens, final.output_tokens))
         answer = _validated(final.parsed, evidence.allowed_ids())
-        steps.append({"tool": "answer", "answered": answer.answered, "forced": True})
+        yield record({"tool": "answer", "answered": answer.answered, "forced": True})
 
     return _result(session, answer, evidence, steps, question, usage)
+
+
+def answer_question(
+    session: Session,
+    organization_id: UUID,
+    user_id: UUID,
+    question: str,
+) -> AgentResult:
+    """Run the loop for one question and return an answer with its citations."""
+    events = run_agent(session, organization_id, user_id, question)
+    while True:
+        try:
+            next(events)
+        except StopIteration as done:
+            return done.value

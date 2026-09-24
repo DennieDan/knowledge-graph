@@ -7,10 +7,11 @@ import {
   getChatThread,
   isRecordCitation,
   listChatThreads,
-  postChatMessage,
   setChatFeedback,
+  streamChatMessage,
   type ChatCitation,
   type ChatMessage,
+  type ChatProgress,
   type ChatThread,
 } from "../lib/api";
 import styles from "./search-view.module.css";
@@ -151,6 +152,51 @@ function AnswerBlock({
   );
 }
 
+const SEARCHED: Record<string, string> = {
+  search_records: "confirmed records",
+  search_sources: "sources",
+};
+
+function quoted(query: string): string {
+  return `“${query.length > 48 ? `${query.slice(0, 47)}…` : query}”`;
+}
+
+function progressLines(events: ChatProgress[]): { done: string[]; current: string } {
+  const done = events.flatMap((e) =>
+    e.type === "step" && e.query && e.hits !== undefined && SEARCHED[e.tool]
+      ? [`Searched ${SEARCHED[e.tool]} for ${quoted(e.query)} · ${e.hits} found`]
+      : [],
+  );
+  const last = events.at(-1);
+  let current = "Reading your question";
+  if (last?.type === "searching") current = `Searching ${SEARCHED[last.tool]} for ${quoted(last.query)}`;
+  else if (last?.type === "thinking" && last.stage === "answering") current = "Writing answer";
+  else if (last) current = "Reading what it found";
+  return { done, current };
+}
+
+function LiveProgress({ events }: { events: ChatProgress[] }) {
+  const { done, current } = progressLines(events);
+  return (
+    <div className={styles.progress}>
+      {done.map((line, i) => (
+        <p key={i} className={styles.progressDone}>
+          <Icon name="search" size={12} />
+          {line}
+        </p>
+      ))}
+      <p className={styles.pending} role="status">
+        {current}
+        <span className={styles.dots} aria-hidden="true">
+          <span>.</span>
+          <span>.</span>
+          <span>.</span>
+        </span>
+      </p>
+    </div>
+  );
+}
+
 export default function SearchView({
   accountId,
   onOpenRecord,
@@ -163,6 +209,7 @@ export default function SearchView({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<ChatProgress[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -195,15 +242,17 @@ export default function SearchView({
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, busy]);
+  }, [messages, busy, progress]);
 
   const send = async () => {
     const text = input.trim();
     if (!text || !accountId || busy) return;
     setBusy(true);
+    setProgress([]);
     setError("");
+    const savedCount = messages.length;
+    let id = threadId;
     try {
-      let id = threadId;
       if (!id) {
         const thread = await createChatThread(accountId);
         id = thread.id;
@@ -225,11 +274,20 @@ export default function SearchView({
           created_at: null,
         },
       ]);
-      const answer = await postChatMessage(accountId, id, text);
+      const answer = await streamChatMessage(accountId, id, text, (event) =>
+        setProgress((p) => [...p, event]),
+      );
       setMessages((m) => [...m, answer]);
       setInput("");
     } catch {
-      setError("Could not get an answer. Try again.");
+      // The stream can drop after the answer was saved; reload instead of asking again.
+      const saved = id ? await getChatThread(accountId, id).catch(() => null) : null;
+      if (saved && saved.messages.length >= savedCount + 2) {
+        setMessages(saved.messages);
+        setInput("");
+      } else {
+        setError("Could not get an answer. Try again.");
+      }
     } finally {
       setBusy(false);
       listChatThreads(accountId)
@@ -286,7 +344,7 @@ export default function SearchView({
               ),
             )
           )}
-          {busy && <p className={styles.pending}>Reading sources…</p>}
+          {busy && <LiveProgress events={progress} />}
           {error && <p className={styles.error}>{error}</p>}
           <div ref={bottomRef} />
         </div>
