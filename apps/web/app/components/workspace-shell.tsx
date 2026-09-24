@@ -53,7 +53,7 @@ type ModalState =
   | { kind: "createSubstack"; typeId: string };
 
 const NAV_ITEMS = [
-  { icon: "inbox", label: "To check", id: "tocheck" },
+  { icon: "activity", label: "Analyze workspace", id: "tocheck" },
   { icon: "search", label: "Search", id: "search" },
   { icon: "layers", label: "Stacks", id: "stacks" },
   { icon: "database", label: "Sources", id: "sources" },
@@ -340,7 +340,7 @@ export default function WorkspaceShell() {
 
   const crumbLabel =
     activeNav === "tocheck"
-      ? "To check"
+      ? "Analyze workspace"
       : activeNav === "sources"
         ? "Sources"
         : activeNav === "search"
@@ -540,8 +540,12 @@ export default function WorkspaceShell() {
               substacks={substacks}
               busy={analysisBusy}
               notice={notice}
+              analysisRuns={analysisRuns}
               onOpen={(ss) => openSubstack(ss.id)}
               onConfirm={handleConfirmItem}
+              onAnalyze={handleAnalyze}
+              onConfirmAll={handleConfirmAll}
+              onRetryAnalysis={handleRetryAnalysis}
             />
           )}
           {activeNav === "sources" && (
@@ -592,11 +596,6 @@ export default function WorkspaceShell() {
                 searchVal={searchVal}
                 listMode={listMode}
                 notice={notice}
-                analysisRuns={analysisRuns}
-                analysisBusy={analysisBusy}
-                onAnalyze={handleAnalyze}
-                onConfirmAll={handleConfirmAll}
-                onRetryAnalysis={handleRetryAnalysis}
                 onScopeChange={setScope}
                 onSelectType={(typeId) => {
                   setSelectedType(typeId);

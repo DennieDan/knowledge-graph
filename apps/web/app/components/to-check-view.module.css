@@ -48,6 +48,99 @@
   color: var(--cp-muted);
 }
 
+.heroActions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.ghostBtn {
+  border: 0;
+  background: transparent;
+  padding: 8px 10px;
+  color: var(--cp-muted);
+  cursor: pointer;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: inherit;
+  white-space: nowrap;
+}
+
+.ghostBtn:hover:not(:disabled) {
+  background: var(--cp-hover);
+  color: var(--cp-ink);
+}
+
+.ghostBtn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.analysisStatus {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  margin: 0 0 20px;
+  padding: 12px 14px;
+  border: 1px solid var(--cp-border);
+  border-radius: 8px;
+  background: var(--md-sys-color-surface-container-low);
+  font-size: 12px;
+}
+
+.analysisStatus span {
+  color: var(--cp-muted);
+}
+
+.analysisSummary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.generationProgress {
+  display: grid;
+  gap: 6px;
+}
+
+.progressLabels {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.progressTrack {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--cp-border);
+}
+
+.progressTrack > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--md-sys-color-primary);
+  transition: width 0.25s ease;
+}
+
+.analysisStatus button {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: var(--md-sys-color-primary);
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .filterRow {
   display: flex;
   gap: 8px;

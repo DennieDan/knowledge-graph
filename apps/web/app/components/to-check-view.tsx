@@ -7,6 +7,7 @@ import type { StackType, Substack } from "../lib/stacks";
 import {
   dismissFinding,
   listFindings,
+  type AnalysisRun,
   type FindingRow,
 } from "../lib/api";
 
@@ -54,17 +55,34 @@ export default function ToCheckView({
   substacks,
   busy,
   notice,
+  analysisRuns,
   onOpen,
   onConfirm,
+  onAnalyze,
+  onConfirmAll,
+  onRetryAnalysis,
 }: {
   accountId: string | null;
   stackTypes: StackType[];
   substacks: Substack[];
   busy: boolean;
   notice: string;
+  analysisRuns: AnalysisRun[];
   onOpen: (ss: Substack) => void;
   onConfirm: (ss: Substack) => void;
+  onAnalyze: () => void;
+  onConfirmAll: () => void;
+  onRetryAnalysis: (runId: string) => void;
 }) {
+  const activeRun = analysisRuns.find((run) =>
+    ["queued", "embedding", "discovering", "generating"].includes(run.status)
+    || run.generation_queued > 0
+    || run.generation_running > 0,
+  );
+  const failedRun = analysisRuns.find((run) => (run.status === "failed" || run.status === "partial") && run.generation_queued === 0 && run.generation_running === 0);
+  const generationPercent = activeRun?.generation_total
+    ? Math.round(((activeRun.generation_completed + activeRun.generation_failed) / activeRun.generation_total) * 100)
+    : 0;
   const [filter, setFilter] = useState<QueueKind | "all" | "findings">("all");
   const [findings, setFindings] = useState<FindingRow[]>([]);
   const [reasons, setReasons] = useState<string[]>(DEFAULT_REASONS);
@@ -83,9 +101,10 @@ export default function ToCheckView({
       .catch(() => setFindings([]));
   };
 
+  const analyzing = Boolean(activeRun);
   useEffect(() => {
-    refreshFindings();
-  }, [accountId]);
+    if (!analyzing) refreshFindings();
+  }, [accountId, analyzing]);
 
   const queue = substacks
     .map((ss) => ({ ss, kind: queueKind(ss) }))
@@ -111,16 +130,51 @@ export default function ToCheckView({
         <div>
           <h1 className={styles.title}>
             <span className={styles.titleIcon}>
-              <Icon name="inbox" size={17} />
+              <Icon name="activity" size={17} />
             </span>
-            To check
+            Analyze workspace
           </h1>
-          <p className={styles.subtitle}>Proposals and findings waiting for a person.</p>
+          <p className={styles.subtitle}>Analyze sources, then check the proposals and findings they produce.</p>
         </div>
-        <span className={styles.chip}>
-          {total} {total === 1 ? "item" : "items"}
-        </span>
+        <div className={styles.heroActions}>
+          <span className={styles.chip}>
+            {total} {total === 1 ? "item" : "items"} to check
+          </span>
+          <button type="button" onClick={onConfirmAll} disabled={busy} className={styles.ghostBtn}>
+            <Icon name="check" size={13} /> Confirm all
+          </button>
+          <button type="button" onClick={onAnalyze} disabled={busy || Boolean(activeRun)} className={styles.confirmBtn}>
+            <Icon name="activity" size={13} /> {activeRun ? "Analyzing…" : "Analyze workspace"}
+          </button>
+        </div>
       </div>
+
+      {activeRun && (
+        <div className={styles.analysisStatus} role="status" aria-live="polite">
+          <div className={styles.analysisSummary}>
+            <strong>{activeRun.generation_total > 0 ? "Generating LLM reports" : activeRun.status === "queued" ? "Analysis queued" : `${activeRun.status[0]!.toUpperCase()}${activeRun.status.slice(1)} knowledge`}</strong>
+            <span>{activeRun.documents_processed}/{activeRun.documents_total} documents analyzed · {activeRun.chunks_embedded} chunks embedded · {activeRun.candidates_found} records found</span>
+          </div>
+          {activeRun.generation_total > 0 && (
+            <div className={styles.generationProgress}>
+              <div className={styles.progressLabels}>
+                <span>LLM content</span>
+                <strong>{activeRun.generation_completed}/{activeRun.generation_total} generated</strong>
+              </div>
+              <div className={styles.progressTrack} role="progressbar" aria-label="LLM content generation" aria-valuemin={0} aria-valuemax={activeRun.generation_total} aria-valuenow={activeRun.generation_completed + activeRun.generation_failed}>
+                <span style={{ width: `${generationPercent}%` }} />
+              </div>
+              <span>{activeRun.generation_running > 0 ? `${activeRun.generation_running} generating · ` : ""}{activeRun.generation_queued} queued{activeRun.generation_failed > 0 ? ` · ${activeRun.generation_failed} failed` : ""}</span>
+            </div>
+          )}
+        </div>
+      )}
+      {!activeRun && failedRun && (
+        <div className={styles.analysisStatus} role="status">
+          <span>Analysis needs attention. {failedRun.failures} job{failedRun.failures === 1 ? "" : "s"} failed.</span>
+          <button type="button" onClick={() => onRetryAnalysis(failedRun.id)} disabled={busy}>Retry</button>
+        </div>
+      )}
 
       <div className={styles.filterRow} role="group" aria-label="Filter queue">
         {FILTERS.map(([kind, label]) => (

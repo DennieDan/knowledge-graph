@@ -41,65 +41,6 @@
   cursor: default;
 }
 
-.analysisStatus {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 10px;
-  margin: -8px 0 20px;
-  padding: 12px 14px;
-  border: 1px solid var(--cp-border);
-  border-radius: 8px;
-  background: var(--md-sys-color-surface-container-low);
-  font-size: 12px;
-}
-
-.analysisStatus span {
-  color: var(--cp-muted);
-}
-
-.analysisSummary {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.generationProgress {
-  display: grid;
-  gap: 6px;
-}
-
-.progressLabels {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.progressTrack {
-  height: 7px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: var(--cp-border);
-}
-
-.progressTrack > span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--md-sys-color-primary);
-  transition: width 0.25s ease;
-}
-
-.analysisStatus button {
-  margin-left: auto;
-  border: 0;
-  background: transparent;
-  color: var(--md-sys-color-primary);
-  font-weight: 600;
-  cursor: pointer;
-}
-
 .ghostBtn {
   border: 0;
   background: transparent;
@@ -195,12 +136,6 @@
   flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 24px;
-}
-
-.heroActions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
 }
 
 .backBtn {
