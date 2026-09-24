@@ -52,8 +52,7 @@ export function CreateSubstackModal({
         </button>
       </div>
       <p className={styles.modalSub}>
-        Create a new item inside the {type.name} stack. It will be visible to
-        your workspace.
+        Create a new item inside the {type.name} stack.
       </p>
       <FieldLabel label="Name">
         <input

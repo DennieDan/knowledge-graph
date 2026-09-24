@@ -29,6 +29,8 @@ from .models import (
 from .segments import GeneratedContent
 
 TEMPLATE_MODEL = "template"
+# Stacks whose content comes from an LLM during Analyze; ingest only flags them for review.
+LLM_STACK_TYPES = ("sales-orders", "clients", "items", "conversations")
 
 
 def _evidence(session: Session, substack: Substack) -> tuple[list[Document], list[DocumentVersion], list[Chunk]]:
@@ -182,7 +184,7 @@ def mark_stale_for_document(session: Session, document_id: UUID) -> list[UUID]:
     substacks: dict[UUID, None] = {}
     for content in contents:
         substack = session.get(Substack, content.substack_id)
-        if substack is not None and substack.stack_type in ("sales-orders", "clients", "items"):
+        if substack is not None and substack.stack_type in LLM_STACK_TYPES:
             substack.review_state = "pending_update" if substack.status == "confirmed" else "pending"
         else:
             content.status = "stale"

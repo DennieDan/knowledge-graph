@@ -12,7 +12,17 @@ from .config import get_settings
 from .database import get_session
 from .jobs import create_run, enqueue_job, retry_failed_run
 from .knowledge_analysis import llm_substacks
-from .models import AnalysisRun, Chunk, Document, DocumentVersion, EntityMention, KnowledgeJob, Substack, User
+from .models import (
+    AnalysisRun,
+    Chunk,
+    Document,
+    DocumentVersion,
+    EntityMention,
+    KnowledgeJob,
+    Substack,
+    SubstackSource,
+    User,
+)
 
 
 router = APIRouter(tags=["analysis"])
@@ -192,6 +202,10 @@ def analysis_plan(
         select(EntityMention.substack_id).where(
             EntityMention.document_id.in_(changed_ids),
             EntityMention.substack_id.is_not(None),
+        ).union(
+            select(SubstackSource.substack_id)
+            .join(Substack, Substack.id == SubstackSource.substack_id)
+            .where(SubstackSource.document_id.in_(changed_ids), Substack.stack_type == "conversations")
         )
     )) if changed_ids else set()
     return {

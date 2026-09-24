@@ -37,12 +37,12 @@
 .highlightedToken:hover { outline: 1px solid var(--md-sys-color-primary); }
 .topics { display: grid; gap: 12px; max-width: 900px; margin-top: 14px; }
 .topic { padding: 18px 20px; border: 1px solid var(--cp-border); border-radius: 10px; background: var(--md-sys-color-surface-container-low); transition: border-color .15s, background .15s; }
-.topic:hover { border-color: var(--md-sys-color-primary); background: var(--md-sys-color-primary-container); }
+.topic:hover { border-color: var(--md-sys-color-outline); background: var(--md-sys-color-surface-container-lowest); }
 .topicMeta { margin-bottom: 5px; color: var(--cp-muted); font-size: 11px; }
-.topic h3 { margin-bottom: 8px; font-size: 14px; }
+.topic h3 { margin-bottom: 8px; color: var(--cp-ink); font-size: 14px; }
 .topic p { color: var(--md-sys-color-on-surface-variant); font-size: 13px; line-height: 1.7; }
 .clamped { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
-.topic > button { display: inline-flex; align-items: center; gap: 4px; margin-top: 10px; padding: 3px 0; border: 0; background: transparent; color: var(--md-sys-color-primary); font-size: 12px; font-weight: 600; cursor: pointer; }
+.topic > button { display: inline-flex; align-items: center; gap: 4px; margin-top: 10px; padding: 3px 0; border: 0; background: transparent; color: var(--md-sys-color-secondary); font-size: 12px; font-weight: 600; cursor: pointer; }
 .topic > button svg { transition: transform .15s; }
 .topic:not(:has(.clamped)) > button svg { transform: rotate(180deg); }
 .related { margin-top: auto; padding-top: 56px; }

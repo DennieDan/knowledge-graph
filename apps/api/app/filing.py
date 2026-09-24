@@ -5,8 +5,9 @@ One document -> one substack (1:1 today; LLM-stage merging is future work):
 - whatsapp documents     -> "conversations" substacks
 
 `ingest_and_file` is the post-ingest hook: after a new document_revision
-lands it files the document, regenerates its substack's content, and
+lands it files the document, regenerates template content (Files), and
 marks+regenerates any other substack citing the superseded revision.
+LLM stacks (including Conversations) are only flagged here; Analyze generates them.
 """
 from uuid import UUID
 
@@ -14,7 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .embedding_jobs import enqueue_version_embedding
-from .generation import mark_stale_for_document, run_generation
+from .generation import LLM_STACK_TYPES, mark_stale_for_document, run_generation
 from .ingest import SourceDocument, drop_superseded_chunks, ingest_document
 from .models import Document, DocumentVersion, Substack, SubstackSource
 
@@ -62,7 +63,8 @@ def file_document(session: Session, document: Document) -> Substack | None:
         session.flush()
     else:
         substack.name = document.title
-    run_generation(session, substack)
+    if stack_type not in LLM_STACK_TYPES:
+        run_generation(session, substack)
     return substack
 
 
@@ -76,7 +78,7 @@ def ingest_and_file(session: Session, organization_id: UUID, source_document: So
         file_document(session, document)
         for substack_id in mark_stale_for_document(session, document.id):
             stale = session.get(Substack, substack_id)
-            if stale is not None and stale.stack_type in ("files", "conversations"):
+            if stale is not None and stale.stack_type not in LLM_STACK_TYPES:
                 run_generation(session, stale)
         drop_superseded_chunks(session, document.id)
         enqueue_version_embedding(session, version, document)

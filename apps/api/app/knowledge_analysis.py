@@ -7,9 +7,16 @@ from sqlalchemy.orm import Session
 
 from .config import get_settings
 from .entity_resolution import resolve_candidate
-from .extractions import ClientExtraction, DiscoveryOutput, ItemExtraction, SalesOrderExtraction
+from .extractions import (
+    ClientExtraction,
+    ConversationExtraction,
+    DiscoveryOutput,
+    ItemExtraction,
+    SalesOrderExtraction,
+)
+from .generation import TEMPLATE_MODEL
 from .jobs import JobNotReady, complete_run_if_last, enqueue_job
-from .llm import LLMResult, get_llm_client
+from .llm import get_llm_client
 from .models import (
     AnalysisRun,
     Chunk,
@@ -27,6 +34,7 @@ from .models import (
 from .prompts import (
     CLIENT_PROMPT,
     CLIENT_QUERIES,
+    CONVERSATION_PROMPT,
     DISCOVERY_PROMPT,
     ITEM_PROMPT,
     ITEM_QUERIES,
@@ -42,7 +50,45 @@ PROMPT_CONFIG = {
     "sales-orders": ("sales_orders.extract.v3", SALES_ORDER_PROMPT, SALES_ORDER_QUERIES, SalesOrderExtraction),
     "clients": ("clients.extract.v3", CLIENT_PROMPT, CLIENT_QUERIES, ClientExtraction),
     "items": ("items.extract.v3", ITEM_PROMPT, ITEM_QUERIES, ItemExtraction),
+    # Summarized from the chat's own transcript, not workspace retrieval, so there are no queries.
+    "conversations": ("conversations.summarize.v1", CONVERSATION_PROMPT, (), ConversationExtraction),
 }
+
+
+def _transcript_evidence(session: Session, substack: Substack) -> list[RetrievedChunk]:
+    """The most recent chunks of the latest transcript version of each chat linked to a Conversations record."""
+    documents = session.scalars(
+        select(Document)
+        .join(SubstackSource, SubstackSource.document_id == Document.id)
+        .where(SubstackSource.substack_id == substack.id)
+    ).all()
+    evidence: list[RetrievedChunk] = []
+    for document in documents:
+        version = session.scalar(
+            select(DocumentVersion)
+            .where(DocumentVersion.document_id == document.id)
+            .order_by(DocumentVersion.revision.desc())
+            .limit(1)
+        )
+        if version is None:
+            continue
+        recent = session.scalars(
+            select(Chunk)
+            .where(Chunk.document_version_id == version.id)
+            .order_by(Chunk.position.desc())
+            .limit(get_settings().analysis_max_chunks_per_document)
+        ).all()
+        evidence.extend(RetrievedChunk(chunk=chunk, document=document) for chunk in reversed(recent))
+    return evidence
+
+
+def _has_llm_content(session: Session, substack_id: UUID) -> bool:
+    return session.scalar(
+        select(func.count(SubstackContent.id)).where(
+            SubstackContent.substack_id == substack_id,
+            SubstackContent.model != TEMPLATE_MODEL,
+        )
+    ) > 0
 
 
 def _version_chunks(session: Session, version_id: UUID) -> list[Chunk]:
@@ -108,7 +154,9 @@ def _link_document_entities(session: Session, version_id: UUID) -> None:
                 )
             )
             if exists is None:
-                session.add(SubstackLink(substack_id=left, related_substack_id=right, reason="discovered in the same evidence"))
+                session.add(SubstackLink(
+                    substack_id=left, related_substack_id=right, reason="discovered in the same evidence",
+                ))
 
 
 def discover_document(session: Session, version_id: UUID, run_id: UUID | None, generate: str = "affected") -> int:
@@ -124,7 +172,9 @@ def discover_document(session: Session, version_id: UUID, run_id: UUID | None, g
     chunks = _version_chunks(session, version.id)
     if not chunks:
         raise ValueError("document_has_no_current_embeddings")
-    result = get_llm_client().parse(prompt=DISCOVERY_PROMPT, evidence=_chunk_evidence(chunks, document), schema=DiscoveryOutput)
+    result = get_llm_client().parse(
+        prompt=DISCOVERY_PROMPT, evidence=_chunk_evidence(chunks, document), schema=DiscoveryOutput,
+    )
     output = result.parsed
     if not isinstance(output, DiscoveryOutput):
         raise ValueError("invalid_discovery_output")
@@ -174,9 +224,30 @@ def discover_document(session: Session, version_id: UUID, run_id: UUID | None, g
             owner_user_id=document.owner_user_id,
             kind="generate_substack",
             payload={"substack_id": str(substack.id)},
-            dedupe_key=f"generate:{substack.id}:{version.id}:{generation_prompt_key}:{settings.analysis_config_version}:{settings.openai_model}",
+            dedupe_key=f"generate:{substack.id}:{version.id}:{generation_prompt_key}"
+                       f":{settings.analysis_config_version}:{settings.openai_model}",
             analysis_run_id=run_id,
         )
+    conversations = session.scalars(
+        select(Substack)
+        .join(SubstackSource, SubstackSource.substack_id == Substack.id)
+        .where(SubstackSource.document_id == document.id, Substack.stack_type == "conversations")
+    ).all()
+    queued_conversations = 0
+    for conversation in conversations:
+        if generate != "affected" and _has_llm_content(session, conversation.id):
+            continue
+        enqueue_job(
+            session,
+            organization_id=document.organization_id,
+            owner_user_id=document.owner_user_id,
+            kind="generate_substack",
+            payload={"substack_id": str(conversation.id)},
+            dedupe_key=f"generate:{conversation.id}:{version.id}:{PROMPT_CONFIG['conversations'][0]}"
+                       f":{settings.analysis_config_version}:{settings.openai_model}",
+            analysis_run_id=run_id,
+        )
+        queued_conversations += 1
     _link_document_entities(session, version.id)
     for substack_id in {mention.substack_id for mention in previous_mentions if mention.substack_id}:
         current_mentions = session.scalar(select(func.count(EntityMention.id)).where(
@@ -188,12 +259,12 @@ def discover_document(session: Session, version_id: UUID, run_id: UUID | None, g
             if unsupported is not None:
                 unsupported.review_state = "unsupported"
     if run is not None:
-        run.status = "generating" if candidates else "discovering"
+        run.status = "generating" if candidates or queued_conversations else "discovering"
         run.candidates_found += len(candidates)
         run.substacks_created += created_count
         run.substacks_updated += updated_count
         run.documents_processed += 1
-        if not candidates:
+        if not candidates and not queued_conversations:
             complete_run_if_last(session, run.id)
     session.commit()
     return len(candidates)
@@ -214,6 +285,19 @@ def _exact_terms(session: Session, substack: Substack) -> tuple[str, ...]:
 
 
 def _report_segments(extraction: BaseModel) -> list[Segment]:
+    """Plain prose segments. Conversation topics carry their heading in `name`, kind and date in `locator`."""
+    if isinstance(extraction, ConversationExtraction):
+        return [
+            Segment(
+                kind="text",
+                name=topic.title.strip(),
+                value=topic.summary.value,
+                citations=topic.summary.citations,
+                locator={"kind": topic.kind, "date": topic.date},
+            )
+            for topic in extraction.topics
+            if topic.title.strip() and topic.summary.value
+        ]
     return [
         Segment(kind="text", value=paragraph.value, citations=paragraph.citations)
         for paragraph in getattr(extraction, "report", [])
@@ -263,7 +347,7 @@ def _high_confidence(substack: Substack, extraction: BaseModel) -> bool:
 
 
 def llm_substacks(session: Session, organization_id: UUID, owner_user_id: UUID | None):
-    """LLM-generated records (sales orders, clients, items) in one visibility scope."""
+    """LLM-generated records (sales orders, clients, items, conversations) in one visibility scope."""
     owner_filter = (
         Substack.owner_user_id.is_(None) if owner_user_id is None else Substack.owner_user_id == owner_user_id
     )
@@ -323,11 +407,18 @@ def generate_substack(session: Session, substack_id: UUID, run_id: UUID | None, 
         raise ValueError("unsupported_substack")
     prompt_key, prompt, queries, schema = PROMPT_CONFIG[substack.stack_type]
     prompt_version = prompt_key.rsplit(".", 1)[-1]
-    exact_terms = _exact_terms(session, substack)
-    retrieved = merge_retrieval([
-        retrieve_chunks(session, substack.organization_id, substack.owner_user_id, f"{query} {' '.join(exact_terms)}", exact_terms=exact_terms)
-        for query in queries
-    ])
+    is_conversation = substack.stack_type == "conversations"
+    if is_conversation:
+        retrieved = _transcript_evidence(session, substack)
+    else:
+        exact_terms = _exact_terms(session, substack)
+        retrieved = merge_retrieval([
+            retrieve_chunks(
+                session, substack.organization_id, substack.owner_user_id,
+                f"{query} {' '.join(exact_terms)}", exact_terms=exact_terms,
+            )
+            for query in queries
+        ])
     if not retrieved:
         substack.review_state = "unsupported"
         session.commit()
@@ -352,18 +443,30 @@ def generate_substack(session: Session, substack_id: UUID, run_id: UUID | None, 
         return latest
     result = get_llm_client().parse(prompt=prompt, evidence=evidence_text(retrieved), schema=schema)
     extraction = result.parsed
-    if len(getattr(extraction, "report", [])) < 2 or any(not paragraph.value for paragraph in extraction.report):
+    if not is_conversation and (
+        len(getattr(extraction, "report", [])) < 2 or any(not paragraph.value for paragraph in extraction.report)
+    ):
         raise ValueError("generation_missing_natural_language_report")
     if not _valid_citations(extraction, allowed):
         raise ValueError("generation_citation_outside_evidence")
     if not _all_facts_cited(extraction):
         raise ValueError("generation_contains_uncited_fact")
+    # Message-list template content predates LLM summaries; it is replaced, not kept as the live version.
+    for obsolete in session.scalars(select(SubstackContent).where(
+        SubstackContent.substack_id == substack.id,
+        SubstackContent.model == TEMPLATE_MODEL,
+        SubstackContent.status.in_(("confirmed", "proposed")),
+    )):
+        obsolete.status = "superseded"
+    session.flush()
     confirmed = session.scalar(
         select(SubstackContent)
         .where(SubstackContent.substack_id == substack.id, SubstackContent.status == "confirmed")
         .order_by(SubstackContent.revision.desc())
         .limit(1)
     )
+    if confirmed is None:
+        substack.status = "proposed"
     auto_confirm = confirmed is None and _high_confidence(substack, extraction)
     segments = _report_segments(extraction)
     content = SubstackContent(

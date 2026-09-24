@@ -12,7 +12,10 @@
   uvicorn, `apps/api/.venv`), plus the knowledge worker (`turbo run dev worker`)
 - Web only: `pnpm dev` in `apps/web`
 - Verify web changes: `pnpm check-types` and `pnpm lint` in `apps/web`
-- Knowledge worker: `pnpm worker` in `apps/api` (run alongside the API); process one queued job with `pnpm worker:once`
+- Knowledge worker: `pnpm worker` in `apps/api` (run alongside the API; restarts on
+  Python changes in `app/` and `scripts/`, like the API's `--reload`); process one
+  queued job with `pnpm worker:once`. Production runs `python -m scripts.worker`
+  directly (`render.yaml`).
 - LLM extraction requires `OPENAI_API_KEY` in `apps/api/.env`; never commit or log it
 
 ## Structure
