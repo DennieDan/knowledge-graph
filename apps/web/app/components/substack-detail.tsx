@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Icon from "./icons";
+import ClientPicture from "./client-picture";
 import { type StackType, type Substack, type UiSubstackDetail } from "../lib/stacks";
 import { track } from "../lib/analytics";
 import styles from "./substack-detail.module.css";
@@ -12,6 +13,7 @@ interface Props {
   detail: UiSubstackDetail | null;
   details: Record<string, UiSubstackDetail>;
   backLabel: string;
+  accountId: string | null;
   onBack: () => void;
   /** Present when the record was opened from the Analyze workspace queue. */
   queue: { position: number; total: number; onPrev: (() => void) | null; onNext: (() => void) | null } | null;
@@ -36,7 +38,7 @@ function HighlightedToken({ children, sourceIds, onHover }: { children: React.Re
   return <mark className={styles.highlightedToken} onMouseEnter={() => onHover(sourceIds)} onMouseLeave={() => onHover(null)}>{children}</mark>;
 }
 
-export default function SubstackDetail({ substack, stackTypes, detail, details, backLabel, onBack, queue, onOpen, onEnsureDetail, onConfirmContent, onKeepCurrentContent }: Props) {
+export default function SubstackDetail({ substack, stackTypes, detail, details, backLabel, accountId, onBack, queue, onOpen, onEnsureDetail, onConfirmContent, onKeepCurrentContent }: Props) {
   const [query, setQuery] = useState("");
   const [showPending, setShowPending] = useState(false);
   const [updateMenuOpen, setUpdateMenuOpen] = useState(false);
@@ -47,6 +49,7 @@ export default function SubstackDetail({ substack, stackTypes, detail, details, 
   const [panelOpen, setPanelOpen] = useState(true);
   const type = stackTypes.find((item) => item.id === substack.typeId);
   const isConversation = substack.typeId === "conversations";
+  const isClient = substack.typeId === "clients";
   const sources = detail?.sources ?? [];
   const previewSources = relatedPreviewId && details[relatedPreviewId] ? details[relatedPreviewId].sources : sources;
   const visibleSources = hoveredSourceIds ? previewSources.filter((source) => hoveredSourceIds.includes(source.id)) : previewSources;
@@ -211,6 +214,15 @@ export default function SubstackDetail({ substack, stackTypes, detail, details, 
               <p className={styles.empty}>{(displayed?.segments.length ?? 0) === 0 ? (substack.generating ? "Generating content…" : "No generated content yet.") : "No matching content."}</p>
             )}
           </div>
+        )}
+
+        {isClient && accountId && (
+          <ClientPicture
+            accountId={accountId}
+            substackId={substack.id}
+            stackTypes={stackTypes}
+            onOpen={onOpen}
+          />
         )}
 
         <section className={`${styles.related} ${relatedOpen ? "" : styles.relatedClosed}`}>

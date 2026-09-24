@@ -875,6 +875,7 @@ export default function WorkspaceShell() {
                 stackTypes={stackTypes}
                 detail={selectedSubstack ? details[selectedSubstack.id] ?? null : null}
                 details={details}
+                accountId={activeAccount?.id ?? null}
                 backLabel={`Back to ${hrefLabel(backHref ?? parentHref)}`}
                 onBack={goBack}
                 queue={queueNav && {

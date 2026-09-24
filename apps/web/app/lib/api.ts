@@ -300,6 +300,26 @@ export function getSubstackDetail(id: string): Promise<ApiSubstackDetail> {
   return apiFetch(`/substacks/${id}`);
 }
 
+export interface ApiPictureNode {
+  id: string;
+  type_id: string;
+  name: string;
+  depth: number;
+}
+
+export interface ApiClientPicture {
+  subject: ApiPictureNode;
+  nodes: ApiPictureNode[];
+  edges: { from_id: string; to_id: string; relation: string; source: string }[];
+  omitted_neighbours: Record<string, number>;
+  truncated: boolean;
+  caps: { max_depth: number; max_nodes: number; max_neighbours_per_node: number };
+}
+
+export function getClientPicture(accountId: string, substackId: string): Promise<ApiClientPicture> {
+  return apiFetch(`/accounts/${accountId}/clients/${substackId}/picture`);
+}
+
 export function createSubstack(
   accountId: string,
   input: { stack_type: string; name: string; summary?: string; generate?: boolean },
