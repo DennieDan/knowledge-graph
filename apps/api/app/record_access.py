@@ -1,7 +1,15 @@
 """Field-level record access by membership role (#101).
 
 App-layer filter matching issue #9's single enforcement point. Planner and
-supervisor never see price-derived claim fields. RLS belongs in a follow-up.
+supervisor never see price-derived claim fields. That filter is the primary
+gate on every read surface.
+
+Postgres RLS (migration 0017) is the second gate: organization_id isolation
+via GUC app.organization_id. Call set_request_org at the start of a request
+when reading under RLS. claims policies apply only once that table exists
+(#93 / records-claims); until then findings and substack_contents carry the
+demonstration policies. FORCE ROW LEVEL SECURITY stays off (and local Docker may BYPASSRLS)
+until middleware always sets the GUC and the API role is subject to RLS.
 
 Conflict with main / #9: organization_memberships still accept admin|member
 alongside the PRD roles owner|sales|planner|supervisor. Do not delete the
@@ -12,10 +20,24 @@ from __future__ import annotations
 from typing import Any, Mapping, Sequence
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from .models import OrganizationMembership
+
+
+def set_request_org(session: Session, org_id: UUID | None) -> None:
+    """Set (or clear) Postgres GUC app.organization_id for the RLS second gate.
+
+    Uses SET LOCAL semantics (third set_config arg true) so the value lasts
+    for the current transaction only. Pass None to clear — with RLS FORCE on,
+    SELECT then returns no rows.
+    """
+    value = "" if org_id is None else str(org_id)
+    session.execute(
+        text("SELECT set_config('app.organization_id', :org_id, true)"),
+        {"org_id": value},
+    )
 
 # Keys that are prices or that close over a price (quantity + line_total → unit_price).
 PRICE_DERIVED_FIELDS: frozenset[str] = frozenset(
