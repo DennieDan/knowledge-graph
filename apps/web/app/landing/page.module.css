@@ -119,7 +119,7 @@
     color-mix(in srgb, var(--teal) 85%, transparent),
     transparent 70%
   );
-  animation: drift 24s ease-in-out infinite alternate;
+  animation: drift 14s ease-in-out infinite alternate;
 }
 
 .hero::after {
@@ -132,7 +132,7 @@
     color-mix(in srgb, var(--deep) 90%, var(--teal)),
     transparent 70%
   );
-  animation: drift 30s ease-in-out 2s infinite alternate-reverse;
+  animation: drift 17s ease-in-out 1s infinite alternate-reverse;
 }
 
 @keyframes drift {
@@ -253,7 +253,7 @@
   backdrop-filter: blur(10px);
   font-size: 14px;
   line-height: 1.45;
-  animation: float 9s ease-in-out infinite;
+  animation: floatA 9s ease-in-out infinite;
   transition:
     translate 220ms ease,
     scale 220ms ease,
@@ -270,14 +270,75 @@
   animation-play-state: paused;
 }
 
-@keyframes float {
-  0%,
-  100% {
-    transform: translateY(0) rotate(0deg);
+@keyframes floatA {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
   }
 
-  50% {
-    transform: translateY(-14px) rotate(-0.5deg);
+  30% {
+    transform: translate3d(10px, -16px, 0) rotate(-0.8deg);
+  }
+
+  65% {
+    transform: translate3d(-8px, -6px, 0) rotate(0.6deg);
+  }
+
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+}
+
+@keyframes floatB {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+
+  40% {
+    transform: translate3d(-14px, 12px, 0) rotate(0.9deg);
+  }
+
+  75% {
+    transform: translate3d(6px, -14px, 0) rotate(-0.5deg);
+  }
+
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+}
+
+@keyframes floatC {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+
+  25% {
+    transform: translate3d(12px, 10px, 0) rotate(0.7deg);
+  }
+
+  55% {
+    transform: translate3d(-10px, -12px, 0) rotate(-0.9deg);
+  }
+
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+}
+
+@keyframes floatD {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+
+  35% {
+    transform: translate3d(-9px, -18px, 0) rotate(-0.6deg);
+  }
+
+  70% {
+    transform: translate3d(14px, 4px, 0) rotate(1deg);
+  }
+
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
   }
 }
 
@@ -336,7 +397,8 @@
   top: 0;
   left: 0;
   width: 300px;
-  animation-duration: 9.5s;
+  animation-name: floatB;
+  animation-duration: 6.2s;
 }
 
 .cardProposal {
@@ -344,8 +406,9 @@
   right: 0;
   width: 320px;
   background: color-mix(in srgb, var(--deep) 88%, transparent);
-  animation-duration: 11s;
-  animation-delay: -3s;
+  animation-name: floatC;
+  animation-duration: 7.4s;
+  animation-delay: -2.1s;
 }
 
 .cardConfirmed {
@@ -353,16 +416,17 @@
   left: 0;
   width: 290px;
   background: color-mix(in srgb, var(--teal) 55%, var(--ink));
-  animation-duration: 12.5s;
-  animation-delay: -6s;
+  animation-name: floatD;
+  animation-duration: 5.6s;
+  animation-delay: -3.7s;
 }
 
 .cardAsk {
   bottom: 0;
   right: 24px;
   width: 250px;
-  animation-duration: 10.5s;
-  animation-delay: -1.5s;
+  animation-duration: 6.9s;
+  animation-delay: -4.9s;
 }
 
 @media (prefers-reduced-motion: reduce) {
