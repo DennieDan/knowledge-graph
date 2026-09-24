@@ -512,6 +512,7 @@ export interface ChatMessage {
   citations: ChatCitation[];
   steps: ChatStep[];
   feedback: "up" | "down" | null;
+  feedback_reason?: string | null;
   created_at: string | null;
 }
 
@@ -538,10 +539,17 @@ export function getChatThread(accountId: string, threadId: string): Promise<Chat
   return apiFetch(`/accounts/${accountId}/chat/threads/${threadId}`);
 }
 
-export function postChatMessage(accountId: string, threadId: string, text: string): Promise<ChatMessage> {
+export function postChatMessage(
+  accountId: string,
+  threadId: string,
+  text: string,
+  options?: { substackId?: string | null },
+): Promise<ChatMessage> {
+  const body: { text: string; substack_id?: string } = { text };
+  if (options?.substackId) body.substack_id = options.substackId;
   return apiFetch(`/accounts/${accountId}/chat/threads/${threadId}/messages`, {
     method: "POST",
-    body: JSON.stringify({ text }),
+    body: JSON.stringify(body),
   });
 }
 
@@ -560,13 +568,16 @@ export async function streamChatMessage(
   threadId: string,
   text: string,
   onProgress: (event: ChatProgress) => void,
+  options?: { substackId?: string | null },
 ): Promise<ChatMessage> {
   const path = `/accounts/${accountId}/chat/threads/${threadId}/messages/stream`;
+  const body: { text: string; substack_id?: string } = { text };
+  if (options?.substackId) body.substack_id = options.substackId;
   const res = await fetch(`${API_URL}${path}`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify(body),
   });
   if (!res.ok || !res.body) {
     const detail = await res.json().catch(() => ({}));
@@ -595,10 +606,17 @@ export async function streamChatMessage(
   throw new Error("chat_stream_ended_early");
 }
 
-export function setChatFeedback(accountId: string, messageId: string, rating: "up" | "down"): Promise<ChatMessage> {
+export function setChatFeedback(
+  accountId: string,
+  messageId: string,
+  rating: "up" | "down",
+  reason?: string | null,
+): Promise<ChatMessage> {
+  const body: { rating: string; reason?: string } = { rating };
+  if (reason) body.reason = reason;
   return apiFetch(`/accounts/${accountId}/chat/messages/${messageId}/feedback`, {
     method: "POST",
-    body: JSON.stringify({ rating }),
+    body: JSON.stringify(body),
   });
 }
 

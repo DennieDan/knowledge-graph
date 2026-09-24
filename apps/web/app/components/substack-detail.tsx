@@ -22,6 +22,7 @@ interface Props {
   onEnsureDetail: (id: string) => void;
   onConfirmContent: (contentId: string) => void;
   onKeepCurrentContent: (contentId: string) => void;
+  onAsk?: () => void;
 }
 
 type UpdateAction = "confirm" | "keep";
@@ -39,7 +40,7 @@ function HighlightedToken({ children, sourceIds, onHover }: { children: React.Re
   return <mark className={styles.highlightedToken} onMouseEnter={() => onHover(sourceIds)} onMouseLeave={() => onHover(null)}>{children}</mark>;
 }
 
-export default function SubstackDetail({ substack, stackTypes, detail, details, backLabel, accountId, onBack, queue, onOpen, onEnsureDetail, onConfirmContent, onKeepCurrentContent }: Props) {
+export default function SubstackDetail({ substack, stackTypes, detail, details, backLabel, accountId, onBack, queue, onOpen, onEnsureDetail, onConfirmContent, onKeepCurrentContent, onAsk }: Props) {
   const [query, setQuery] = useState("");
   const [showPending, setShowPending] = useState(false);
   const [updateMenuOpen, setUpdateMenuOpen] = useState(false);
@@ -145,11 +146,16 @@ export default function SubstackDetail({ substack, stackTypes, detail, details, 
               <button type="button" onClick={queue.onNext ?? undefined} disabled={!queue.onNext} aria-label="Next item to check"><Icon name="chevron-right" size={16} /></button>
             </nav>
           )}
-          <button className={queue || canReply ? `${styles.panelToggle} ${styles.panelToggleInline}` : styles.panelToggle} onClick={() => togglePanel(!panelOpen)} aria-label={panelOpen ? "Close side panel" : "Open side panel"} aria-expanded={panelOpen}><Icon name="panel-right" size={18} /></button>
+          {onAsk && (
+            <button type="button" className={queue ? styles.askButton : `${styles.askButton} ${styles.replyButtonEnd}`} onClick={onAsk} aria-label="Ask about this record">
+              <Icon name="message-circle" size={14} /> Ask about this
+            </button>
+          )}
+          <button className={queue || canReply || onAsk ? `${styles.panelToggle} ${styles.panelToggleInline}` : styles.panelToggle} onClick={() => togglePanel(!panelOpen)} aria-label={panelOpen ? "Close side panel" : "Open side panel"} aria-expanded={panelOpen}><Icon name="panel-right" size={18} /></button>
           {canReply && (
             <button
               type="button"
-              className={queue ? styles.replyButton : `${styles.replyButton} ${styles.replyButtonEnd}`}
+              className={queue || onAsk ? styles.replyButton : `${styles.replyButton} ${styles.replyButtonEnd}`}
               onClick={openReply}
               disabled={replyBusy}
               aria-label="Draft a reply from this order"
@@ -353,7 +359,15 @@ export default function SubstackDetail({ substack, stackTypes, detail, details, 
           {visibleSources.map((source, index) => <button key={`${source.id}-${index}`} onClick={() => { track("source_opened", { stack_type: substack.typeId, source_type: source.type }); if (source.substackId) onOpen(source.substackId); }}><b>{String(index + 1).padStart(2, "0")}</b><span><strong>{source.name}</strong><small>{source.type} · {source.origin} · {source.updated}</small><small>{source.note}</small></span></button>)}
           {visibleSources.length === 0 && <div className={styles.emptyPanel}><Icon name="file-text" size={20} /><p>No sources linked to this content.</p></div>}
         </div>
-        <button className={styles.chat}>Chat with POPO <Icon name="chevron-down" /></button>
+        {onAsk ? (
+          <button type="button" className={styles.chat} onClick={onAsk}>
+            Ask about this <Icon name="message-circle" size={14} />
+          </button>
+        ) : (
+          <button type="button" className={styles.chat} disabled>
+            Ask about this
+          </button>
+        )}
       </aside>}
     </div>
   );
