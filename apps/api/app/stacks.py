@@ -5,7 +5,7 @@ org-wide (NULL). Responses mirror the frontend's Substack/SubstackDetail
 shapes so the Stacks tab can swap mock data for real rows 1:1.
 """
 from datetime import datetime, timezone
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -327,6 +327,29 @@ def update_substack(
     if body.summary is not None:
         substack.summary = body.summary
     session.commit()
+    return _substack_json(session, substack, user)
+
+
+@router.post("/substacks/{substack_id}/retry-generation")
+def retry_generation(
+    substack_id: UUID,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Queue a fresh forced generation for a record whose last generation failed."""
+    substack = _get_substack(substack_id, user, session)
+    if substack.review_state != "generation_error":
+        raise HTTPException(status_code=409, detail="generation_not_failed")
+    if not _generating_ids(session, [substack.id]):
+        enqueue_job(
+            session,
+            organization_id=substack.organization_id,
+            owner_user_id=substack.owner_user_id,
+            kind="generate_substack",
+            payload={"substack_id": str(substack.id), "force": True},
+            dedupe_key=f"retry:{substack.id}:{uuid4()}",
+        )
+        session.commit()
     return _substack_json(session, substack, user)
 
 

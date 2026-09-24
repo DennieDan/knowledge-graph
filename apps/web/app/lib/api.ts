@@ -311,6 +311,10 @@ export function deleteSubstack(id: string): Promise<{ status: string }> {
   return apiFetch(`/substacks/${id}`, { method: "DELETE" });
 }
 
+export function retrySubstackGeneration(id: string): Promise<ApiSubstack> {
+  return apiFetch(`/substacks/${id}/retry-generation`, { method: "POST" });
+}
+
 export function confirmSubstack(id: string): Promise<ApiSubstack> {
   return apiFetch(`/substacks/${id}/confirm`, { method: "POST" });
 }

@@ -361,6 +361,26 @@ class StacksApiTests(unittest.TestCase):
             created = post(stack_type, "x")
             self.assertEqual(200, created.status_code, stack_type)
 
+    def test_retry_generation_queues_one_forced_job_for_failed_record(self):
+        self.ingest(owner=self.alice.id)
+        substack_id = self.list_substacks(self.alice)[0]["id"]
+        url = f"/substacks/{substack_id}/retry-generation"
+        self.assertEqual("generation_not_failed", self.client.post(url).json()["detail"])
+        self.session.get(Substack, UUID(substack_id)).review_state = "generation_error"
+        self.session.flush()
+        self.current_user = self.bob
+        self.assertEqual(404, self.client.post(url).status_code)
+        self.current_user = self.alice
+        first = self.client.post(url)
+        self.assertEqual(200, first.status_code)
+        self.assertTrue(first.json()["generating"])
+        self.assertEqual(200, self.client.post(url).status_code)
+        jobs = self.session.scalars(
+            select(KnowledgeJob).where(KnowledgeJob.dedupe_key.like(f"retry:{substack_id}:%"))
+        ).all()
+        self.assertEqual(1, len(jobs))
+        self.assertEqual({"substack_id": substack_id, "force": True}, jobs[0].payload)
+
     def test_delete_substack_removes_it_and_its_content(self):
         self.ingest(owner=self.alice.id)
         substack_id = self.list_substacks(self.alice)[0]["id"]

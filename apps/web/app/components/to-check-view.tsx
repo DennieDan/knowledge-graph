@@ -71,6 +71,8 @@ export default function ToCheckView({
   onAnalyze,
   onConfirmAll,
   onRetryAnalysis,
+  onRetryGeneration,
+  onDelete,
 }: {
   accountId: string | null;
   stackTypes: StackType[];
@@ -86,6 +88,8 @@ export default function ToCheckView({
   onAnalyze: () => void;
   onConfirmAll: () => void;
   onRetryAnalysis: (runId: string) => void;
+  onRetryGeneration: (ss: Substack) => void;
+  onDelete: (ss: Substack) => void;
 }) {
   const activeRun = analysisRuns.find((run) =>
     ["queued", "embedding", "discovering", "generating"].includes(run.status)
@@ -336,6 +340,22 @@ export default function ToCheckView({
                       >
                         <Icon name="check" size={13} /> Confirm
                       </button>
+                    ) : ss.reviewState === "generation_error" ? (
+                      <>
+                        <button type="button" className={styles.reviewBtn} disabled={busy} onClick={() => onRetryGeneration(ss)}>
+                          <Icon name="refresh-cw" size={13} /> Retry
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.iconBtn}
+                          disabled={busy}
+                          onClick={() => onDelete(ss)}
+                          aria-label={`Delete ${ss.name}`}
+                          title="Delete"
+                        >
+                          <Icon name="trash" size={14} />
+                        </button>
+                      </>
                     ) : (
                       <Link href={href} scroll={false} className={styles.reviewBtn} onClick={(event) => onOpen(event, href)}>
                         {kind === "update" ? "Review update" : "Review"}

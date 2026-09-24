@@ -42,6 +42,7 @@ import {
   loginUrl,
   logout,
   retryAnalysis,
+  retrySubstackGeneration,
   startAnalysis,
   type AnalysisRun,
   type Me,
@@ -65,7 +66,7 @@ import styles from "./workspace-shell.module.css";
 type ModalState =
   | null
   | { kind: "createSubstack"; typeId: string }
-  | { kind: "deleteSubstack"; substack: Substack };
+  | { kind: "deleteSubstack"; substack: Substack; message?: string };
 
 const NAV_ITEMS = [
   { icon: "activity", label: "Analyze workspace", id: "tocheck" },
@@ -400,6 +401,20 @@ export default function WorkspaceShell() {
     retryAnalysis(runId)
       .then(({ run }) => setAnalysisRuns((runs) => [run, ...runs.filter((item) => item.id !== run.id)]))
       .catch((reason) => showNotice(reason instanceof Error ? reason.message : "Analysis could not be retried."))
+      .finally(() => setAnalysisBusy(false));
+  };
+
+  const handleRetryGeneration = (ss: Substack) => {
+    if (analysisBusy) return;
+    setAnalysisBusy(true);
+    retrySubstackGeneration(ss.id)
+      .then((row) => {
+        track("substack_generation_retried", { stack_type: ss.typeId });
+        const updated = toSubstack(row);
+        setSubstacks((prev) => prev.map((item) => (item.id === ss.id ? updated : item)));
+        showNotice(`Regenerating "${ss.name}".`);
+      })
+      .catch((reason) => showNotice(reason instanceof Error ? reason.message : "Generation could not be retried."))
       .finally(() => setAnalysisBusy(false));
   };
 
@@ -771,6 +786,12 @@ export default function WorkspaceShell() {
                 onAnalyze={handleAnalyze}
                 onConfirmAll={handleConfirmAll}
                 onRetryAnalysis={handleRetryAnalysis}
+                onRetryGeneration={handleRetryGeneration}
+                onDelete={(substack) => setModal({
+                  kind: "deleteSubstack",
+                  substack,
+                  message: "This substack may not be generated in the future.",
+                })}
               />
             </div>
           )}
@@ -868,6 +889,7 @@ export default function WorkspaceShell() {
         <Modal onClose={closeModal}>
           <DeleteSubstackModal
             substack={modal.substack}
+            message={modal.message}
             onClose={closeModal}
             onConfirm={() => handleDeleteSubstack(modal.substack)}
           />
