@@ -22,6 +22,9 @@ from .queue import router as queue_router
 
 
 from .replies import router as replies_router
+
+
+from .morning import router as morning_router
 from .search import router as search_router
 from .stacks import router as stacks_router
 from .timeline import router as timeline_router
@@ -75,6 +78,9 @@ app.include_router(health_router)
 # #93 Steps 3–4: review queue + order timeline (extend findings; keep /findings).
 app.include_router(queue_router)
 app.include_router(timeline_router)
+
+
+app.include_router(morning_router)
 
 
 @app.get("/health")

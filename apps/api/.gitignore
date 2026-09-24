@@ -6,3 +6,4 @@ __pycache__/
 .ruff_cache/
 dist/
 .seed_tokens.json
+.venv

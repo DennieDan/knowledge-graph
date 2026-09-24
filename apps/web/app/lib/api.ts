@@ -611,6 +611,20 @@ export interface FindingRow {
   subject_id: string;
 }
 
+export interface MorningMessage {
+  waiting_count: number;
+  items: FindingRow[];
+  generated_at: string;
+}
+
+export interface MorningDeliveryResult {
+  channel: string;
+  dry_run: boolean;
+  delivery_id: string;
+  waiting_count: number;
+  generated_at: string;
+}
+
 export function listFindings(accountId: string): Promise<{ findings: FindingRow[]; dismissal_reasons: string[] }> {
   return apiFetch(`/accounts/${accountId}/findings`);
 }
@@ -669,4 +683,12 @@ export interface HealthSnapshot {
 
 export function getHealth(accountId: string): Promise<HealthSnapshot> {
   return apiFetch(`/accounts/${accountId}/health`);
+}
+
+export function getMorning(accountId: string): Promise<MorningMessage> {
+  return apiFetch(`/accounts/${accountId}/morning`);
+}
+
+export function deliverMorning(accountId: string): Promise<MorningDeliveryResult> {
+  return apiFetch(`/accounts/${accountId}/morning/deliver`, { method: "POST", body: JSON.stringify({}) });
 }

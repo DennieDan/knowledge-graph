@@ -858,3 +858,19 @@ class StackField(Base):
     required: Mapped[bool] = mapped_column(Boolean, default=False)
     meaning: Mapped[Optional[str]] = mapped_column(Text)
     searchable: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class MorningDelivery(Base):
+    """Logged morning-message deliveries (#95). Email is dry-run only — no SMTP send."""
+
+    __tablename__ = "morning_deliveries"
+    __table_args__ = (
+        CheckConstraint("channel IN ('email','in_app')", name="valid_morning_delivery_channel"),
+        Index("ix_morning_deliveries_org_user", "organization_id", "user_id"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    channel: Mapped[str] = mapped_column(String(20))
+    payload: Mapped[dict] = mapped_column(JSONB, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
