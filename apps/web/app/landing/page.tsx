@@ -274,9 +274,8 @@ export default function LandingPage() {
             <p className={styles.sectionLabel}>04 / Pricing</p>
             <h2>Priced per team, not per order.</h2>
             <p className={styles.sectionBody}>
-              Billed monthly in SGD. Every plan includes onboarding of your
-              existing order formats, and you can leave with your data whenever
-              you like.
+              Priced in SGD. Every plan includes onboarding of your existing
+              order formats, and you can leave with your data whenever you like.
             </p>
           </div>
           <PricingTabs />

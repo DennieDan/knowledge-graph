@@ -18,13 +18,13 @@ function priceFor(
     return { price: plan.price, cadence: plan.cadence, note: null };
   }
   if (period === "monthly") {
-    return { price: plan.price, cadence: plan.cadence, note: null };
+    return { price: plan.price, cadence: plan.cadence, note: "Billed monthly" };
   }
   const yearly = plan.monthlyPrice * annualMonthsCharged;
   return {
     price: `S$${Math.round(yearly / 12)}`,
     cadence: "/month",
-    note: `S$${yearly.toLocaleString("en-SG")} billed yearly`,
+    note: `S$${yearly.toLocaleString("en-SG")} billed yearly · monthly figure rounded`,
   };
 }
 
