@@ -82,6 +82,7 @@ function AnswerBlock({
   };
 
   const queries = (message.steps ?? [])
+    .filter((s) => !s.skipped)
     .map((s) => s.query)
     .filter((q): q is string => Boolean(q));
 
@@ -251,6 +252,7 @@ export default function SearchView({
     setProgress([]);
     setError("");
     const savedCount = messages.length;
+    const localId = `local-${Date.now()}`;
     let id = threadId;
     try {
       if (!id) {
@@ -262,7 +264,7 @@ export default function SearchView({
       setMessages((m) => [
         ...m,
         {
-          id: `local-${Date.now()}`,
+          id: localId,
           role: "user",
           text,
           answered: true,
@@ -286,6 +288,7 @@ export default function SearchView({
         setMessages(saved.messages);
         setInput("");
       } else {
+        setMessages((m) => m.filter((msg) => msg.id !== localId));
         setError("Could not get an answer. Try again.");
       }
     } finally {
