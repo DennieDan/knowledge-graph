@@ -5,6 +5,7 @@ from uuid import uuid4
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.database import get_engine
 from app.entity_resolution import identity_for_candidate, resolve_candidate
 from app.extractions import (
@@ -38,6 +39,16 @@ class FakeLLM:
 
     def parse(self, **_kwargs):
         return LLMResult(parsed=self.output, request_id="fake-request", input_tokens=10, output_tokens=5)
+
+
+class RecordingLLM(FakeLLM):
+    def __init__(self, output):
+        super().__init__(output)
+        self.calls = []
+
+    def parse(self, **kwargs):
+        self.calls.append(kwargs)
+        return super().parse(**kwargs)
 
 
 class KnowledgePipelineTests(unittest.TestCase):
@@ -298,6 +309,49 @@ class KnowledgePipelineTests(unittest.TestCase):
         self.assertIn("Acme Engineering is identified", content.content["segments"][0]["value"])
         citations = self.session.scalars(select(ContentCitation).where(ContentCitation.content_id == content.id)).all()
         self.assertTrue(citations)
+
+    def test_described_record_uses_description_and_named_file_as_evidence(self):
+        named, _, named_chunk = self.make_document()
+        named.title = "Acme PO 4471.pdf"
+        named_chunk.embedding = [0.0, 1.0] + [0.0] * 382
+        other, _, other_chunk = self.make_document()
+        other.title = "PO"
+        self.session.flush()
+        substack = Substack(
+            organization_id=self.organization.id,
+            stack_type="clients",
+            name="Acme",
+            summary="The client on acme po 4471, 500 brackets",
+            created_by="user",
+            status="proposed",
+            review_state="pending",
+        )
+        self.session.add(substack)
+        self.session.flush()
+        extraction = ClientExtraction(
+            report=[
+                EvidenceValue(value="Acme Engineering is identified by UEN 201912345K.", citations=[str(named_chunk.id)]),
+                EvidenceValue(value="No commercial terms are stated.", citations=[str(named_chunk.id)]),
+            ],
+            name=EvidenceValue(value="Acme Engineering", citations=[str(named_chunk.id)]),
+        )
+        llm = RecordingLLM(extraction)
+        settings = get_settings().model_copy(update={"retrieval_max_chunks": 1})
+        with patch("app.retrieval.embed_query", return_value=[1.0] + [0.0] * 383), patch(
+            "app.knowledge_analysis.get_llm_client", return_value=llm
+        ), patch("app.knowledge_analysis.get_settings", return_value=settings), patch(
+            "app.retrieval.get_settings", return_value=settings
+        ):
+            content = generate_substack(self.session, substack.id, None, force=True)
+        self.assertEqual("proposed", content.status)
+        evidence = llm.calls[0]["evidence"]
+        self.assertTrue(evidence.startswith("<user_request>\nThe client on acme po 4471"))
+        # The named file survives the retrieval cap even though it ranks below the other document.
+        self.assertIn(str(named_chunk.id), evidence)
+        self.assertNotIn(str(other_chunk.id), evidence)
+        self.assertIn("<user_request>", llm.calls[0]["prompt"])
+        sources = self.session.scalars(select(SubstackSource.document_id).where(SubstackSource.substack_id == substack.id)).all()
+        self.assertEqual([named.id], list(sources))
 
     def test_existing_confirmed_content_remains_live_when_update_is_generated(self):
         document, version, chunk = self.make_document()

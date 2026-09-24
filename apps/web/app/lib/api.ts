@@ -227,6 +227,8 @@ export interface ApiSubstack {
   scope: "mine" | "workspace";
   status: string;
   review_state: "clean" | "pending" | "pending_update" | "unsupported" | "generation_error";
+  /** A generation job for this record is queued or running. */
+  generating: boolean;
   updated_at: string | null;
   count: number;
   docs: string[];
@@ -294,7 +296,10 @@ export function getSubstackDetail(id: string): Promise<ApiSubstackDetail> {
   return apiFetch(`/substacks/${id}`);
 }
 
-export function createSubstack(accountId: string, input: { stack_type: string; name: string; summary?: string }): Promise<ApiSubstack> {
+export function createSubstack(
+  accountId: string,
+  input: { stack_type: string; name: string; summary?: string; generate?: boolean },
+): Promise<ApiSubstack> {
   return apiFetch(`/accounts/${accountId}/substacks`, { method: "POST", body: JSON.stringify(input) });
 }
 
