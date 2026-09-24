@@ -4,6 +4,7 @@ import type { Substack } from "./stacks";
 export type QueueKind = "new" | "update" | "attention";
 
 export function queueKind(ss: Substack): QueueKind | null {
+  if (ss.generating) return null;
   if (ss.reviewState === "unsupported" || ss.reviewState === "generation_error") {
     return "attention";
   }

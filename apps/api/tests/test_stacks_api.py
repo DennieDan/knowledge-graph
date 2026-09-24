@@ -282,6 +282,50 @@ class StacksApiTests(unittest.TestCase):
         )
         self.assertEqual(422, bad.status_code)
 
+    def test_described_substack_is_owner_only_proposal_with_queued_generation(self):
+        created = self.client.post(
+            f"/accounts/{self.organization.id}/substacks",
+            json={
+                "stack_type": "sales-orders",
+                "name": "Acme PO 4471",
+                "summary": "March PO from Acme for 500 brackets, see Acme PO 4471.pdf",
+                "generate": True,
+            },
+        )
+        self.assertEqual(200, created.status_code)
+        row = created.json()
+        self.assertEqual(("proposed", "pending", "mine", True), (row["status"], row["review_state"], row["scope"], row["generating"]))
+        job = self.session.scalar(select(KnowledgeJob).where(KnowledgeJob.dedupe_key == f"describe:{row['id']}"))
+        self.assertEqual("generate_substack", job.kind)
+        self.assertEqual({"substack_id": row["id"], "force": True}, job.payload)
+        self.assertTrue(self.list_substacks(self.alice)[0]["generating"])
+        self.assertEqual([], self.list_substacks(self.bob))
+        job.status = "succeeded"
+        self.session.flush()
+        self.current_user = self.alice
+        self.assertFalse(self.client.get(f"/substacks/{row['id']}").json()["generating"])
+
+    def test_described_substack_requires_description_and_supported_type(self):
+        url = f"/accounts/{self.organization.id}/substacks"
+        missing = self.client.post(url, json={"stack_type": "clients", "name": "Acme", "summary": " ", "generate": True})
+        self.assertEqual("description_required", missing.json()["detail"])
+        unsupported = self.client.post(url, json={"stack_type": "invoices", "name": "INV-1", "summary": "x", "generate": True})
+        self.assertEqual("generation_unsupported_stack_type", unsupported.json()["detail"])
+
+    def test_delete_substack_removes_it_and_its_content(self):
+        self.ingest(owner=self.alice.id)
+        substack_id = self.list_substacks(self.alice)[0]["id"]
+        self.current_user = self.bob
+        self.assertEqual(404, self.client.delete(f"/substacks/{substack_id}").status_code)
+        self.current_user = self.alice
+        self.assertEqual(200, self.client.delete(f"/substacks/{substack_id}").status_code)
+        self.assertEqual([], self.list_substacks(self.alice))
+        self.assertEqual(404, self.client.get(f"/substacks/{substack_id}").status_code)
+        remaining = self.session.scalar(
+            select(func.count()).select_from(SubstackContent).where(SubstackContent.substack_id == UUID(substack_id))
+        )
+        self.assertEqual(0, remaining)
+
 
 if __name__ == "__main__":
     unittest.main()

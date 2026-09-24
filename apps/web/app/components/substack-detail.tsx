@@ -94,6 +94,11 @@ export default function SubstackDetail({ substack, stackTypes, detail, details, 
           <button className={queue ? `${styles.panelToggle} ${styles.panelToggleInline}` : styles.panelToggle} onClick={() => togglePanel(!panelOpen)} aria-label={panelOpen ? "Close side panel" : "Open side panel"} aria-expanded={panelOpen}><Icon name="panel-right" size={18} /></button>
         </header>
 
+        {substack.generating && (
+          <div className={styles.reviewBanner} role="status" aria-live="polite">
+            <span>Generating this record from your files. Its content will appear here when it is ready.</span>
+          </div>
+        )}
         {substack.reviewState === "unsupported" && (
           <div className={styles.reviewBanner} role="status">
             <span>This record no longer has enough current supporting evidence. Its last confirmed content remains available.</span>
@@ -163,7 +168,7 @@ export default function SubstackDetail({ substack, stackTypes, detail, details, 
                 </p>
               </section>
             ) : (
-              <p className={styles.empty}>{(displayed?.segments.length ?? 0) === 0 ? "No generated content yet." : "No matching content."}</p>
+              <p className={styles.empty}>{(displayed?.segments.length ?? 0) === 0 ? (substack.generating ? "Generating content…" : "No generated content yet.") : "No matching content."}</p>
             )}
           </div>
         )}

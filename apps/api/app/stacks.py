@@ -16,12 +16,15 @@ from .accounts import membership_for
 from .auth import get_current_user
 from .database import get_session
 from .filing import file_document, substack_for_document
+from .jobs import enqueue_job
+from .knowledge_analysis import DESCRIBABLE_STACK_TYPES
 from .models import (
     STACK_TYPES,
     ContentCitation,
     Document,
     DocumentVersion,
     DriveWorkspace,
+    KnowledgeJob,
     Substack,
     SubstackContent,
     SubstackLink,
@@ -38,6 +41,8 @@ class SubstackIn(BaseModel):
     stack_type: str
     name: str
     summary: str | None = None
+    # Generate the record's content from the knowledge base, using `summary` as the user's description.
+    generate: bool = False
 
 
 class SubstackPatch(BaseModel):
@@ -88,10 +93,26 @@ def _source_json(session: Session, source: SubstackSource, current_substack_id: 
     }
 
 
-def _substack_json(session: Session, substack: Substack, user: User) -> dict:
+def _generating_ids(session: Session, substack_ids: list[UUID]) -> set[str]:
+    """Substacks with a queued or running generation job."""
+    if not substack_ids:
+        return set()
+    substack_id = KnowledgeJob.payload["substack_id"].astext
+    return set(session.scalars(
+        select(substack_id).where(
+            KnowledgeJob.kind == "generate_substack",
+            KnowledgeJob.status.in_(("queued", "running")),
+            substack_id.in_([str(value) for value in substack_ids]),
+        )
+    ))
+
+
+def _substack_json(session: Session, substack: Substack, user: User, generating: set[str] | None = None) -> dict:
     sources = session.scalars(
         select(SubstackSource).where(SubstackSource.substack_id == substack.id)
     ).all()
+    if generating is None:
+        generating = _generating_ids(session, [substack.id])
     return {
         "id": str(substack.id),
         "type_id": substack.stack_type,
@@ -100,6 +121,7 @@ def _substack_json(session: Session, substack: Substack, user: User) -> dict:
         "scope": "mine" if substack.owner_user_id == user.id else "workspace",
         "status": substack.status,
         "review_state": substack.review_state,
+        "generating": str(substack.id) in generating,
         "updated_at": substack.updated_at.isoformat() if substack.updated_at else None,
         "count": len(sources),
         "docs": [_source_json(session, s, substack.id)["name"] for s in sources],
@@ -138,7 +160,8 @@ def list_substacks(
     if q:
         statement = statement.where(Substack.name.ilike(f"%{q}%"))
     substacks = session.scalars(statement.order_by(Substack.updated_at.desc())).all()
-    return [_substack_json(session, substack, user) for substack in substacks]
+    generating = _generating_ids(session, [substack.id for substack in substacks])
+    return [_substack_json(session, substack, user, generating) for substack in substacks]
 
 
 def _content_payload(session: Session, content: SubstackContent | None) -> dict:
@@ -256,16 +279,35 @@ def create_substack(
     membership_for(organization_id, user, session)
     if body.stack_type not in STACK_TYPES:
         raise HTTPException(status_code=422, detail="invalid_stack_type")
+    description = (body.summary or "").strip()
+    if body.generate:
+        if body.stack_type not in DESCRIBABLE_STACK_TYPES:
+            raise HTTPException(status_code=422, detail="generation_unsupported_stack_type")
+        if not description:
+            raise HTTPException(status_code=422, detail="description_required")
     substack = Substack(
         organization_id=organization_id,
+        # Generated records may draw on the creator's private files, so they start owner-only.
+        owner_user_id=user.id if body.generate else None,
         stack_type=body.stack_type,
         name=body.name.strip() or "Untitled",
-        summary=body.summary,
+        summary=description if body.generate else body.summary,
         created_by="user",
         created_by_user_id=user.id,
-        status="confirmed",
+        status="proposed" if body.generate else "confirmed",
+        review_state="pending" if body.generate else "clean",
     )
     session.add(substack)
+    session.flush()
+    if body.generate:
+        enqueue_job(
+            session,
+            organization_id=organization_id,
+            owner_user_id=user.id,
+            kind="generate_substack",
+            payload={"substack_id": str(substack.id), "force": True},
+            dedupe_key=f"describe:{substack.id}",
+        )
     session.commit()
     return _substack_json(session, substack, user)
 
@@ -284,6 +326,18 @@ def update_substack(
         substack.summary = body.summary
     session.commit()
     return _substack_json(session, substack, user)
+
+
+@router.delete("/substacks/{substack_id}")
+def delete_substack(
+    substack_id: UUID,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    substack = _get_substack(substack_id, user, session)
+    session.delete(substack)
+    session.commit()
+    return {"status": "deleted"}
 
 
 def _confirm_content(

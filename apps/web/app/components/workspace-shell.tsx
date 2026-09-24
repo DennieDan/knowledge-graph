@@ -15,7 +15,7 @@ import DrivePicker from "./drive-picker";
 import AccountOnboarding from "./account-onboarding";
 import AnalyzeDialog from "./analyze-dialog";
 import CompanyMembers from "./company-members";
-import { CreateSubstackModal } from "./stack-modals";
+import { CreateSubstackModal, DeleteSubstackModal } from "./stack-modals";
 import {
   STACK_TYPES,
   toSubstack,
@@ -33,6 +33,7 @@ import {
   confirmSubstackContent,
   convertToCompany,
   createSubstack,
+  deleteSubstack,
   getMe,
   getSubstackDetail,
   getSubstacks,
@@ -62,7 +63,8 @@ import styles from "./workspace-shell.module.css";
 
 type ModalState =
   | null
-  | { kind: "createSubstack"; typeId: string };
+  | { kind: "createSubstack"; typeId: string }
+  | { kind: "deleteSubstack"; substack: Substack };
 
 const NAV_ITEMS = [
   { icon: "activity", label: "Analyze workspace", id: "tocheck" },
@@ -263,9 +265,18 @@ export default function WorkspaceShell() {
     }
     : null;
 
+  // Poll while any record is being generated; reload the open record's detail once it finishes.
+  const generatingIds = substacks.filter((item) => item.generating).map((item) => item.id).join(",");
+  const selectedGenerating = selectedSubstack?.generating ?? false;
+  useEffect(() => {
+    if (!generatingIds) return;
+    const timer = window.setInterval(refreshSubstacks, 2500);
+    return () => window.clearInterval(timer);
+  }, [generatingIds, refreshSubstacks]);
+
   useEffect(() => {
     if (selectedSubstackId) ensureDetail(selectedSubstackId);
-  }, [ensureDetail, selectedSubstackId]);
+  }, [ensureDetail, selectedSubstackId, selectedGenerating]);
 
   useEffect(() => {
     setSearchVal("");
@@ -428,17 +439,35 @@ export default function WorkspaceShell() {
       .catch((reason) => showNotice(reason instanceof Error ? reason.message : "Content could not be confirmed."));
   };
 
-  const handleAddSubstack = (input: { name: string; desc: string }) => {
+  const handleAddSubstack = async (input: { name: string; desc: string; generate: boolean }) => {
     if (!activeAccount || modal?.kind !== "createSubstack") return;
     const typeId = modal.typeId;
-    createSubstack(activeAccount.id, { stack_type: typeId, name: input.name, summary: input.desc })
-      .then((row) => {
-        track("substack_created", { stack_type: typeId });
-        setSubstacks((prev) => [toSubstack(row), ...prev]);
-        showNotice(`"${row.name}" added to ${stackTypes.find((t) => t.id === typeId)?.name ?? typeId}.`);
-        setModal(null);
-      })
-      .catch((reason) => showNotice(reason instanceof Error ? reason.message : "Substack could not be created."));
+    const row = await createSubstack(activeAccount.id, {
+      stack_type: typeId,
+      name: input.name,
+      summary: input.desc,
+      generate: input.generate,
+    });
+    track("substack_created", { stack_type: typeId, generated: input.generate });
+    const created = toSubstack(row);
+    setSubstacks((prev) => [created, ...prev]);
+    setModal(null);
+    if (input.generate) {
+      showNotice(`Generating "${row.name}" from your files. It will be ready to check shortly.`);
+      navigate(substackPath(created), "link");
+    } else {
+      showNotice(`"${row.name}" added to ${stackTypes.find((t) => t.id === typeId)?.name ?? typeId}.`);
+    }
+  };
+
+  const handleDeleteSubstack = async (ss: Substack) => {
+    await deleteSubstack(ss.id);
+    track("substack_deleted", { stack_type: ss.typeId, status: ss.status });
+    setSubstacks((prev) => prev.filter((item) => item.id !== ss.id));
+    setDetails(({ [ss.id]: _removed, ...rest }) => rest);
+    setRecentIds((current) => current.filter((id) => id !== ss.id));
+    setModal(null);
+    showNotice(`"${ss.name}" deleted.`);
   };
 
   const openSubstack = (id: string) => {
@@ -809,6 +838,7 @@ export default function WorkspaceShell() {
                 onToggleListMode={() => setListMode((v) => !v)}
                 onOpenDetails={(ss) => openSubstack(ss.id)}
                 onAddItem={(typeId) => setModal({ kind: "createSubstack", typeId })}
+                onDeleteItem={(substack) => setModal({ kind: "deleteSubstack", substack })}
               />
             )}
           </div>
@@ -824,6 +854,15 @@ export default function WorkspaceShell() {
             }
             onClose={closeModal}
             onSubmit={handleAddSubstack}
+          />
+        </Modal>
+      )}
+      {modal?.kind === "deleteSubstack" && (
+        <Modal onClose={closeModal}>
+          <DeleteSubstackModal
+            substack={modal.substack}
+            onClose={closeModal}
+            onConfirm={() => handleDeleteSubstack(modal.substack)}
           />
         </Modal>
       )}

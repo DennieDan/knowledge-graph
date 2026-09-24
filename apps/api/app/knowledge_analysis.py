@@ -1,4 +1,5 @@
 from hashlib import sha256
+from html import escape
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -35,13 +36,21 @@ from .prompts import (
     CLIENT_PROMPT,
     CLIENT_QUERIES,
     CONVERSATION_PROMPT,
+    DESCRIBED_RECORD_PROMPT,
     DISCOVERY_PROMPT,
     ITEM_PROMPT,
     ITEM_QUERIES,
     SALES_ORDER_PROMPT,
     SALES_ORDER_QUERIES,
 )
-from .retrieval import RETRIEVAL_VERSION, RetrievedChunk, evidence_text, merge_retrieval, retrieve_chunks
+from .retrieval import (
+    RETRIEVAL_VERSION,
+    RetrievedChunk,
+    evidence_text,
+    merge_retrieval,
+    retrieve_chunks,
+    visibility_filter,
+)
 from .segments import Segment
 
 
@@ -53,6 +62,53 @@ PROMPT_CONFIG = {
     # Summarized from the chat's own transcript, not workspace retrieval, so there are no queries.
     "conversations": ("conversations.summarize.v1", CONVERSATION_PROMPT, (), ConversationExtraction),
 }
+# Stacks a person can create by describing a record Analyze missed.
+DESCRIBABLE_STACK_TYPES = ("sales-orders", "clients", "items")
+# Titles shorter than this are too generic to treat as a file mention in a description.
+MIN_MENTIONED_TITLE_LENGTH = 4
+MAX_MENTIONED_DOCUMENTS = 5
+
+
+def _user_description(substack: Substack) -> str | None:
+    if substack.created_by != "user" or substack.stack_type not in DESCRIBABLE_STACK_TYPES:
+        return None
+    return (substack.summary or "").strip() or None
+
+
+def _mentioned_document_evidence(session: Session, substack: Substack, description: str) -> list[RetrievedChunk]:
+    """Chunks of visible documents whose title (with or without extension) appears in the description."""
+    settings = get_settings()
+    stem = func.regexp_replace(Document.title, r"\.[A-Za-z0-9]{1,5}$", "")
+    haystack = func.lower(description)
+    documents = session.scalars(
+        select(Document)
+        .where(
+            Document.organization_id == substack.organization_id,
+            visibility_filter(substack.owner_user_id),
+            func.length(stem) >= MIN_MENTIONED_TITLE_LENGTH,
+            func.strpos(haystack, func.lower(stem)) > 0,
+        )
+        .order_by(func.length(stem).desc())
+        .limit(MAX_MENTIONED_DOCUMENTS)
+    ).all()
+    evidence: list[RetrievedChunk] = []
+    for document in documents:
+        version = session.scalar(
+            select(DocumentVersion)
+            .where(DocumentVersion.document_id == document.id)
+            .order_by(DocumentVersion.revision.desc())
+            .limit(1)
+        )
+        if version is None:
+            continue
+        chunks = session.scalars(
+            select(Chunk)
+            .where(Chunk.document_version_id == version.id, Chunk.embedding_model == settings.embedding_model)
+            .order_by(Chunk.position)
+            .limit(settings.analysis_max_chunks_per_document)
+        ).all()
+        evidence.extend(RetrievedChunk(chunk=chunk, document=document) for chunk in chunks)
+    return evidence
 
 
 def _transcript_evidence(session: Session, substack: Substack) -> list[RetrievedChunk]:
@@ -408,17 +464,29 @@ def generate_substack(session: Session, substack_id: UUID, run_id: UUID | None, 
     prompt_key, prompt, queries, schema = PROMPT_CONFIG[substack.stack_type]
     prompt_version = prompt_key.rsplit(".", 1)[-1]
     is_conversation = substack.stack_type == "conversations"
+    description = _user_description(substack)
     if is_conversation:
         retrieved = _transcript_evidence(session, substack)
     else:
         exact_terms = _exact_terms(session, substack)
-        retrieved = merge_retrieval([
+        context = " ".join((*exact_terms, description or ""))
+        groups = [
             retrieve_chunks(
                 session, substack.organization_id, substack.owner_user_id,
-                f"{query} {' '.join(exact_terms)}", exact_terms=exact_terms,
+                f"{query} {context}", exact_terms=exact_terms,
             )
             for query in queries
-        ])
+        ]
+        if description:
+            # Files the person named come first so the retrieval cap never drops them.
+            groups[:0] = [
+                _mentioned_document_evidence(session, substack, description),
+                retrieve_chunks(
+                    session, substack.organization_id, substack.owner_user_id,
+                    description, exact_terms=exact_terms,
+                ),
+            ]
+        retrieved = merge_retrieval(groups)
     if not retrieved:
         substack.review_state = "unsupported"
         session.commit()
@@ -429,6 +497,7 @@ def generate_substack(session: Session, substack_id: UUID, run_id: UUID | None, 
         settings.openai_model,
         RETRIEVAL_VERSION,
         settings.analysis_config_version,
+        *((description,) if description else ()),
         *sorted(allowed),
     )).encode()).hexdigest()
     latest = session.scalar(
@@ -441,7 +510,11 @@ def generate_substack(session: Session, substack_id: UUID, run_id: UUID | None, 
         complete_run_if_last(session, run_id)
         session.commit()
         return latest
-    result = get_llm_client().parse(prompt=prompt, evidence=evidence_text(retrieved), schema=schema)
+    evidence = evidence_text(retrieved)
+    if description:
+        prompt = f"{prompt}\n\n{DESCRIBED_RECORD_PROMPT}"
+        evidence = f"<user_request>\n{escape(description)}\n</user_request>\n\n{evidence}"
+    result = get_llm_client().parse(prompt=prompt, evidence=evidence, schema=schema)
     extraction = result.parsed
     if not is_conversation and (
         len(getattr(extraction, "report", [])) < 2 or any(not paragraph.value for paragraph in extraction.report)

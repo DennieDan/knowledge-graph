@@ -19,6 +19,7 @@ export interface Substack {
   status: string;
   role: string;
   reviewState: "clean" | "pending" | "pending_update" | "unsupported" | "generation_error";
+  generating: boolean;
   updated: string;
   docs: string[];
   count: number;
@@ -82,6 +83,9 @@ export const STACK_TYPES: StackType[] = [
   { id: "files", name: "Files", icon: "folder", desc: "Documents, drawings, images, and attachments." },
 ];
 
+/** Stacks whose records can be generated from a description of a record Analyze missed. */
+export const DESCRIBABLE_STACK_TYPES = new Set(["sales-orders", "clients", "items"]);
+
 export const SCOPE_TABS: [Scope, string][] = [["all", "All Stacks"], ["mine", "My Stacks"], ["workspace", "Workspace"], ["shared", "Shared with me"]];
 
 export function inScope(ss: Substack, sc: Scope): boolean {
@@ -118,8 +122,9 @@ export function toSubstack(row: ApiSubstack): Substack {
     scope: row.scope,
     access: row.scope === "mine" ? "Only me" : "All members",
     status: row.status,
-    role: row.review_state === "pending_update" ? "Update available" : row.review_state === "unsupported" ? "Needs review" : row.status === "confirmed" ? "Confirmed" : "Proposed",
+    role: row.generating ? "Generating" : row.review_state === "pending_update" ? "Update available" : row.review_state === "unsupported" ? "Needs review" : row.status === "confirmed" ? "Confirmed" : "Proposed",
     reviewState: row.review_state,
+    generating: row.generating,
     updated: relativeTime(row.updated_at),
     docs: [...new Set(row.docs)],
     count: row.count,
