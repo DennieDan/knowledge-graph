@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
 import { faqs, plans, site, siteUrl } from "../lib/site";
+import DemoDialog from "./demo-dialog";
+import FaqAccordion from "./faq-accordion";
+import PricingTabs from "./pricing-tabs";
+import SourcesCarousel from "./sources-carousel";
 import styles from "./page.module.css";
 
 const pageUrl = `${siteUrl}/landing`;
@@ -133,6 +137,9 @@ export default function LandingPage() {
               <a href="#how">How it works</a>
             </li>
             <li>
+              <a href="#sources">Sources</a>
+            </li>
+            <li>
               <a href="#features">Features</a>
             </li>
             <li>
@@ -140,9 +147,7 @@ export default function LandingPage() {
             </li>
           </ul>
         </nav>
-        <a className={styles.navCta} href="#demo">
-          Book a walkthrough
-        </a>
+        <DemoDialog className={styles.navCta} label="Book a walkthrough" />
       </header>
 
       <main>
@@ -161,9 +166,10 @@ export default function LandingPage() {
               team, your floor and your AI assistants answer from.
             </p>
             <div className={styles.heroActions}>
-              <a className={styles.primaryCta} href="#demo">
-                Book a 20-minute walkthrough
-              </a>
+              <DemoDialog
+                className={styles.primaryCta}
+                label="Book a 20-minute walkthrough"
+              />
               <a className={styles.secondaryCta} href="#how">
                 See how it works
               </a>
@@ -236,9 +242,17 @@ export default function LandingPage() {
           </ol>
         </section>
 
+        <section className={styles.sources} id="sources">
+          <div className={styles.sectionHead}>
+            <p className={styles.sectionLabel}>02 / Sources</p>
+            <h2>Whatever your customers send, it lands in one queue.</h2>
+          </div>
+          <SourcesCarousel />
+        </section>
+
         <section className={styles.features} id="features">
           <div className={styles.sectionHead}>
-            <p className={styles.sectionLabel}>02 / Features</p>
+            <p className={styles.sectionLabel}>03 / Features</p>
             <h2>Built for the way order desks really run.</h2>
             <p className={styles.sectionBody}>
               Duplicate entry, missed changes, outdated revisions and evidence
@@ -257,7 +271,7 @@ export default function LandingPage() {
 
         <section className={styles.pricing} id="pricing">
           <div className={styles.sectionHead}>
-            <p className={styles.sectionLabel}>03 / Pricing</p>
+            <p className={styles.sectionLabel}>04 / Pricing</p>
             <h2>Priced per team, not per order.</h2>
             <p className={styles.sectionBody}>
               Billed monthly in SGD. Every plan includes onboarding of your
@@ -265,69 +279,23 @@ export default function LandingPage() {
               you like.
             </p>
           </div>
-          <ul className={styles.planGrid}>
-            {plans.map((plan) => (
-              <li
-                key={plan.id}
-                className={
-                  plan.featured
-                    ? `${styles.planCard} ${styles.planCardFeatured}`
-                    : styles.planCard
-                }
-              >
-                {plan.featured ? (
-                  <span className={styles.planBadge}>Most popular</span>
-                ) : null}
-                <h3>{plan.name}</h3>
-                <p className={styles.planPrice}>
-                  {plan.price}
-                  <span>{plan.cadence}</span>
-                </p>
-                <p className={styles.planSummary}>{plan.summary}</p>
-                <ul className={styles.planFeatures}>
-                  {plan.features.map((feature) => (
-                    <li key={feature}>{feature}</li>
-                  ))}
-                </ul>
-                <a
-                  className={
-                    plan.featured ? styles.primaryCta : styles.secondaryCta
-                  }
-                  href="#demo"
-                >
-                  {plan.cta}
-                </a>
-              </li>
-            ))}
-          </ul>
+          <PricingTabs />
         </section>
 
         <section className={styles.faq} aria-labelledby="faq-heading">
           <h2 id="faq-heading">Questions we get asked first</h2>
-          <dl className={styles.faqList}>
-            {faqs.map((faq) => (
-              <div key={faq.question}>
-                <dt>{faq.question}</dt>
-                <dd>{faq.answer}</dd>
-              </div>
-            ))}
-          </dl>
+          <FaqAccordion />
         </section>
 
         <section className={styles.demo} id="demo">
-          <p className={styles.sectionLabel}>04 / Get started</p>
+          <p className={styles.sectionLabel}>05 / Get started</p>
           <h2>Bring one week of messy orders. We&apos;ll run them through.</h2>
           <p className={styles.sectionBody}>
             A 20-minute walkthrough on your own POs and WhatsApp threads — you
             will see exactly what crossPOd proposes and what your team would
             confirm.
           </p>
-          <a
-            className={styles.primaryCta}
-            href={`mailto:${site.contactEmail}?subject=crossPOd%20walkthrough`}
-          >
-            Book a walkthrough
-          </a>
+          <DemoDialog className={styles.primaryCta} label="Book a walkthrough" />
           <p className={styles.demoNote}>
             Prefer email? Write to{" "}
             <a href={`mailto:${site.contactEmail}`}>{site.contactEmail}</a>.

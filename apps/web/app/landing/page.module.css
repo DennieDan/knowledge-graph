@@ -348,6 +348,21 @@
   color: var(--md-sys-color-on-surface-variant);
 }
 
+/* sources */
+
+.sources {
+  border-top: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.sources .sectionHead {
+  margin-bottom: 40px;
+}
+
+.sourceCarousel {
+  max-width: 1160px;
+  margin-inline: auto;
+}
+
 /* features */
 
 .features {
@@ -389,6 +404,7 @@
 }
 
 .planCard {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -491,6 +507,11 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 32px;
+}
+
+.faqAccordion {
+  max-width: 1160px;
+  margin: 32px auto 0;
 }
 
 .faqList dt {

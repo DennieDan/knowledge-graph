@@ -19,6 +19,7 @@ export const plans = [
     name: "Starter",
     price: "S$249",
     cadence: "/month",
+    monthlyPrice: 249,
     summary: "For a single admin team getting orders out of the inbox.",
     features: [
       "5 users",
@@ -35,6 +36,7 @@ export const plans = [
     name: "Growth",
     price: "S$699",
     cadence: "/month",
+    monthlyPrice: 699,
     summary: "For suppliers running production off confirmed orders.",
     features: [
       "20 users",
@@ -51,6 +53,7 @@ export const plans = [
     name: "Enterprise",
     price: "Let's talk",
     cadence: "",
+    monthlyPrice: null,
     summary: "For multi-site operations with their own compliance rules.",
     features: [
       "Unlimited users and documents",
@@ -61,6 +64,37 @@ export const plans = [
     ],
     cta: "Talk to us",
     featured: false,
+  },
+] as const;
+
+/** Annual plans are billed up front at ten months of the monthly price. */
+export const annualMonthsCharged = 10;
+
+export const sources = [
+  {
+    channel: "WhatsApp",
+    detail: "Order changes, approvals and commitments buried in a thread.",
+    example: "\u201cMake PO 88213 500pcs instead of 300, same date ok?\u201d",
+  },
+  {
+    channel: "PO PDFs",
+    detail: "Line items, part codes, quantities and delivery dates.",
+    example: "PO-88213.pdf \u00b7 4 lines \u00b7 delivery 14 Oct",
+  },
+  {
+    channel: "Scanned forms",
+    detail: "Faxed and photographed orders that never reach your ERP.",
+    example: "scan_0142.jpg \u00b7 handwritten quantity on line 2",
+  },
+  {
+    channel: "Email attachments",
+    detail: "Revisions sent as replies to a thread nobody else can see.",
+    example: "Re: Oct schedule \u00b7 revised_spec_revB.xlsx",
+  },
+  {
+    channel: "Google Drive",
+    detail: "Shared folders of drawings, specs and price lists.",
+    example: "/Customers/Acme/Drawings/ACM-220-revC.pdf",
   },
 ] as const;
 

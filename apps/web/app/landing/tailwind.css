@@ -1,0 +1,71 @@
+/* Tailwind for the landing route only: theme + utilities, no preflight, so the
+   workspace shell's Material Design 3 styling is untouched. */
+@layer theme, base, components;
+@import "tailwindcss/theme.css" layer(theme);
+/* Utilities stay unlayered: globals.css ships an unlayered `*` reset that would
+   otherwise win over anything in a cascade layer. */
+@import "tailwindcss/utilities.css";
+@import "tw-animate-css";
+
+@source "./";
+@source "../components/ui/";
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+.landingTheme {
+  --radius: 0.75rem;
+  --background: #ffffff;
+  --foreground: #353535;
+  --card: #ffffff;
+  --card-foreground: #353535;
+  --popover: #ffffff;
+  --popover-foreground: #353535;
+  --primary: #284b63;
+  --primary-foreground: #ffffff;
+  --secondary: #d9d9d9;
+  --secondary-foreground: #353535;
+  --muted: #f2f3f4;
+  --muted-foreground: #5c6670;
+  --accent: #3c6e71;
+  --accent-foreground: #ffffff;
+  --destructive: #b3261e;
+  --border: color-mix(in srgb, #353535 14%, transparent);
+  --input: color-mix(in srgb, #353535 18%, transparent);
+  --ring: #3c6e71;
+}
+
+/* Preflight is off, so form controls under the landing route keep their UA
+   chrome. Strip it at zero specificity (`:where`) so any class still wins. */
+:where(.landingTheme) :where(button, input, textarea, select) {
+  appearance: none;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+}
