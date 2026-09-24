@@ -112,7 +112,7 @@ export default function SubstackDetail({ substack, stackTypes, detail, details, 
         )}
         {substack.reviewState === "generation_error" && (
           <div className={styles.reviewBanner} role="status">
-            <span>Generating content for this record failed. Check Maintenance for the failed run.</span>
+            <span>Generating content for this record failed.</span>
           </div>
         )}
         {detail?.pending && (

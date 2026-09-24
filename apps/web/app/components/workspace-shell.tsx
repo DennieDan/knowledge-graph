@@ -72,7 +72,6 @@ const NAV_ITEMS = [
   { icon: "search", label: "Search", id: "search" },
   { icon: "layers", label: "Stacks", id: "stacks" },
   { icon: "database", label: "Sources", id: "sources" },
-  { icon: "activity", label: "Maintenance", id: "maintenance" },
 ] as const satisfies { icon: string; label: string; id: NavId }[];
 
 const viewLabel = (view: NavId) => NAV_ITEMS.find((item) => item.id === view)?.label ?? "Stacks";
@@ -789,15 +788,6 @@ export default function WorkspaceShell() {
                 accountId={me?.active_account_id ?? null}
                 onOpenRecord={openSubstack}
               />
-            </div>
-          )}
-          {activeNav === "maintenance" && (
-            <div className={styles.placeholder}>
-              <h1 className={styles.placeholderTitle}>Maintenance</h1>
-              <p className={styles.placeholderText}>
-                Review stale sources, conflicts, and visibility gaps. Coming
-                soon.
-              </p>
             </div>
           )}
           {!route && (
