@@ -258,7 +258,9 @@ export default function WorkspaceShell() {
     ? {
       position: queueIndex + 1,
       total: queueIds.length,
-      prevId: queueIds.slice(0, queueIndex).reverse().find((id) => liveQueue.includes(id)) ?? null,
+      // Previous revisits any earlier item in the batch (even if already
+      // confirmed); Next skips items that no longer need checking.
+      prevId: queueIds.slice(0, queueIndex).reverse().find((id) => substacks.some((item) => item.id === id)) ?? null,
       nextId: queueIds.slice(queueIndex + 1).find((id) => liveQueue.includes(id)) ?? null,
     }
     : null;

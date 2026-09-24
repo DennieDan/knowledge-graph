@@ -7,10 +7,12 @@
 .backButton { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; max-width: 100%; margin-left: -8px; padding: 5px 8px; border: 0; border-radius: 6px; background: transparent; color: var(--cp-muted); font-family: inherit; font-size: 12px; cursor: pointer; }
 .backButton span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .backButton:hover { background: var(--cp-hover); color: var(--cp-ink); }
-.queueNav { display: flex; align-items: center; gap: 4px; margin-left: auto; color: var(--cp-muted); font-size: 12px; white-space: nowrap; }
-.queueNav button, .panelToggle, .sourcesHeader button { display: grid; place-items: center; width: 30px; height: 30px; border: 0; background: transparent; border-radius: 6px; cursor: pointer; }
-.queueNav button:hover:not(:disabled), .panelToggle:hover, .sourcesHeader button:hover { background: var(--cp-hover); }
-.queueNav button:disabled { opacity: .25; cursor: default; }
+.queueNav { display: flex; align-items: center; gap: 8px; margin-left: auto; color: var(--cp-muted); font-size: 12px; white-space: nowrap; }
+.queueNav button { display: inline-flex; align-items: center; gap: 4px; height: 30px; padding: 0 10px; border: 1px solid var(--cp-border); border-radius: 7px; background: var(--cp-canvas); color: var(--cp-ink); font-family: inherit; font-size: 12px; cursor: pointer; }
+.queueNav button:hover:not(:disabled) { border-color: var(--cp-muted); }
+.queueNav button:disabled { opacity: .45; cursor: default; }
+.panelToggle, .sourcesHeader button { display: grid; place-items: center; width: 30px; height: 30px; border: 0; background: transparent; border-radius: 6px; cursor: pointer; }
+.panelToggle:hover, .sourcesHeader button:hover { background: var(--cp-hover); }
 .panelToggle { margin-left: auto; color: var(--cp-muted); }
 .panelToggleInline { margin-left: 0; }
 .reviewBanner { display: flex; align-items: center; gap: 10px; margin-top: 16px; padding: 11px 13px; border: 1px solid var(--cp-border); border-radius: 8px; background: var(--md-sys-color-surface-container-low); font-size: 12px; }
