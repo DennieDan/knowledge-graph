@@ -13,7 +13,10 @@ from .extractions import (
     ConversationExtraction,
     DiscoveryOutput,
     ItemExtraction,
+    MeetingExtraction,
     SalesOrderExtraction,
+    SupplierExtraction,
+    SupplierOrderExtraction,
 )
 from .generation import TEMPLATE_MODEL
 from .jobs import JobNotReady, complete_run_if_last, enqueue_job
@@ -40,8 +43,14 @@ from .prompts import (
     DISCOVERY_PROMPT,
     ITEM_PROMPT,
     ITEM_QUERIES,
+    MEETING_PROMPT,
+    MEETING_QUERIES,
     SALES_ORDER_PROMPT,
     SALES_ORDER_QUERIES,
+    SUPPLIER_ORDER_PROMPT,
+    SUPPLIER_ORDER_QUERIES,
+    SUPPLIER_PROMPT,
+    SUPPLIER_QUERIES,
 )
 from .retrieval import (
     RETRIEVAL_VERSION,
@@ -54,16 +63,27 @@ from .retrieval import (
 from .segments import Segment
 
 
-DISCOVERY_KEY = "discovery.core_entities.v1"
+DISCOVERY_KEY = "discovery.core_entities.v2"
 PROMPT_CONFIG = {
     "sales-orders": ("sales_orders.extract.v3", SALES_ORDER_PROMPT, SALES_ORDER_QUERIES, SalesOrderExtraction),
     "clients": ("clients.extract.v3", CLIENT_PROMPT, CLIENT_QUERIES, ClientExtraction),
     "items": ("items.extract.v3", ITEM_PROMPT, ITEM_QUERIES, ItemExtraction),
+    "suppliers": ("suppliers.extract.v1", SUPPLIER_PROMPT, SUPPLIER_QUERIES, SupplierExtraction),
+    "supplier-orders": (
+        "supplier_orders.extract.v1", SUPPLIER_ORDER_PROMPT, SUPPLIER_ORDER_QUERIES, SupplierOrderExtraction,
+    ),
+    "meetings": ("meetings.extract.v1", MEETING_PROMPT, MEETING_QUERIES, MeetingExtraction),
     # Summarized from the chat's own transcript, not workspace retrieval, so there are no queries.
     "conversations": ("conversations.summarize.v1", CONVERSATION_PROMPT, (), ConversationExtraction),
 }
 # Stacks a person can create by describing a record Analyze missed.
-DESCRIBABLE_STACK_TYPES = ("sales-orders", "clients", "items")
+DESCRIBABLE_STACK_TYPES = ("sales-orders", "clients", "items", "suppliers", "supplier-orders", "meetings")
+# Records discovered in the same evidence are linked: anchor type -> related types.
+LINKED_STACK_TYPES = {
+    "sales-orders": ("clients", "items"),
+    "supplier-orders": ("suppliers", "items"),
+    "meetings": ("sales-orders", "clients", "items", "suppliers", "supplier-orders"),
+}
 # Titles shorter than this are too generic to treat as a file mention in a description.
 MIN_MENTIONED_TITLE_LENGTH = 4
 MAX_MENTIONED_DOCUMENTS = 5
@@ -198,11 +218,11 @@ def _link_document_entities(session: Session, version_id: UUID) -> None:
         .where(EntityMention.document_version_id == version_id)
         .distinct()
     ))
-    orders = [substack for substack in substacks if substack.stack_type == "sales-orders"]
-    related = [substack for substack in substacks if substack.stack_type in ("clients", "items")]
-    for order in orders:
-        for other in related:
-            left, right = sorted((order.id, other.id), key=str)
+    for anchor in substacks:
+        for other in substacks:
+            if other.stack_type not in LINKED_STACK_TYPES.get(anchor.stack_type, ()):
+                continue
+            left, right = sorted((anchor.id, other.id), key=str)
             exists = session.scalar(
                 select(SubstackLink).where(
                     SubstackLink.substack_id == left,
@@ -265,7 +285,7 @@ def discover_document(session: Session, version_id: UUID, run_id: UUID | None, g
             version=version,
             candidate=candidate,
             prompt_key=DISCOVERY_KEY,
-            prompt_version="v1",
+            prompt_version=DISCOVERY_KEY.rsplit(".", 1)[-1],
             model=settings.openai_model,
             analysis_run_id=run_id,
         )
@@ -399,11 +419,22 @@ def _high_confidence(substack: Substack, extraction: BaseModel) -> bool:
                 extraction.customer_item_code.citations and extraction.client_identifier.citations
             )
         ))
+    if isinstance(extraction, SupplierExtraction):
+        return bool(extraction.name.value and extraction.name.citations and (
+            extraction.registration_number.citations or extraction.supplier_id.citations
+        ))
+    if isinstance(extraction, SupplierOrderExtraction):
+        return bool(
+            extraction.order_number.value and extraction.order_number.citations
+            and extraction.supplier_name.value and extraction.supplier_name.citations
+            and extraction.line_items
+            and all(line.quantity.value and line.quantity.citations for line in extraction.line_items)
+        )
     return False
 
 
 def llm_substacks(session: Session, organization_id: UUID, owner_user_id: UUID | None):
-    """LLM-generated records (sales orders, clients, items, conversations) in one visibility scope."""
+    """LLM-generated records (every PROMPT_CONFIG stack type) in one visibility scope."""
     owner_filter = (
         Substack.owner_user_id.is_(None) if owner_user_id is None else Substack.owner_user_id == owner_user_id
     )

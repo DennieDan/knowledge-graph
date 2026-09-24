@@ -3,7 +3,7 @@ import { STACK_TYPES } from "./stacks";
 // URLs are sent to analytics as pageviews: they may only contain internal IDs
 // and stack type IDs — never names, message text or search queries.
 
-export type NavId = "tocheck" | "stacks" | "sources" | "search" | "maintenance";
+export type NavId = "tocheck" | "stacks" | "sources" | "search";
 
 export type ReviewFilter = "all" | "new" | "update" | "attention" | "findings";
 
@@ -16,14 +16,12 @@ export const NAV_PATHS: Record<NavId, string> = {
   search: "/search",
   stacks: "/stacks",
   sources: "/sources",
-  maintenance: "/maintenance",
 };
 
 const VIEW_BY_SEGMENT: Record<string, Exclude<NavId, "stacks">> = {
   analyze: "tocheck",
   search: "search",
   sources: "sources",
-  maintenance: "maintenance",
 };
 
 const REVIEW_FILTERS: ReviewFilter[] = ["all", "new", "update", "attention", "findings"];

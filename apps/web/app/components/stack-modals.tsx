@@ -107,10 +107,12 @@ export function CreateSubstackModal({
 
 export function DeleteSubstackModal({
   substack,
+  message = "This substack may be auto-generated in the future.",
   onClose,
   onConfirm,
 }: {
   substack: Substack;
+  message?: string;
   onClose: () => void;
   onConfirm: () => Promise<void>;
 }) {
@@ -135,7 +137,7 @@ export function DeleteSubstackModal({
           <Icon name="x" />
         </button>
       </div>
-      <p className={styles.modalSub}>This substack may be auto-generated in the future.</p>
+      <p className={styles.modalSub}>{message}</p>
       {error && (
         <div role="alert" className={styles.error}>
           {error}

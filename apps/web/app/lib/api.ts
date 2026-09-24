@@ -311,12 +311,20 @@ export function deleteSubstack(id: string): Promise<{ status: string }> {
   return apiFetch(`/substacks/${id}`, { method: "DELETE" });
 }
 
+export function retrySubstackGeneration(id: string): Promise<ApiSubstack> {
+  return apiFetch(`/substacks/${id}/retry-generation`, { method: "POST" });
+}
+
 export function confirmSubstack(id: string): Promise<ApiSubstack> {
   return apiFetch(`/substacks/${id}/confirm`, { method: "POST" });
 }
 
 export function confirmSubstackContent(id: string, contentId: string): Promise<ApiSubstack> {
   return apiFetch(`/substacks/${id}/contents/${contentId}/confirm`, { method: "POST" });
+}
+
+export function keepCurrentSubstackContent(id: string, contentId: string): Promise<ApiSubstack> {
+  return apiFetch(`/substacks/${id}/contents/${contentId}/keep-current`, { method: "POST" });
 }
 
 export function confirmAllSubstacks(accountId: string): Promise<{ confirmed: number }> {
@@ -339,6 +347,8 @@ export interface AnalysisRun {
   generation_running: number;
   generation_queued: number;
   generation_failed: number;
+  /** Projected from this run's throughput; null until a generation job has finished. */
+  generation_estimated_finish_at: string | null;
   failures: number;
   error: string | null;
 }

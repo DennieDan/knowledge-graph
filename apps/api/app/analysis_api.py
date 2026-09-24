@@ -10,7 +10,7 @@ from .accounts import membership_for
 from .auth import get_current_user
 from .config import get_settings
 from .database import get_session
-from .jobs import create_run, enqueue_job, retry_failed_run
+from .jobs import create_run, enqueue_job, estimate_run_finish, retry_failed_run
 from .knowledge_analysis import llm_substacks
 from .models import (
     AnalysisRun,
@@ -43,7 +43,10 @@ def _run_json(session: Session, run: AnalysisRun) -> dict:
         .group_by(KnowledgeJob.status)
     ).all())
     generation_total = sum(generation_counts.values())
+    generation_pending = generation_counts.get("queued", 0) + generation_counts.get("running", 0)
+    finish_at = estimate_run_finish(session, run.id) if generation_pending else None
     return {
+        "generation_estimated_finish_at": finish_at.isoformat() if finish_at else None,
         "id": str(run.id),
         "organization_id": str(run.organization_id),
         "scope": "mine" if run.owner_user_id else "workspace",

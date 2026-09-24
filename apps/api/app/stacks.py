@@ -5,7 +5,7 @@ org-wide (NULL). Responses mirror the frontend's Substack/SubstackDetail
 shapes so the Stacks tab can swap mock data for real rows 1:1.
 """
 from datetime import datetime, timezone
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -19,7 +19,7 @@ from .filing import file_document, substack_for_document
 from .jobs import enqueue_job
 from .knowledge_analysis import DESCRIBABLE_STACK_TYPES
 from .models import (
-    STACK_TYPES,
+    ACTIVE_STACK_TYPES,
     ContentCitation,
     Document,
     DocumentVersion,
@@ -142,7 +142,7 @@ def list_stacks(
             .group_by(Substack.stack_type)
         ).all()
     )
-    return [{"type": stack_type, "count": counts.get(stack_type, 0)} for stack_type in STACK_TYPES]
+    return [{"type": stack_type, "count": counts.get(stack_type, 0)} for stack_type in ACTIVE_STACK_TYPES]
 
 
 @router.get("/accounts/{organization_id}/substacks")
@@ -154,7 +154,9 @@ def list_substacks(
     session: Session = Depends(get_session),
 ):
     membership_for(organization_id, user, session)
-    statement = select(Substack).where(Substack.organization_id == organization_id, _visible(user))
+    statement = select(Substack).where(
+        Substack.organization_id == organization_id, _visible(user), Substack.stack_type.in_(ACTIVE_STACK_TYPES),
+    )
     if type:
         statement = statement.where(Substack.stack_type == type)
     if q:
@@ -277,7 +279,7 @@ def create_substack(
     session: Session = Depends(get_session),
 ):
     membership_for(organization_id, user, session)
-    if body.stack_type not in STACK_TYPES:
+    if body.stack_type not in ACTIVE_STACK_TYPES:
         raise HTTPException(status_code=422, detail="invalid_stack_type")
     description = (body.summary or "").strip()
     if body.generate:
@@ -325,6 +327,29 @@ def update_substack(
     if body.summary is not None:
         substack.summary = body.summary
     session.commit()
+    return _substack_json(session, substack, user)
+
+
+@router.post("/substacks/{substack_id}/retry-generation")
+def retry_generation(
+    substack_id: UUID,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Queue a fresh forced generation for a record whose last generation failed."""
+    substack = _get_substack(substack_id, user, session)
+    if substack.review_state != "generation_error":
+        raise HTTPException(status_code=409, detail="generation_not_failed")
+    if not _generating_ids(session, [substack.id]):
+        enqueue_job(
+            session,
+            organization_id=substack.organization_id,
+            owner_user_id=substack.owner_user_id,
+            kind="generate_substack",
+            payload={"substack_id": str(substack.id), "force": True},
+            dedupe_key=f"retry:{substack.id}:{uuid4()}",
+        )
+        session.commit()
     return _substack_json(session, substack, user)
 
 
@@ -381,6 +406,24 @@ def confirm_content(
     if content is None or content.substack_id != substack.id:
         raise HTTPException(status_code=404, detail="content_not_found")
     _confirm_content(session, substack, content, user)
+    session.commit()
+    return _substack_json(session, substack, user)
+
+
+@router.post("/substacks/{substack_id}/contents/{content_id}/keep-current")
+def keep_current_content(
+    substack_id: UUID,
+    content_id: UUID,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Dismiss a proposed update; the confirmed content stays current."""
+    substack = _get_substack(substack_id, user, session)
+    confirmed, pending = _content_pair(session, substack.id)
+    if pending is None or pending.id != content_id or confirmed is None or confirmed.status != "confirmed":
+        raise HTTPException(status_code=409, detail="content_not_current_proposal")
+    pending.status = "superseded"
+    substack.review_state = "clean"
     session.commit()
     return _substack_json(session, substack, user)
 

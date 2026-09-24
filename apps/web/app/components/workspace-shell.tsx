@@ -31,6 +31,7 @@ import {
   confirmAllSubstacks,
   confirmSubstack,
   confirmSubstackContent,
+  keepCurrentSubstackContent,
   convertToCompany,
   createSubstack,
   deleteSubstack,
@@ -41,6 +42,7 @@ import {
   loginUrl,
   logout,
   retryAnalysis,
+  retrySubstackGeneration,
   startAnalysis,
   type AnalysisRun,
   type Me,
@@ -64,14 +66,13 @@ import styles from "./workspace-shell.module.css";
 type ModalState =
   | null
   | { kind: "createSubstack"; typeId: string }
-  | { kind: "deleteSubstack"; substack: Substack };
+  | { kind: "deleteSubstack"; substack: Substack; message?: string };
 
 const NAV_ITEMS = [
   { icon: "activity", label: "Analyze workspace", id: "tocheck" },
   { icon: "search", label: "Search", id: "search" },
   { icon: "layers", label: "Stacks", id: "stacks" },
   { icon: "database", label: "Sources", id: "sources" },
-  { icon: "activity", label: "Maintenance", id: "maintenance" },
 ] as const satisfies { icon: string; label: string; id: NavId }[];
 
 const viewLabel = (view: NavId) => NAV_ITEMS.find((item) => item.id === view)?.label ?? "Stacks";
@@ -403,6 +404,20 @@ export default function WorkspaceShell() {
       .finally(() => setAnalysisBusy(false));
   };
 
+  const handleRetryGeneration = (ss: Substack) => {
+    if (analysisBusy) return;
+    setAnalysisBusy(true);
+    retrySubstackGeneration(ss.id)
+      .then((row) => {
+        track("substack_generation_retried", { stack_type: ss.typeId });
+        const updated = toSubstack(row);
+        setSubstacks((prev) => prev.map((item) => (item.id === ss.id ? updated : item)));
+        showNotice(`Regenerating "${ss.name}".`);
+      })
+      .catch((reason) => showNotice(reason instanceof Error ? reason.message : "Generation could not be retried."))
+      .finally(() => setAnalysisBusy(false));
+  };
+
   const handleConfirmItem = (ss: Substack) => {
     if (analysisBusy) return;
     setAnalysisBusy(true);
@@ -437,6 +452,21 @@ export default function WorkspaceShell() {
         showNotice(advanceTo ? "Confirmed. Showing the next item to check." : "Proposed content confirmed.");
       })
       .catch((reason) => showNotice(reason instanceof Error ? reason.message : "Content could not be confirmed."));
+  };
+
+  const handleKeepCurrentContent = (substackId: string, contentId: string) => {
+    const advanceTo = substackId === selectedSubstackId ? queueNav?.nextId ?? null : null;
+    keepCurrentSubstackContent(substackId, contentId)
+      .then(() => {
+        track("substack_update_dismissed", {
+          stack_type: substacks.find((item) => item.id === substackId)?.typeId ?? null,
+        });
+        refreshSubstacks();
+        ensureDetail(substackId);
+        if (advanceTo) stepQueue(advanceTo, "auto");
+        showNotice(advanceTo ? "Kept current version. Showing the next item to check." : "Kept current version.");
+      })
+      .catch((reason) => showNotice(reason instanceof Error ? reason.message : "Update could not be dismissed."));
   };
 
   const handleAddSubstack = async (input: { name: string; desc: string; generate: boolean }) => {
@@ -756,6 +786,12 @@ export default function WorkspaceShell() {
                 onAnalyze={handleAnalyze}
                 onConfirmAll={handleConfirmAll}
                 onRetryAnalysis={handleRetryAnalysis}
+                onRetryGeneration={handleRetryGeneration}
+                onDelete={(substack) => setModal({
+                  kind: "deleteSubstack",
+                  substack,
+                  message: "This substack may not be generated in the future.",
+                })}
               />
             </div>
           )}
@@ -773,15 +809,6 @@ export default function WorkspaceShell() {
                 accountId={me?.active_account_id ?? null}
                 onOpenRecord={openSubstack}
               />
-            </div>
-          )}
-          {activeNav === "maintenance" && (
-            <div className={styles.placeholder}>
-              <h1 className={styles.placeholderTitle}>Maintenance</h1>
-              <p className={styles.placeholderText}>
-                Review stale sources, conflicts, and visibility gaps. Coming
-                soon.
-              </p>
             </div>
           )}
           {!route && (
@@ -811,6 +838,7 @@ export default function WorkspaceShell() {
                 onOpen={openSubstack}
                 onEnsureDetail={ensureDetail}
                 onConfirmContent={(contentId) => handleConfirmContent(selectedSubstack.id, contentId)}
+                onKeepCurrentContent={(contentId) => handleKeepCurrentContent(selectedSubstack.id, contentId)}
               />
             ) : selectedSubstackId ? (
               substacksLoaded && (
@@ -861,6 +889,7 @@ export default function WorkspaceShell() {
         <Modal onClose={closeModal}>
           <DeleteSubstackModal
             substack={modal.substack}
+            message={modal.message}
             onClose={closeModal}
             onConfirm={() => handleDeleteSubstack(modal.substack)}
           />

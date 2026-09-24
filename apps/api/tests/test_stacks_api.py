@@ -1,5 +1,6 @@
 """Stacks API: filing, owner-only visibility, detail shape, confirm, backfill."""
 import unittest
+from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
@@ -10,6 +11,7 @@ from app.auth import get_current_user
 from app.database import get_engine, get_session
 from app.filing import ingest_and_file
 from app.ingest import SourceDocument, ingest_document
+from app.jobs import create_run
 from app.main import app
 from app.models import (
     Chunk,
@@ -100,6 +102,8 @@ class StacksApiTests(unittest.TestCase):
         by_type = {row["type"]: row["count"] for row in stacks}
         self.assertEqual(1, by_type["files"])
         self.assertEqual(0, by_type["clients"])
+        self.assertEqual(0, by_type["suppliers"])
+        self.assertTrue({"invoices", "production-jobs", "pics"}.isdisjoint(by_type))
 
     def test_whatsapp_document_files_as_conversation(self):
         self.ingest(source="whatsapp", owner=self.alice.id, title="Group ABC", content="2026-01-02 10:30 Ali: hi")
@@ -119,6 +123,28 @@ class StacksApiTests(unittest.TestCase):
         self.assertEqual(0, private_run["generation_total"])
         self.assertEqual(0, private_run["generation_completed"])
         self.assertEqual(0, private_run["generation_failed"])
+
+    def test_analysis_run_projects_generation_finish_time(self):
+        run = create_run(self.session, self.organization.id, self.alice.id, "manual")
+        now = datetime.now(timezone.utc)
+        for index, status in enumerate(["succeeded", "succeeded", "queued", "queued"]):
+            done = status == "succeeded"
+            self.session.add(KnowledgeJob(
+                organization_id=self.organization.id,
+                owner_user_id=self.alice.id,
+                analysis_run_id=run.id,
+                kind="generate_substack",
+                payload={},
+                dedupe_key=f"test-generate:{run.id}:{index}",
+                status=status,
+                locked_at=now - timedelta(minutes=5) if done else None,
+                locked_by="test-worker" if done else None,
+                updated_at=now - timedelta(minutes=4) if done else now,
+            ))
+        self.session.commit()
+        listed = self.client.get(f"/accounts/{self.organization.id}/analysis").json()
+        projected = next(row for row in listed if row["id"] == str(run.id))
+        self.assertGreater(datetime.fromisoformat(projected["generation_estimated_finish_at"]), now)
 
     def mark_discovered(self, external_id):
         document = self.session.scalar(select(Document).where(Document.external_id == external_id))
@@ -251,6 +277,39 @@ class StacksApiTests(unittest.TestCase):
         self.assertEqual("confirmed", proposed.status)
         self.assertEqual("superseded", first.status)
 
+    def test_keep_current_dismisses_pending_revision(self):
+        self.ingest(owner=self.alice.id)
+        substack_id = UUID(self.list_substacks(self.alice)[0]["id"])
+        first = self.session.scalar(
+            select(SubstackContent)
+            .where(SubstackContent.substack_id == substack_id)
+            .order_by(SubstackContent.revision.desc())
+            .limit(1)
+        )
+        first.status = "confirmed"
+        proposed = SubstackContent(
+            substack_id=substack_id,
+            revision=first.revision + 1,
+            prompt_key="files.describe.v1",
+            prompt_version="v1",
+            model="fake",
+            content={"segments": [], "entries": []},
+            status="proposed",
+            inputs_fingerprint="d" * 64,
+        )
+        self.session.add(proposed)
+        substack = self.session.get(Substack, substack_id)
+        substack.review_state = "pending_update"
+        self.session.commit()
+        response = self.client.post(f"/substacks/{substack_id}/contents/{proposed.id}/keep-current")
+        self.assertEqual(200, response.status_code)
+        self.assertEqual("superseded", proposed.status)
+        self.assertEqual("confirmed", first.status)
+        self.assertEqual("clean", substack.review_state)
+        self.assertIsNone(self.client.get(f"/substacks/{substack_id}").json()["pending_content"])
+        again = self.client.post(f"/substacks/{substack_id}/contents/{proposed.id}/keep-current")
+        self.assertEqual(409, again.status_code)
+
     def test_file_all_backfills_unfiled_documents(self):
         external_id = f"ext-{uuid4()}"
         ingest_document(
@@ -294,7 +353,10 @@ class StacksApiTests(unittest.TestCase):
         )
         self.assertEqual(200, created.status_code)
         row = created.json()
-        self.assertEqual(("proposed", "pending", "mine", True), (row["status"], row["review_state"], row["scope"], row["generating"]))
+        self.assertEqual(
+            ("proposed", "pending", "mine", True),
+            (row["status"], row["review_state"], row["scope"], row["generating"]),
+        )
         job = self.session.scalar(select(KnowledgeJob).where(KnowledgeJob.dedupe_key == f"describe:{row['id']}"))
         self.assertEqual("generate_substack", job.kind)
         self.assertEqual({"substack_id": row["id"], "force": True}, job.payload)
@@ -307,10 +369,41 @@ class StacksApiTests(unittest.TestCase):
 
     def test_described_substack_requires_description_and_supported_type(self):
         url = f"/accounts/{self.organization.id}/substacks"
-        missing = self.client.post(url, json={"stack_type": "clients", "name": "Acme", "summary": " ", "generate": True})
+
+        def post(stack_type: str, name: str, summary: str = "x"):
+            return self.client.post(
+                url, json={"stack_type": stack_type, "name": name, "summary": summary, "generate": True}
+            )
+
+        missing = post("clients", "Acme", " ")
         self.assertEqual("description_required", missing.json()["detail"])
-        unsupported = self.client.post(url, json={"stack_type": "invoices", "name": "INV-1", "summary": "x", "generate": True})
+        unsupported = post("specifications", "DWG-1")
         self.assertEqual("generation_unsupported_stack_type", unsupported.json()["detail"])
+        retired = post("invoices", "INV-1")
+        self.assertEqual("invalid_stack_type", retired.json()["detail"])
+        for stack_type in ("suppliers", "supplier-orders", "meetings"):
+            created = post(stack_type, "x")
+            self.assertEqual(200, created.status_code, stack_type)
+
+    def test_retry_generation_queues_one_forced_job_for_failed_record(self):
+        self.ingest(owner=self.alice.id)
+        substack_id = self.list_substacks(self.alice)[0]["id"]
+        url = f"/substacks/{substack_id}/retry-generation"
+        self.assertEqual("generation_not_failed", self.client.post(url).json()["detail"])
+        self.session.get(Substack, UUID(substack_id)).review_state = "generation_error"
+        self.session.flush()
+        self.current_user = self.bob
+        self.assertEqual(404, self.client.post(url).status_code)
+        self.current_user = self.alice
+        first = self.client.post(url)
+        self.assertEqual(200, first.status_code)
+        self.assertTrue(first.json()["generating"])
+        self.assertEqual(200, self.client.post(url).status_code)
+        jobs = self.session.scalars(
+            select(KnowledgeJob).where(KnowledgeJob.dedupe_key.like(f"retry:{substack_id}:%"))
+        ).all()
+        self.assertEqual(1, len(jobs))
+        self.assertEqual({"substack_id": substack_id, "force": True}, jobs[0].payload)
 
     def test_delete_substack_removes_it_and_its_content(self):
         self.ingest(owner=self.alice.id)

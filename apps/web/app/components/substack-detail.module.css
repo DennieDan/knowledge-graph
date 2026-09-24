@@ -19,6 +19,15 @@
 .reviewBanner span { flex: 1; }
 .reviewBanner button { border: 0; background: transparent; color: var(--md-sys-color-primary); font-weight: 600; cursor: pointer; }
 .reviewBanner .confirmButton { padding: 7px 10px; border-radius: 6px; background: var(--md-sys-color-primary); color: var(--md-sys-color-on-primary); }
+.splitButton { position: relative; display: inline-flex; }
+.reviewBanner .splitButton .confirmButton { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.reviewBanner .splitToggle { display: grid; place-items: center; padding: 0 8px; border-left: 1px solid color-mix(in srgb, var(--md-sys-color-on-primary) 30%, transparent); border-radius: 0 6px 6px 0; background: var(--md-sys-color-primary); color: var(--md-sys-color-on-primary); }
+.reviewBanner .confirmButton:hover, .reviewBanner .splitToggle:hover { filter: brightness(1.08); }
+.splitMenu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 10; min-width: 220px; overflow: hidden; border: 1px solid var(--cp-border); border-radius: 8px; background: var(--cp-canvas); box-shadow: 0 8px 24px rgb(0 0 0 / 12%); }
+.reviewBanner .splitMenu button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 11px 14px; border-radius: 0; color: var(--cp-ink); font-size: 13px; font-weight: 600; text-align: left; white-space: nowrap; }
+.reviewBanner .splitMenu button + button { border-top: 1px solid var(--cp-border); }
+.reviewBanner .splitMenu button:hover { background: var(--cp-hover); }
+.reviewBanner .splitMenu .splitMenuCheck { flex: none; display: inline-grid; place-items: center; width: 14px; }
 .toolbar { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin: 30px 0 14px; }
 .toolbar label { width: 240px; display: flex; align-items: center; gap: 7px; border: 1px solid var(--cp-border); border-radius: 7px; padding: 7px 9px; }
 .toolbar input { border: 0; outline: 0; width: 100%; background: transparent; font-size: 12px; }

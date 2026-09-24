@@ -343,7 +343,32 @@
 .rowActions {
   display: flex;
   align-items: center;
+  gap: 6px;
   padding: 0 10px 0 4px;
+}
+
+.iconBtn {
+  border: 1px solid var(--cp-border);
+  border-radius: 7px;
+  padding: 8px;
+  background: var(--cp-canvas);
+  color: var(--cp-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  line-height: inherit;
+}
+
+.iconBtn:hover:not(:disabled) {
+  border-color: var(--cp-danger);
+  color: var(--cp-danger);
+}
+
+.iconBtn:disabled,
+.reviewBtn:disabled {
+  opacity: 0.55;
+  cursor: default;
 }
 
 .confirmBtn {
@@ -385,6 +410,7 @@
   white-space: nowrap;
   min-width: 128px;
   text-decoration: none;
+  gap: 6px;
 }
 
 .reviewBtn:hover {
