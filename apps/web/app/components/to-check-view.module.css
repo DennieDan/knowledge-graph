@@ -171,9 +171,76 @@
   font-weight: 500;
 }
 
+.filterDivider {
+  width: 1px;
+  align-self: stretch;
+  margin: 2px 2px;
+  background: var(--cp-border);
+}
+
 .list {
   display: grid;
   gap: 8px;
+  scroll-margin-top: 72px;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.pagerRange {
+  font-size: 12px;
+  color: var(--cp-muted);
+}
+
+.pagerButtons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pageBtn {
+  min-width: 30px;
+  height: 30px;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--cp-border);
+  border-radius: 7px;
+  background: var(--cp-canvas);
+  color: var(--cp-ink);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.pageBtn:hover:not(:disabled) {
+  border-color: var(--cp-muted);
+}
+
+.pageBtn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.pageBtnActive {
+  border-color: var(--cp-ink);
+  background: var(--cp-ink);
+  color: var(--cp-canvas);
+  font-weight: 600;
+}
+
+.pageGap {
+  min-width: 20px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--cp-muted);
 }
 
 .row {

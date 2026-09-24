@@ -49,12 +49,12 @@ import { identifyUser, resetAnalytics, track } from "../lib/analytics";
 import {
   NAV_PATHS,
   analyzePath,
-  parseReviewFilter,
+  parseReviewState,
   parseRoute,
+  reviewStateOf,
   stackPath,
   substackPath,
   type NavId,
-  type ReviewFilter,
 } from "../lib/routes";
 import { reviewQueue } from "../lib/review-queue";
 import { isPlainClick, useAppHistory, type NavMethod } from "../lib/use-app-history";
@@ -73,8 +73,6 @@ const NAV_ITEMS = [
 ] as const satisfies { icon: string; label: string; id: NavId }[];
 
 const viewLabel = (view: NavId) => NAV_ITEMS.find((item) => item.id === view)?.label ?? "Stacks";
-
-const filterOf = (href: string) => parseReviewFilter(new URLSearchParams(href.split("?")[1] ?? "").get("filter"));
 
 const FALLBACK_TYPE: StackType = {
   id: "unknown",
@@ -125,7 +123,7 @@ export default function WorkspaceShell() {
   const selectedType = route?.view === "stacks" ? route.typeId : null;
   const selectedSubstackId = route?.view === "stacks" ? route.substackId : null;
   const fromReview = selectedSubstackId !== null && searchParams.get("from") === "analyze";
-  const reviewFilter = parseReviewFilter(searchParams.get("filter"));
+  const reviewState = parseReviewState(searchParams);
   const stackTypes = STACK_TYPES;
   const [substacks, setSubstacks] = useState<Substack[]>([]);
   const [substacksLoaded, setSubstacksLoaded] = useState(false);
@@ -249,7 +247,7 @@ export default function WorkspaceShell() {
   if (activeNav === "tocheck" && analyzeHref !== href) setAnalyzeHref(href);
 
   // Review queue: the batch captured when the reviewer left the Analyze list.
-  const liveQueue = fromReview ? reviewQueue(substacks, reviewFilter).map((item) => item.ss.id) : [];
+  const liveQueue = fromReview ? reviewQueue(substacks, reviewState).map((item) => item.ss.id) : [];
   if (fromReview && selectedSubstackId && !queueIds.includes(selectedSubstackId) && liveQueue.includes(selectedSubstackId)) {
     setQueueIds(liveQueue);
   }
@@ -411,7 +409,7 @@ export default function WorkspaceShell() {
     const target = substacks.find((item) => item.id === id);
     if (!target || !queueNav) return;
     track("review_queue_step", { direction, position: queueNav.position, total: queueNav.total });
-    navigate(substackPath(target, reviewFilter), "review_queue", { replace: true });
+    navigate(substackPath(target, reviewState), "review_queue", { replace: true });
   };
 
   const handleConfirmContent = (substackId: string, contentId: string) => {
@@ -454,7 +452,7 @@ export default function WorkspaceShell() {
   };
 
   const openFromQueue = (event: MouseEvent, target: string) => {
-    setQueueIds(reviewQueue(substacks, filterOf(analyzeHref)).map((item) => item.ss.id));
+    setQueueIds(reviewQueue(substacks, reviewStateOf(analyzeHref)).map((item) => item.ss.id));
     linkClick(target, "link")(event);
   };
 
@@ -469,7 +467,7 @@ export default function WorkspaceShell() {
   // In-app Back follows browser history while it stays inside the app, and
   // falls back to the parent page after a refresh or an opened link.
   const backHref = change?.backHref ?? null;
-  const parentHref = fromReview ? analyzePath(reviewFilter) : stackPath(selectedType);
+  const parentHref = fromReview ? analyzePath(reviewState) : stackPath(selectedType);
   const goBack = () => {
     const target = backHref ?? parentHref;
     track("nav_back_clicked", { target_view: parseRoute(target)?.view ?? null, fallback: !backHref });
@@ -486,7 +484,7 @@ export default function WorkspaceShell() {
   };
 
   const crumbLabel = activeNav === "stacks" ? null : activeNav ? viewLabel(activeNav) : "Not found";
-  const analyzeFilter: ReviewFilter = filterOf(analyzeHref);
+  const analyzeState = reviewStateOf(analyzeHref);
 
   return (
     <div className={`${styles.app} ${resizing ? styles.appResizing : ""}`}>
@@ -730,9 +728,9 @@ export default function WorkspaceShell() {
                 busy={analysisBusy}
                 notice={notice}
                 analysisRuns={analysisRuns}
-                filter={analyzeFilter}
-                onFilterChange={(next) => navigate(analyzePath(next), "link", { replace: true })}
-                substackHref={(ss) => substackPath(ss, analyzeFilter)}
+                review={analyzeState}
+                onReviewChange={(next) => navigate(analyzePath(next), "link", { replace: true })}
+                substackHref={(ss) => substackPath(ss, analyzeState)}
                 onOpen={openFromQueue}
                 onConfirm={handleConfirmItem}
                 onAnalyze={handleAnalyze}

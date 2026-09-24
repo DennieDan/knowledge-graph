@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState, type MouseEvent } from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 import Link from "next/link";
 import Icon from "./icons";
+import MultiSelectChip from "./multi-select-chip";
 import styles from "./to-check-view.module.css";
 import type { StackType, Substack } from "../lib/stacks";
-import type { ReviewFilter } from "../lib/routes";
+import type { ReviewFilter, ReviewState } from "../lib/routes";
 import { reviewQueue, type QueueKind } from "../lib/review-queue";
 import {
   dismissFinding,
@@ -36,9 +37,23 @@ const DEFAULT_REASONS = [
   "other_recorded_below",
 ];
 
+const PAGE_SIZE = 20;
+
+type Entry =
+  | { key: string; ss: Substack; kind: QueueKind }
+  | { key: string; finding: FindingRow };
+
 function kindLabel(ss: Substack, kind: QueueKind): string {
   if (ss.reviewState === "generation_error") return "Generation failed";
   return KIND_LABEL[kind];
+}
+
+/** Page numbers to show, with "…" gaps: 1 … 4 5 6 … 12. */
+function pageList(current: number, count: number): (number | "…")[] {
+  const pages = [...new Set([1, current - 1, current, current + 1, count])]
+    .filter((page) => page >= 1 && page <= count)
+    .sort((a, b) => a - b);
+  return pages.flatMap((page, i) => (i > 0 && page - pages[i - 1]! > 1 ? ["…" as const, page] : [page]));
 }
 
 export default function ToCheckView({
@@ -48,8 +63,8 @@ export default function ToCheckView({
   busy,
   notice,
   analysisRuns,
-  filter,
-  onFilterChange,
+  review,
+  onReviewChange,
   substackHref,
   onOpen,
   onConfirm,
@@ -63,8 +78,8 @@ export default function ToCheckView({
   busy: boolean;
   notice: string;
   analysisRuns: AnalysisRun[];
-  filter: ReviewFilter;
-  onFilterChange: (filter: ReviewFilter) => void;
+  review: ReviewState;
+  onReviewChange: (review: ReviewState) => void;
   substackHref: (ss: Substack) => string;
   onOpen: (event: MouseEvent, href: string) => void;
   onConfirm: (ss: Substack) => void;
@@ -103,10 +118,44 @@ export default function ToCheckView({
     if (!analyzing) refreshFindings();
   }, [accountId, analyzing]);
 
-  const queue = reviewQueue(substacks, "all");
-  const visible = reviewQueue(substacks, filter);
-  const showFindings = filter === "all" || filter === "findings";
-  const total = queue.length + findings.length;
+  const { filter, types } = review;
+  const listRef = useRef<HTMLDivElement>(null);
+  const total = reviewQueue(substacks, { filter: "all", types: [] }).length + findings.length;
+
+  // Every entry for the current queue kind, before the stack type filter.
+  const typeOfSubstack = new Map(substacks.map((ss) => [ss.id, ss.typeId]));
+  const findingType = (finding: FindingRow) =>
+    finding.subject_kind === "substack" ? typeOfSubstack.get(finding.subject_id) ?? null : null;
+  const kindEntries: { entry: Entry; typeId: string | null }[] = [
+    ...(filter === "findings" ? [] : reviewQueue(substacks, { filter, types: [] })).map(({ ss, kind }) => ({
+      entry: { key: ss.id, ss, kind },
+      typeId: ss.typeId,
+    })),
+    ...(filter === "all" || filter === "findings" ? findings : []).map((finding) => ({
+      entry: { key: `finding-${finding.id}`, finding },
+      typeId: findingType(finding),
+    })),
+  ];
+  const entries = kindEntries
+    .filter((item) => types.length === 0 || (item.typeId !== null && types.includes(item.typeId)))
+    .map((item) => item.entry);
+
+  const typeOptions = stackTypes.map((type) => ({
+    value: type.id,
+    label: type.name,
+    icon: type.icon,
+    count: kindEntries.filter((item) => item.typeId === type.id).length,
+  }));
+
+  const pageCount = Math.max(1, Math.ceil(entries.length / PAGE_SIZE));
+  const page = Math.min(review.page, pageCount);
+  const pageStart = (page - 1) * PAGE_SIZE;
+  const pageEntries = entries.slice(pageStart, pageStart + PAGE_SIZE);
+
+  const goToPage = (next: number) => {
+    onReviewChange({ ...review, page: next });
+    listRef.current?.scrollIntoView({ block: "start" });
+  };
 
   const handleDismiss = async (findingId: string, reason: string) => {
     if (!accountId) return;
@@ -177,23 +226,76 @@ export default function ToCheckView({
             key={kind}
             type="button"
             aria-pressed={filter === kind}
-            onClick={() => onFilterChange(kind)}
+            onClick={() => onReviewChange({ ...review, filter: kind, page: 1 })}
             className={`${styles.filterChip} ${filter === kind ? styles.filterChipActive : ""}`}
           >
             {label}
           </button>
         ))}
+        <span className={styles.filterDivider} aria-hidden="true" />
+        <MultiSelectChip
+          label="Stack type"
+          options={typeOptions}
+          selected={types}
+          onChange={(next) => onReviewChange({ ...review, types: next, page: 1 })}
+        />
       </div>
 
-      {visible.length === 0 && !(showFindings && findings.length > 0) ? (
+      {entries.length === 0 ? (
         <div className={styles.empty}>
           <p className={styles.emptyTitle}>Nothing to check</p>
-          <p className={styles.emptyText}>New proposals will appear here.</p>
+          <p className={styles.emptyText}>
+            {types.length ? "No items match the selected stack types." : "New proposals will appear here."}
+          </p>
         </div>
       ) : (
-        <div className={styles.list}>
-          {filter !== "findings" &&
-            visible.map(({ ss, kind }) => {
+        <div ref={listRef} className={styles.list}>
+          {pageEntries.map((entry) => {
+              if (!("ss" in entry)) {
+                const { finding } = entry;
+                return (
+                  <div key={entry.key} className={styles.row}>
+                    <div className={styles.rowMain}>
+                      <span className={styles.rowIcon}>
+                        <Icon name="activity" size={15} />
+                      </span>
+                      <span className={styles.rowBody}>
+                        <span className={styles.rowName}>
+                          {finding.summary_sentence}
+                          <span className={`${styles.state} ${styles.state_attention}`}>Needs attention</span>
+                        </span>
+                        <span className={styles.rowMeta}>
+                          {finding.check_key} · {new Date(finding.detected_at).toLocaleString()}
+                        </span>
+                      </span>
+                    </div>
+                    <div className={styles.rowActions}>
+                      <label className={styles.reviewBtn}>
+                        Dismiss
+                        <select
+                          aria-label="Dismissal reason"
+                          disabled={dismissBusy === finding.id}
+                          defaultValue=""
+                          onChange={(event) => {
+                            const reason = event.target.value;
+                            if (reason) void handleDismiss(finding.id, reason);
+                          }}
+                        >
+                          <option value="" disabled>
+                            Reason…
+                          </option>
+                          {reasons.map((reason) => (
+                            <option key={reason} value={reason}>
+                              {reason}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                  </div>
+                );
+              }
+              const { ss, kind } = entry;
               const type = stackTypes.find((t) => t.id === ss.typeId);
               const href = substackHref(ss);
               return (
@@ -243,50 +345,50 @@ export default function ToCheckView({
                 </div>
               );
             })}
-
-          {showFindings &&
-            findings.map((finding) => (
-              <div key={finding.id} className={styles.row}>
-                <div className={styles.rowMain}>
-                  <span className={styles.rowIcon}>
-                    <Icon name="activity" size={15} />
-                  </span>
-                  <span className={styles.rowBody}>
-                    <span className={styles.rowName}>
-                      {finding.summary_sentence}
-                      <span className={`${styles.state} ${styles.state_attention}`}>Needs attention</span>
-                    </span>
-                    <span className={styles.rowMeta}>
-                      {finding.check_key} · {new Date(finding.detected_at).toLocaleString()}
-                    </span>
-                  </span>
-                </div>
-                <div className={styles.rowActions}>
-                  <label className={styles.reviewBtn}>
-                    Dismiss
-                    <select
-                      aria-label="Dismissal reason"
-                      disabled={dismissBusy === finding.id}
-                      defaultValue=""
-                      onChange={(event) => {
-                        const reason = event.target.value;
-                        if (reason) void handleDismiss(finding.id, reason);
-                      }}
-                    >
-                      <option value="" disabled>
-                        Reason…
-                      </option>
-                      {reasons.map((reason) => (
-                        <option key={reason} value={reason}>
-                          {reason}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-              </div>
-            ))}
         </div>
+      )}
+
+      {entries.length > PAGE_SIZE && (
+        <nav className={styles.pager} aria-label="Pagination">
+          <span className={styles.pagerRange}>
+            {pageStart + 1}–{pageStart + pageEntries.length} of {entries.length}
+          </span>
+          <div className={styles.pagerButtons}>
+            <button
+              type="button"
+              className={styles.pageBtn}
+              disabled={page === 1}
+              onClick={() => goToPage(page - 1)}
+              aria-label="Previous page"
+            >
+              <Icon name="chevron-left" size={14} />
+            </button>
+            {pageList(page, pageCount).map((item, i) =>
+              item === "…" ? (
+                <span key={`gap-${i}`} className={styles.pageGap}>…</span>
+              ) : (
+                <button
+                  key={item}
+                  type="button"
+                  className={`${styles.pageBtn} ${item === page ? styles.pageBtnActive : ""}`}
+                  aria-current={item === page ? "page" : undefined}
+                  onClick={() => goToPage(item)}
+                >
+                  {item}
+                </button>
+              ),
+            )}
+            <button
+              type="button"
+              className={styles.pageBtn}
+              disabled={page === pageCount}
+              onClick={() => goToPage(page + 1)}
+              aria-label="Next page"
+            >
+              <Icon name="chevron-right" size={14} />
+            </button>
+          </div>
+        </nav>
       )}
 
       {notice && (
