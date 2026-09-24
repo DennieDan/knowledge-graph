@@ -49,6 +49,7 @@ export interface UiSegment {
   value: string;
   name?: string | null;
   ref?: string | null;
+  locator?: Record<string, unknown> | null;
   sourceIds: string[];
 }
 
@@ -136,6 +137,7 @@ function toContentRevision(content: ApiSubstackContent): UiContentRevision {
       value: segment.value,
       name: segment.name,
       ref: segment.ref,
+      locator: segment.locator ?? null,
       sourceIds: segment.source_ids ?? [],
     })),
     conversation: (content.entries ?? []).map((entry, index) => ({

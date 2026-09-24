@@ -39,6 +39,7 @@ def register(prompt_key: str, auto_confirm: bool = False):
 
 PROMPT_KEYS = {
     "files": "files.describe.v0",
+    # Legacy message-list template; filing no longer runs it (Conversations are LLM-summarized on Analyze).
     "conversations": "conversations.transcript.v0",
 }
 STUB_PROMPT_KEY = "generic.stub.v0"

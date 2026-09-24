@@ -7,7 +7,13 @@ from sqlalchemy.orm import Session
 
 from app.database import get_engine
 from app.entity_resolution import identity_for_candidate, resolve_candidate
-from app.extractions import CandidateMention, ClientExtraction, EvidenceValue
+from app.extractions import (
+    CandidateMention,
+    ClientExtraction,
+    ConversationExtraction,
+    ConversationTopic,
+    EvidenceValue,
+)
 from app.embedding_jobs import embed_document_version
 from app.jobs import JobNotReady, create_run, enqueue_job
 from app.knowledge_analysis import generate_substack, regenerate_records
@@ -21,6 +27,7 @@ from app.models import (
     Organization,
     Substack,
     SubstackContent,
+    SubstackSource,
 )
 from app.retrieval import retrieve_chunks
 
@@ -137,6 +144,43 @@ class KnowledgePipelineTests(unittest.TestCase):
             KnowledgeJob.analysis_run_id == run.id, KnowledgeJob.kind == "generate_substack",
         )).all()
         self.assertEqual([{"substack_id": str(wanted.id), "force": True}], [job.payload for job in generated])
+
+    def test_conversation_summary_replaces_message_list_with_topics(self):
+        document, version, chunk = self.make_document()
+        document.source = "whatsapp"
+        substack = Substack(organization_id=self.organization.id, stack_type="conversations", name="Meridian")
+        self.session.add(substack)
+        self.session.flush()
+        self.session.add(SubstackSource(substack_id=substack.id, document_id=document.id))
+        template = SubstackContent(
+            substack_id=substack.id, revision=1, prompt_key="conversations.transcript.v0", prompt_version="v0",
+            model="template", content={"segments": [], "entries": [{"message": "hi"}]}, status="confirmed",
+            inputs_fingerprint="e" * 64,
+        )
+        self.session.add(template)
+        self.session.flush()
+        extraction = ConversationExtraction(topics=[
+            ConversationTopic(
+                title="Line 2 quantity raised to 60",
+                kind="decision",
+                summary=EvidenceValue(
+                    value="Meridian raised line 2 of MER-PO-4123 to 60 pcs.", citations=[str(chunk.id)],
+                ),
+                date="2026-03-12",
+            ),
+            ConversationTopic(title="  ", summary=EvidenceValue(value="dropped", citations=[str(chunk.id)])),
+        ])
+        with patch("app.knowledge_analysis.get_llm_client", return_value=FakeLLM(extraction)):
+            content = generate_substack(self.session, substack.id, None)
+        self.assertEqual("conversations.summarize.v1", content.prompt_key)
+        self.assertEqual("proposed", content.status)
+        self.assertEqual("superseded", template.status)
+        self.assertEqual("proposed", substack.status)
+        segments = content.content["segments"]
+        self.assertEqual(1, len(segments))
+        self.assertEqual(("text", "Line 2 quantity raised to 60"), (segments[0]["kind"], segments[0]["name"]))
+        self.assertEqual({"kind": "decision", "date": "2026-03-12"}, segments[0]["locator"])
+        self.assertEqual([], content.content["entries"])
 
     def test_identity_requires_stable_type_specific_identifiers(self):
         client = CandidateMention(

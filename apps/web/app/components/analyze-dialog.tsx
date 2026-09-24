@@ -133,7 +133,7 @@ export default function AnalyzeDialog({ accountId, onClose, onStart }: {
           <div className={styles.options}>
             {changed.length > 0 && option("affected", `Affected records (${plan.affected_records.length})`, "Records mentioned in the changed files. Newly found records are always generated.")}
             {option("selected", "Choose records", "Pick exactly which records to regenerate.")}
-            {option("all", `All records (${plan.records.length})`, "Regenerate every Sales Order, Client and Item. One LLM call per record.")}
+            {option("all", `All records (${plan.records.length})`, "Regenerate every Sales Order, Client, Item and Conversation. One LLM call per record.")}
           </div>
 
           {mode === "affected" && <RecordList records={plan.affected_records} />}

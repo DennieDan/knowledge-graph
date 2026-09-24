@@ -20,6 +20,13 @@ interface Props {
   onConfirmContent: (contentId: string) => void;
 }
 
+const TOPIC_KINDS: Record<string, string> = { topic: "Topic", decision: "Decision", key_point: "Key point" };
+
+function formatTopicDate(value: unknown): string {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return "";
+  return new Date(`${value}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+}
+
 function HighlightedToken({ children, sourceIds, onHover }: { children: React.ReactNode; sourceIds: string[]; onHover: (ids: string[] | null) => void }) {
   if (sourceIds.length === 0) return <>{children}</>;
   return <mark className={styles.highlightedToken} onMouseEnter={() => onHover(sourceIds)} onMouseLeave={() => onHover(null)}>{children}</mark>;
@@ -51,10 +58,23 @@ export default function SubstackDetail({ substack, stackTypes, detail, details, 
     () => (displayed?.segments ?? []).filter((segment) => `${segment.name ?? ""} ${segment.value}`.toLowerCase().includes(query.toLowerCase())),
     [displayed?.segments, query],
   );
+  const allTopics = useMemo(() => (displayed?.segments ?? []).filter((segment) => segment.kind === "text" && segment.name), [displayed?.segments]);
   const topics = useMemo(
-    () => (displayed?.conversation ?? []).filter((entry) => `${entry.date} ${entry.author} ${entry.message}`.toLowerCase().includes(query.toLowerCase())),
-    [displayed?.conversation, query],
+    () => matchingSegments
+      .filter((segment) => segment.kind === "text" && segment.name)
+      .map((segment, index) => ({ segment, index, date: typeof segment.locator?.date === "string" ? segment.locator.date : "" }))
+      .sort((a, b) => b.date.localeCompare(a.date) || a.index - b.index)
+      .map(({ segment }) => segment),
+    [matchingSegments],
   );
+  const [expandedTopics, setExpandedTopics] = useState<Set<string>>(new Set());
+  const toggleTopic = (id: string) => setExpandedTopics((current) => {
+    const next = new Set(current);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    return next;
+  });
+  const summarized = Boolean(displayed?.id) && !(displayed?.segments ?? []).some((segment) => segment.kind !== "text");
 
   return (
     <div className={`${styles.page} ${panelOpen ? "" : styles.pagePanelClosed}`}>
@@ -108,13 +128,25 @@ export default function SubstackDetail({ substack, stackTypes, detail, details, 
           <p className={styles.empty}>Loading content…</p>
         ) : isConversation ? (
           <div className={styles.topics}>
-            {topics.map((topic) => (
-              <article key={topic.id} className={styles.topic} onMouseEnter={() => setHoveredSourceIds(topic.sourceIds)} onMouseLeave={() => setHoveredSourceIds(null)}>
-                <div className={styles.topicMeta}>{topic.date} · {topic.author}</div>
-                <h3><HighlightedToken sourceIds={topic.sourceIds} onHover={setHoveredSourceIds}>{topic.message}</HighlightedToken></h3>
-              </article>
-            ))}
-            {topics.length === 0 && <p className={styles.empty}>No matching topics.</p>}
+            {topics.map((topic) => {
+              const expanded = expandedTopics.has(topic.id);
+              const meta = [TOPIC_KINDS[String(topic.locator?.kind)] ?? "Topic", formatTopicDate(topic.locator?.date)].filter(Boolean).join(" · ");
+              return (
+                <article key={topic.id} className={styles.topic} onMouseEnter={() => setHoveredSourceIds(topic.sourceIds)} onMouseLeave={() => setHoveredSourceIds(null)}>
+                  <div className={styles.topicMeta}>{meta}</div>
+                  <h3>{topic.name}</h3>
+                  <p className={expanded ? undefined : styles.clamped}>{topic.value}</p>
+                  <button type="button" onClick={() => toggleTopic(topic.id)} aria-expanded={expanded}>
+                    {expanded ? "Show less" : "Show more"} <Icon name="chevron-down" size={13} />
+                  </button>
+                </article>
+              );
+            })}
+            {topics.length === 0 && (
+              <p className={styles.empty}>
+                {allTopics.length > 0 ? "No matching topics." : summarized ? "No business topics were found in this conversation." : "No summary yet. Run Analyze and regenerate this conversation to summarize it."}
+              </p>
+            )}
           </div>
         ) : (
           <div className={styles.prose}>
