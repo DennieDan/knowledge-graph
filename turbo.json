@@ -6,6 +6,7 @@
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "env": ["NEXT_PUBLIC_API_URL", "API_PROXY_TARGET", "VERCEL_ENV", "NEXT_PUBLIC_POSTHOG_KEY", "NEXT_PUBLIC_POSTHOG_HOST", "NEXT_PUBLIC_VERCEL_ENV"],
       "outputs": [
         ".next/**",
         "!.next/cache/**",
@@ -20,6 +21,10 @@
       "dependsOn": ["^check-types"]
     },
     "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "worker": {
       "cache": false,
       "persistent": true
     }

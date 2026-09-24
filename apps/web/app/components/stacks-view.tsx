@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Icon from "./icons";
 import styles from "./stacks.module.css";
 import {
@@ -9,6 +10,8 @@ import {
   type StackType,
   type Substack,
 } from "../lib/stacks";
+
+const ROLE_FILTERS = ["Proposed", "Confirmed", "Update available", "Needs review"];
 
 function TypeTile({
   type,
@@ -83,8 +86,8 @@ function SubstackCard({
       {!listMode && <div className={styles.tileDesc}>{ss.desc}</div>}
       {!listMode && (
         <div className={styles.cardDocs}>
-          {ss.docs.map((d) => (
-            <div key={d} className={styles.cardDocRow}>
+          {ss.docs.map((d, i) => (
+            <div key={`${d}-${i}`} className={styles.cardDocRow}>
               <Icon name="file-text" />
               <span>{d}</span>
             </div>
@@ -116,7 +119,6 @@ export default function StacksView({
   onToggleListMode,
   onOpenDetails,
   onAddItem,
-  onCreateStack,
 }: {
   stackTypes: StackType[];
   substacks: Substack[];
@@ -131,16 +133,27 @@ export default function StacksView({
   onToggleListMode: () => void;
   onOpenDetails: (ss: Substack) => void;
   onAddItem: (typeId: string) => void;
-  onCreateStack: () => void;
 }) {
   const activeType = selectedType
     ? stackTypes.find((t) => t.id === selectedType)
     : null;
+  const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
+
+  useEffect(() => setStatusFilter(new Set()), [selectedType]);
+
+  const toggleStatus = (role: string) =>
+    setStatusFilter((current) => {
+      const next = new Set(current);
+      if (next.has(role)) next.delete(role);
+      else next.add(role);
+      return next;
+    });
 
   const filteredSubstacks = substacks.filter(
     (ss) =>
       (selectedType ? ss.typeId === selectedType : true) &&
       inScope(ss, scope) &&
+      (statusFilter.size === 0 || statusFilter.has(ss.role)) &&
       (ss.name + " " + ss.desc)
         .toLowerCase()
         .includes(searchVal.toLowerCase()),
@@ -201,16 +214,12 @@ export default function StacksView({
           )}
         </div>
 
-        {activeType ? (
+        {activeType && (
           <button
             onClick={() => onAddItem(activeType.id)}
             className={styles.primaryBtn}
           >
             <Icon name="plus" /> Add to {activeType.name}
-          </button>
-        ) : (
-          <button onClick={onCreateStack} className={styles.primaryBtn}>
-            <Icon name="plus" /> Create stack
           </button>
         )}
       </div>
@@ -257,6 +266,23 @@ export default function StacksView({
           </button>
         )}
       </div>
+
+      {/* Status filter (multi-select) */}
+      {activeType && (
+        <div className={styles.filterRow} role="group" aria-label="Filter by status">
+          {ROLE_FILTERS.map((role) => (
+            <button
+              key={role}
+              type="button"
+              aria-pressed={statusFilter.has(role)}
+              onClick={() => toggleStatus(role)}
+              className={`${styles.filterChip} ${statusFilter.has(role) ? styles.filterChipActive : ""}`}
+            >
+              {role}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Level 1: stack type tiles */}
       {!activeType &&

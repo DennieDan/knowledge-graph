@@ -3,7 +3,7 @@
 Run from apps/api with the virtual environment active:
 
     python -m scripts.ingest --organization-id UUID whatsapp --user-email me@example.com
-    python -m scripts.ingest --organization-id UUID drive --user-email me@example.com --file-id ID
+    python -m scripts.ingest --organization-id UUID drive --user-email me@example.com --workspace-id UUID --file-id ID
 
 Chunks land without embeddings; follow with `python -m scripts.reembed`.
 """
@@ -16,8 +16,9 @@ from sqlalchemy.orm import Session
 
 from app.database import get_engine
 from app.drive import UnsupportedFileType, ensure_access_token, fetch_file_metadata, fetch_file_text
-from app.ingest import chunk_count, ingest_document
-from app.models import GoogleAccount, Organization, User, WhatsappChat, WhatsappConnection, WhatsappMessage
+from app.filing import ingest_and_file
+from app.ingest import chunk_count
+from app.models import DriveConnection, DriveWorkspace, Organization, User, WhatsappChat, WhatsappConnection, WhatsappMessage
 from app.sources import drive_file_document, whatsapp_chat_document
 
 
@@ -56,26 +57,49 @@ def ingest_whatsapp(session: Session, organization_id: UUID, email: str, chat_ji
         statement = statement.where(WhatsappChat.chat_jid.in_(chat_jids))
     for chat in session.scalars(statement):
         messages = session.scalars(select(WhatsappMessage).where(WhatsappMessage.chat_id == chat.id)).all()
-        version = ingest_document(session, organization_id, whatsapp_chat_document(chat, messages))
+        version = ingest_and_file(session, organization_id, whatsapp_chat_document(chat, messages, connection.user_id))
         session.commit()
         report(session, chat.name or chat.chat_jid, version)
 
 
-def ingest_drive(session: Session, organization_id: UUID, email: str, file_ids: list[str]) -> None:
+def ingest_drive(
+    session: Session,
+    organization_id: UUID,
+    workspace_id: UUID,
+    email: str,
+    file_ids: list[str],
+) -> None:
     user = require_user(session, email)
-    account = session.scalar(select(GoogleAccount).where(GoogleAccount.user_id == user.id))
-    if account is None:
-        raise SystemExit(f"{email} has no linked Google account")
+    workspace = session.get(DriveWorkspace, workspace_id)
+    if workspace is None or workspace.organization_id != organization_id:
+        raise SystemExit(f"no Drive workspace {workspace_id} in organization {organization_id}")
+    connection = session.scalar(
+        select(DriveConnection).where(
+            DriveConnection.organization_id == organization_id,
+            DriveConnection.user_id == user.id,
+        )
+    )
+    if connection is None:
+        raise SystemExit(f"{email} has no linked Google Drive")
 
-    access_token = ensure_access_token(account, session)
+    access_token = ensure_access_token(connection, session)
     for file_id in file_ids:
         file = fetch_file_metadata(access_token, file_id)
+        if workspace.kind == "shared_drive" and file.get("driveId") != workspace.google_drive_id:
+            raise SystemExit(f"{file_id} does not belong to {workspace.name}")
+        if workspace.kind == "my_drive" and file.get("driveId"):
+            raise SystemExit(f"{file_id} does not belong to My Drive")
         try:
             text = fetch_file_text(access_token, file)
         except UnsupportedFileType as exc:
             print(f"{file.get('name', file_id)}: skipped ({exc})")
             continue
-        version = ingest_document(session, organization_id, drive_file_document(file, text))
+        owner_user_id = user.id if workspace.kind == "my_drive" else None
+        version = ingest_and_file(
+            session,
+            organization_id,
+            drive_file_document(file, text, workspace.id, owner_user_id),
+        )
         session.commit()
         report(session, file.get("name", file_id), version)
 
@@ -91,6 +115,7 @@ def main() -> int:
 
     drive = subparsers.add_parser("drive", help="ingest Drive files by ID")
     drive.add_argument("--user-email", required=True)
+    drive.add_argument("--workspace-id", type=UUID, required=True)
     drive.add_argument("--file-id", action="append", required=True)
 
     arguments = parser.parse_args()
@@ -99,7 +124,13 @@ def main() -> int:
         if arguments.source == "whatsapp":
             ingest_whatsapp(session, arguments.organization_id, arguments.user_email, arguments.chat_jid)
         else:
-            ingest_drive(session, arguments.organization_id, arguments.user_email, arguments.file_id)
+            ingest_drive(
+                session,
+                arguments.organization_id,
+                arguments.workspace_id,
+                arguments.user_email,
+                arguments.file_id,
+            )
     return 0
 
 

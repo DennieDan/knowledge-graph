@@ -10,8 +10,11 @@
     "check-types": ".venv/bin/python -m compileall -q app",
     "db:migrate": ".venv/bin/python -m alembic upgrade head",
     "db:check": ".venv/bin/python -m alembic check",
+    "db:readiness": ".venv/bin/python -m scripts.check_database",
     "db:ingest": ".venv/bin/python -m scripts.ingest",
     "db:reembed": ".venv/bin/python -m scripts.reembed",
+    "worker": ".venv/bin/python -m scripts.worker",
+    "worker:once": ".venv/bin/python -m scripts.worker --once",
     "test": ".venv/bin/python -m unittest discover -s tests -v"
   }
 }

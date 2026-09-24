@@ -35,6 +35,9 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Drop the workspace routes
+        working-directory: apps/web/app
+        run: rm -rf "(workspace)" page.tsx
       - run: pnpm build
         working-directory: apps/web
       - name: Serve the landing page at the site root
@@ -44,11 +47,11 @@ jobs:
           cat > index.html <<'HTML'
           <!doctype html>
           <meta charset="utf-8">
-          <title>Canon</title>
+          <title>crossPOd</title>
           <link rel="icon" href="./favicon.ico">
           <meta http-equiv="refresh" content="0; url=./landing/">
           <link rel="canonical" href="https://denniedan.github.io/knowledge-graph/landing/">
-          <a href="./landing/">Continue to the Canon landing page</a>
+          <a href="./landing/">Continue to the crossPOd landing page</a>
           HTML
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

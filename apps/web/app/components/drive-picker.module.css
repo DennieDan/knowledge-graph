@@ -34,7 +34,10 @@
 }
 
 .treeDisabled {
-  opacity: 0.45;
+  opacity: 0.65;
+}
+
+.treeDisabled input[type="checkbox"] {
   pointer-events: none;
 }
 
@@ -89,4 +92,109 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
+}
+
+.workspaceBar {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  margin: 14px 0;
+  padding-bottom: 4px;
+}
+
+.workspaceBar button {
+  display: grid;
+  gap: 2px;
+  min-width: 112px;
+  padding: 9px 11px;
+  border: 1px solid var(--cp-border);
+  border-radius: 9px;
+  background: white;
+  color: var(--cp-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.workspaceBar small {
+  color: var(--cp-muted);
+}
+
+.workspaceBar .workspaceActive {
+  border-color: #3c6e71;
+  background: rgb(60 110 113 / 8%);
+  box-shadow: inset 0 0 0 1px #3c6e71;
+}
+
+.accessButton, .back {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: #3c6e71;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.permissions {
+  min-height: 290px;
+  padding: 4px 2px 12px;
+}
+
+.permissions h3 {
+  margin: 12px 0 3px;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+}
+
+.permissionList {
+  display: grid;
+  gap: 7px;
+  margin: 16px 0;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.permissionRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 9px 10px;
+  border: 1px solid var(--cp-border);
+  border-radius: 8px;
+}
+
+.permissionRow span:first-child {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.permissionRow strong {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+}
+
+.permissionRow small {
+  color: var(--cp-muted);
+  font-size: 10px;
+}
+
+.role {
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: rgb(60 110 113 / 10%);
+  color: #284b63;
+  font-size: 10px;
+}
+
+.capabilities {
+  font-size: 12px;
 }

@@ -1,22 +1,22 @@
 import secrets
-from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
 from uuid import UUID
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .config import get_settings
 from .database import get_session
-from .models import GoogleAccount, User, WhatsappConnection
+from .models import DriveConnection, GoogleIdentity, Organization, OrganizationMembership, User, WhatsappChat, WhatsappConnection
 
 GOOGLE_AUTHORIZATION_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo"
-GOOGLE_SCOPES = "openid email profile https://www.googleapis.com/auth/drive.readonly"
+GOOGLE_IDENTITY_SCOPES = "openid email profile"
+GOOGLE_DRIVE_SCOPES = f"{GOOGLE_IDENTITY_SCOPES} https://www.googleapis.com/auth/drive.readonly"
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -34,34 +34,7 @@ def get_current_user(request: Request, session: Session = Depends(get_session)) 
     raise HTTPException(status_code=401, detail="not_authenticated")
 
 
-@router.get("/google/login")
-def google_login(request: Request):
-    settings = get_settings()
-    state = secrets.token_urlsafe(16)
-    request.session["oauth_state"] = state
-    # access_type=offline + prompt=consent: Google only returns a refresh token
-    # at consent time, so we force re-consent to guarantee we capture one.
-    params = {
-        "client_id": settings.google_client_id.get_secret_value(),
-        "redirect_uri": settings.google_redirect_uri,
-        "response_type": "code",
-        "scope": GOOGLE_SCOPES,
-        "access_type": "offline",
-        "prompt": "consent",
-        "state": state,
-    }
-    return RedirectResponse(f"{GOOGLE_AUTHORIZATION_URL}?{urlencode(params)}")
-
-
-@router.get("/google/callback", response_model=None)
-def google_callback(request: Request, session: Session = Depends(get_session)):
-    expected_state = request.session.pop("oauth_state", None)
-    if not expected_state or request.query_params.get("state") != expected_state:
-        raise HTTPException(status_code=400, detail="invalid_oauth_state")
-    code = request.query_params.get("code")
-    if not code:
-        raise HTTPException(status_code=400, detail="missing_authorization_code")
-
+def exchange_code(code: str, redirect_uri: str) -> tuple[dict, dict]:
     settings = get_settings()
     with httpx.Client(timeout=10) as http:
         token_resp = http.post(
@@ -69,7 +42,7 @@ def google_callback(request: Request, session: Session = Depends(get_session)):
             data={
                 "grant_type": "authorization_code",
                 "code": code,
-                "redirect_uri": settings.google_redirect_uri,
+                "redirect_uri": redirect_uri,
                 "client_id": settings.google_client_id.get_secret_value(),
                 "client_secret": settings.google_client_secret.get_secret_value(),
             },
@@ -83,58 +56,142 @@ def google_callback(request: Request, session: Session = Depends(get_session)):
         )
         if profile_resp.status_code != 200:
             raise HTTPException(status_code=400, detail="userinfo_failed")
-        profile = profile_resp.json()
+    return token, profile_resp.json()
 
-    account = session.scalar(select(GoogleAccount).where(GoogleAccount.google_sub == profile["sub"]))
-    if account is not None:
-        user = session.get(User, account.user_id)
+
+@router.get("/google/login")
+def google_login(request: Request, invite: str | None = None):
+    settings = get_settings()
+    state = secrets.token_urlsafe(24)
+    request.session["oauth_flow"] = {"state": state, "purpose": "identity", "invite": invite}
+    params = {
+        "client_id": settings.google_client_id.get_secret_value(),
+        "redirect_uri": settings.google_redirect_uri,
+        "response_type": "code",
+        "scope": GOOGLE_IDENTITY_SCOPES,
+        "state": state,
+    }
+    return RedirectResponse(f"{GOOGLE_AUTHORIZATION_URL}?{urlencode(params)}")
+
+
+@router.get("/google/callback", response_model=None)
+def google_callback(request: Request, session: Session = Depends(get_session)):
+    flow = request.session.pop("oauth_flow", None)
+    if not flow or flow.get("purpose") != "identity" or request.query_params.get("state") != flow.get("state"):
+        raise HTTPException(status_code=400, detail="invalid_oauth_state")
+    code = request.query_params.get("code")
+    if not code:
+        raise HTTPException(status_code=400, detail="missing_authorization_code")
+    token, profile = exchange_code(code, get_settings().google_redirect_uri)
+    identity = session.scalar(select(GoogleIdentity).where(GoogleIdentity.google_sub == profile["sub"]))
+    if identity is not None:
+        user = session.get(User, identity.user_id)
     else:
-        user = session.scalar(select(User).where(User.email == profile["email"]))
+        user = session.scalar(select(User).where(User.email == profile["email"].lower()))
         if user is None:
-            user = User(email=profile["email"])
+            user = User(email=profile["email"].lower())
             session.add(user)
             session.flush()
-        account = GoogleAccount(user_id=user.id, google_sub=profile["sub"], scopes=GOOGLE_SCOPES)
-        session.add(account)
-
+        identity = session.scalar(select(GoogleIdentity).where(GoogleIdentity.user_id == user.id))
+        if identity is not None and identity.google_sub != profile["sub"]:
+            raise HTTPException(status_code=409, detail="email_linked_to_different_google_identity")
+        if identity is None:
+            identity = GoogleIdentity(
+                user_id=user.id,
+                google_sub=profile["sub"],
+                email=profile["email"].lower(),
+                hosted_domain=profile.get("hd"),
+            )
+            session.add(identity)
     user.display_name = profile.get("name")
     user.avatar_url = profile.get("picture")
-    account.scopes = token.get("scope", GOOGLE_SCOPES)
-    account.access_token = token.get("access_token")
-    if token.get("expires_in"):
-        account.access_token_expires_at = datetime.now(timezone.utc) + timedelta(seconds=int(token["expires_in"]))
-    if token.get("refresh_token"):
-        account.refresh_token = token["refresh_token"]
+    identity.email = profile["email"].lower()
+    identity.hosted_domain = profile.get("hd")
     session.commit()
-
     request.session["user_id"] = str(user.id)
-    # First-time link (or a user who never picked files) lands on the Drive
-    # picker so they choose what to share; returning configured users go home.
-    target = settings.web_origin
-    if account.share_all is None:
-        target += "/?drive=setup"
+    memberships = session.scalars(select(OrganizationMembership).where(OrganizationMembership.user_id == user.id)).all()
+    target = get_settings().web_origin
+    invite = flow.get("invite")
+    if invite:
+        target += f"/?invite={invite}"
+    elif not memberships:
+        target += "/?onboarding=account"
+    else:
+        active = request.session.get("organization_id")
+        if not active or all(str(item.organization_id) != active for item in memberships):
+            request.session["organization_id"] = str(memberships[0].organization_id)
     return RedirectResponse(target)
 
 
 @router.get("/me")
-def me(user: User = Depends(get_current_user), session: Session = Depends(get_session)):
-    linked = session.scalar(select(GoogleAccount.id).where(GoogleAccount.user_id == user.id)) is not None
-    whatsapp_linked = (
-        session.scalar(
-            select(WhatsappConnection.id).where(
-                WhatsappConnection.user_id == user.id,
-                WhatsappConnection.status == "WORKING",
+def me(request: Request, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    identity = session.scalar(select(GoogleIdentity).where(GoogleIdentity.user_id == user.id))
+    memberships = session.scalars(
+        select(OrganizationMembership).where(OrganizationMembership.user_id == user.id).order_by(OrganizationMembership.created_at)
+    ).all()
+    # Domain auto-join: a Workspace user is always a member of the company
+    # that owns their hosted domain, if one exists.
+    if identity is not None and identity.hosted_domain:
+        company = session.scalar(
+            select(Organization).where(
+                Organization.account_type == "company",
+                Organization.google_domain == identity.hosted_domain,
             )
         )
-        is not None
+        if company is not None and all(m.organization_id != company.id for m in memberships):
+            membership = OrganizationMembership(
+                organization_id=company.id, user_id=user.id, role="member"
+            )
+            session.add(membership)
+            session.commit()
+            memberships = [*memberships, membership]
+            request.session["organization_id"] = str(company.id)
+    organizations = {
+        organization.id: organization
+        for organization in session.scalars(
+            select(Organization).where(Organization.id.in_([item.organization_id for item in memberships]))
+        ).all()
+    } if memberships else {}
+    active_id = request.session.get("organization_id")
+    if active_id and all(str(item.organization_id) != active_id for item in memberships):
+        active_id = None
+    if not active_id and memberships:
+        active_id = str(memberships[0].organization_id)
+        request.session["organization_id"] = active_id
+    connections = set(
+        session.scalars(select(DriveConnection.organization_id).where(DriveConnection.user_id == user.id, DriveConnection.status == "connected")).all()
     )
+    accounts = [
+        {
+            "id": str(item.organization_id),
+            "name": organizations[item.organization_id].name,
+            "account_type": organizations[item.organization_id].account_type,
+            "google_domain": organizations[item.organization_id].google_domain,
+            "role": item.role,
+            "drive_linked": item.organization_id in connections,
+        }
+        for item in memberships
+    ]
+    whatsapp_linked = session.scalar(
+        select(WhatsappConnection.id).where(WhatsappConnection.user_id == user.id, WhatsappConnection.status == "WORKING")
+    ) is not None
+    whatsapp_uploaded_chats = session.scalar(
+        select(func.count(WhatsappChat.id))
+        .join(WhatsappConnection, WhatsappConnection.id == WhatsappChat.connection_id)
+        .where(WhatsappConnection.user_id == user.id, WhatsappChat.origin == "export")
+    ) or 0
     return {
         "id": str(user.id),
         "email": user.email,
         "display_name": user.display_name,
         "avatar_url": user.avatar_url,
-        "drive_linked": linked,
+        "hosted_domain": identity.hosted_domain if identity else None,
+        "accounts": accounts,
+        "active_account_id": active_id,
+        "needs_account": not accounts,
+        "drive_linked": any(item["id"] == active_id and item["drive_linked"] for item in accounts),
         "whatsapp_linked": whatsapp_linked,
+        "whatsapp_uploaded_chats": whatsapp_uploaded_chats,
     }
 
 

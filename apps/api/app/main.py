@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
@@ -7,34 +7,57 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
 
+from .accounts import router as accounts_router
+from .analysis_api import router as analysis_router
 from .auth import router as auth_router
+from .chat import router as chat_router
 from .config import get_settings
 from .database import get_engine
 from .drive import router as drive_router
+from .drive_sync import router as drive_sync_router
+from .health_api import router as health_router
 from .models import Base
+from .search import router as search_router
+from .stacks import router as stacks_router
 from .whatsapp import router as whatsapp_router
 
 app = FastAPI(title="Knowledge Graph API")
+settings = get_settings()
 
 app.add_middleware(
     SessionMiddleware,
-    secret_key=get_settings().session_secret.get_secret_value(),
+    secret_key=settings.session_secret.get_secret_value(),
     session_cookie="kg_session",
-    same_site="lax",
-    https_only=False,
+    same_site=settings.session_same_site,
+    https_only=settings.session_https_only,
     max_age=60 * 60 * 24 * 14,
 )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[get_settings().web_origin],
+    allow_origins=[settings.web_origin],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+@app.middleware("http")
+async def no_store(request: Request, call_next):
+    # Responses are per-user; never let the Vercel proxy or browsers cache them.
+    response = await call_next(request)
+    response.headers.setdefault("Cache-Control", "no-store")
+    return response
+
+
 app.include_router(auth_router)
+app.include_router(accounts_router)
+app.include_router(analysis_router)
 app.include_router(drive_router)
+app.include_router(drive_sync_router)
 app.include_router(whatsapp_router)
+app.include_router(stacks_router)
+app.include_router(search_router)
+app.include_router(chat_router)
+app.include_router(health_router)
 
 
 @app.get("/health")

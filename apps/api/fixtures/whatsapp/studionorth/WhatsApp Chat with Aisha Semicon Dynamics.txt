@@ -1,0 +1,17 @@
+18/08/2026, 10:09 am - Messages and calls are end-to-end encrypted. Only people in this chat can read, listen to, or share them. Learn more.
+18/08/2026, 10:12 am - Aisha Semicon Dynamics: Hi Linh, can you pull in delivery for SEM-PO-4121? Our customer pushed the build earlier
+18/08/2026, 10:13 am - Aisha Semicon Dynamics: Current date is 29 Aug, we need by 22 Aug if possible
+18/08/2026, 11:40 am - Linh Tran: Checking with production. SN-1002 shafts are waiting for grinding, spindle under repair
+18/08/2026, 3:05 pm - Linh Tran: We can deliver 1 week early if we split the shipment:
+- SN-1003 manifold 37 pcs on 22 Aug
+- SN-1002 shaft 21 pcs on 29 Aug (grinding outsourced to Tuas Tooling)
+18/08/2026, 3:21 pm - Aisha Semicon Dynamics: Split shipment is fine. Send first batch when ready
+21/08/2026, 5:02 pm - Linh Tran: First batch ships tomorrow morning, DO will follow by email
+22/08/2026, 9:48 am - Aisha Semicon Dynamics: <Media omitted>
+22/08/2026, 9:48 am - Aisha Semicon Dynamics: Received 37 pcs, signed DO attached. Thanks!
+26/08/2026, 12:30 pm - Aisha Semicon Dynamics: Another PO coming this week, SEM-PO-4125. Steel base plates, aluminium housings and more shafts
+26/08/2026, 12:31 pm - Aisha Semicon Dynamics: This message was deleted
+26/08/2026, 12:31 pm - Aisha Semicon Dynamics: Need by 18 Sep
+26/08/2026, 1:02 pm - Linh Tran: Ok noted. 18 Sep should be fine, will confirm once PO received
+28/08/2026, 4:44 pm - Aisha Semicon Dynamics: Sent SEM-PO-4125 just now
+29/08/2026, 9:15 am - Linh Tran: Acknowledged SEM-PO-4125: SN-1006 x25, SN-1001 x40, SN-1002 x55, delivery 18 Sep

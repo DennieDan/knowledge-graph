@@ -36,6 +36,11 @@
   text-decoration: none;
 }
 
+.primaryBtn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
 .ghostBtn {
   border: 0;
   background: transparent;
@@ -228,6 +233,36 @@
   font-size: 13px;
   line-height: inherit;
   color: inherit;
+}
+
+.filterRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: -4px 0 14px;
+}
+
+.filterChip {
+  font-size: 12px;
+  padding: 4px 11px;
+  border: 1px solid var(--cp-border);
+  border-radius: 999px;
+  background: var(--cp-surface);
+  color: var(--cp-muted);
+  cursor: pointer;
+  font-family: inherit;
+  line-height: 1.4;
+}
+
+.filterChip:hover {
+  color: var(--cp-ink);
+  border-color: var(--cp-muted);
+}
+
+.filterChipActive {
+  border-color: var(--cp-ink);
+  color: var(--cp-ink);
+  font-weight: 500;
 }
 
 .grid {
