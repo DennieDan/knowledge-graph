@@ -11,6 +11,7 @@ import StacksView from "./stacks-view";
 import SubstackDetail from "./substack-detail";
 import ToCheckView from "./to-check-view";
 import MaintenanceView from "./maintenance-view";
+import MorningPanel from "./morning-panel";
 import WhatsAppConnect from "./whatsapp-connect";
 import DrivePicker from "./drive-picker";
 import AccountOnboarding from "./account-onboarding";
@@ -916,6 +917,12 @@ export default function WorkspaceShell() {
               <p className={styles.placeholderText}>
                 This address doesn&apos;t match a page. <Link href={NAV_PATHS.stacks}>Go to Stacks</Link>
               </p>
+              <div className={styles.morningSlot}>
+                <MorningPanel
+                  accountId={activeAccount?.id ?? null}
+                  onOpenToCheck={() => selectNav("tocheck")}
+                />
+              </div>
             </div>
           )}
           {activeNav === "maintenance" && (
