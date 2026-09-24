@@ -277,6 +277,10 @@ STACK_TYPES = (
     "supplier-orders", "production-jobs", "specifications",
     "conversations", "pics", "meetings", "files",
 )
+# Hidden from the product; the substacks check still allows them until a later contract migration.
+RETIRED_STACK_TYPES = ("invoices", "production-jobs", "pics")
+ACTIVE_STACK_TYPES = tuple(t for t in STACK_TYPES if t not in RETIRED_STACK_TYPES)
+ENTITY_TYPES = ("sales-orders", "clients", "items", "suppliers", "supplier-orders", "meetings")
 
 
 class AnalysisRun(Base):
@@ -372,7 +376,7 @@ class SubstackSource(Base):
 class EntityMention(Base):
     __tablename__ = "entity_mentions"
     __table_args__ = (
-        CheckConstraint("entity_type IN ('sales-orders','clients','items')", name="valid_entity_mention_type"),
+        CheckConstraint("entity_type IN (" + ",".join(f"'{t}'" for t in ENTITY_TYPES) + ")", name="valid_entity_mention_type"),
         CheckConstraint("status IN ('current','superseded')", name="valid_entity_mention_status"),
         UniqueConstraint("document_version_id", "candidate_key"),
     )

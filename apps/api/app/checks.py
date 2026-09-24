@@ -24,6 +24,8 @@ STALE_DAYS = {
     "sales-orders": 14,
     "clients": 90,
     "items": 180,
+    "suppliers": 90,
+    "supplier-orders": 14,
 }
 DEFAULT_STALE_DAYS = 60
 ENTITY_MENTION_DOCS = 3

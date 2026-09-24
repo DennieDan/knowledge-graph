@@ -19,7 +19,7 @@ from .filing import file_document, substack_for_document
 from .jobs import enqueue_job
 from .knowledge_analysis import DESCRIBABLE_STACK_TYPES
 from .models import (
-    STACK_TYPES,
+    ACTIVE_STACK_TYPES,
     ContentCitation,
     Document,
     DocumentVersion,
@@ -142,7 +142,7 @@ def list_stacks(
             .group_by(Substack.stack_type)
         ).all()
     )
-    return [{"type": stack_type, "count": counts.get(stack_type, 0)} for stack_type in STACK_TYPES]
+    return [{"type": stack_type, "count": counts.get(stack_type, 0)} for stack_type in ACTIVE_STACK_TYPES]
 
 
 @router.get("/accounts/{organization_id}/substacks")
@@ -154,7 +154,9 @@ def list_substacks(
     session: Session = Depends(get_session),
 ):
     membership_for(organization_id, user, session)
-    statement = select(Substack).where(Substack.organization_id == organization_id, _visible(user))
+    statement = select(Substack).where(
+        Substack.organization_id == organization_id, _visible(user), Substack.stack_type.in_(ACTIVE_STACK_TYPES),
+    )
     if type:
         statement = statement.where(Substack.stack_type == type)
     if q:
@@ -277,7 +279,7 @@ def create_substack(
     session: Session = Depends(get_session),
 ):
     membership_for(organization_id, user, session)
-    if body.stack_type not in STACK_TYPES:
+    if body.stack_type not in ACTIVE_STACK_TYPES:
         raise HTTPException(status_code=422, detail="invalid_stack_type")
     description = (body.summary or "").strip()
     if body.generate:

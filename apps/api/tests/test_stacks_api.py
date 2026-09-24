@@ -100,6 +100,8 @@ class StacksApiTests(unittest.TestCase):
         by_type = {row["type"]: row["count"] for row in stacks}
         self.assertEqual(1, by_type["files"])
         self.assertEqual(0, by_type["clients"])
+        self.assertEqual(0, by_type["suppliers"])
+        self.assertTrue({"invoices", "production-jobs", "pics"}.isdisjoint(by_type))
 
     def test_whatsapp_document_files_as_conversation(self):
         self.ingest(source="whatsapp", owner=self.alice.id, title="Group ABC", content="2026-01-02 10:30 Ali: hi")
@@ -309,8 +311,13 @@ class StacksApiTests(unittest.TestCase):
         url = f"/accounts/{self.organization.id}/substacks"
         missing = self.client.post(url, json={"stack_type": "clients", "name": "Acme", "summary": " ", "generate": True})
         self.assertEqual("description_required", missing.json()["detail"])
-        unsupported = self.client.post(url, json={"stack_type": "invoices", "name": "INV-1", "summary": "x", "generate": True})
+        unsupported = self.client.post(url, json={"stack_type": "specifications", "name": "DWG-1", "summary": "x", "generate": True})
         self.assertEqual("generation_unsupported_stack_type", unsupported.json()["detail"])
+        retired = self.client.post(url, json={"stack_type": "invoices", "name": "INV-1", "summary": "x", "generate": True})
+        self.assertEqual("invalid_stack_type", retired.json()["detail"])
+        for stack_type in ("suppliers", "supplier-orders", "meetings"):
+            created = self.client.post(url, json={"stack_type": stack_type, "name": "x", "summary": "x", "generate": True})
+            self.assertEqual(200, created.status_code, stack_type)
 
     def test_delete_substack_removes_it_and_its_content(self):
         self.ingest(owner=self.alice.id)

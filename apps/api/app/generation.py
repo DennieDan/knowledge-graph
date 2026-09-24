@@ -30,7 +30,7 @@ from .segments import GeneratedContent
 
 TEMPLATE_MODEL = "template"
 # Stacks whose content comes from an LLM during Analyze; ingest only flags them for review.
-LLM_STACK_TYPES = ("sales-orders", "clients", "items", "conversations")
+LLM_STACK_TYPES = ("sales-orders", "clients", "items", "suppliers", "supplier-orders", "meetings", "conversations")
 
 
 def _evidence(session: Session, substack: Substack) -> tuple[list[Document], list[DocumentVersion], list[Chunk]]:

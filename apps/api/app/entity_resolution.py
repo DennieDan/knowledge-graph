@@ -35,6 +35,19 @@ def identity_for_candidate(candidate: CandidateMention) -> tuple[str | None, str
     if candidate.entity_type == "sales-orders":
         if identifiers.get("customer_identifier") and identifiers.get("order_number"):
             return f"customer-order:{identifiers['customer_identifier']}:{identifiers['order_number']}", "customer_order_number"
+    if candidate.entity_type == "suppliers":
+        if identifiers.get("registration_number"):
+            return f"registration:{identifiers['registration_number']}", "registration_number"
+        if identifiers.get("supplier_id"):
+            return f"supplier:{identifiers['supplier_id']}", "supplier_id"
+    if candidate.entity_type == "supplier-orders":
+        # This business issues its own purchase order numbers, so the number alone is unique.
+        if identifiers.get("purchase_order_number"):
+            return f"purchase-order:{identifiers['purchase_order_number']}", "purchase_order_number"
+    if candidate.entity_type == "meetings":
+        name = normalize_identifier(candidate.name)
+        if identifiers.get("meeting_date") and name:
+            return f"meeting:{identifiers['meeting_date']}:{name}", "meeting_date_title"
     return None, None
 
 

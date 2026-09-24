@@ -13,11 +13,14 @@ from app.extractions import (
     ClientExtraction,
     ConversationExtraction,
     ConversationTopic,
+    DiscoveryOutput,
     EvidenceValue,
+    SupplierOrderExtraction,
+    SupplierOrderLine,
 )
 from app.embedding_jobs import embed_document_version
 from app.jobs import JobNotReady, create_run, enqueue_job
-from app.knowledge_analysis import generate_substack, regenerate_records
+from app.knowledge_analysis import discover_document, generate_substack, regenerate_records
 from app.llm import LLMResult
 from app.models import (
     Chunk,
@@ -28,6 +31,7 @@ from app.models import (
     Organization,
     Substack,
     SubstackContent,
+    SubstackLink,
     SubstackSource,
 )
 from app.retrieval import retrieve_chunks
@@ -202,6 +206,95 @@ class KnowledgePipelineTests(unittest.TestCase):
         self.assertEqual(("registration:201912345K", "registration_number"), identity_for_candidate(client))
         self.assertEqual((None, None), identity_for_candidate(unnamed))
         self.assertEqual((None, None), identity_for_candidate(order))
+
+    def test_supplier_order_and_meeting_identities(self):
+        supplier = CandidateMention(entity_type="suppliers", name="SteelCo", identifiers={"supplier_id": "v-017"})
+        purchase = CandidateMention(
+            entity_type="supplier-orders", name="PO-8812", identifiers={"purchase_order_number": "PO-8812"}
+        )
+        meeting = CandidateMention(entity_type="meetings", name="Weekly ops", identifiers={"meeting_date": "2026-03-12"})
+        undated = CandidateMention(entity_type="meetings", name="Weekly ops")
+        self.assertEqual(("supplier:V017", "supplier_id"), identity_for_candidate(supplier))
+        self.assertEqual(("purchase-order:PO8812", "purchase_order_number"), identity_for_candidate(purchase))
+        self.assertEqual(("meeting:20260312:WEEKLYOPS", "meeting_date_title"), identity_for_candidate(meeting))
+        self.assertEqual((None, None), identity_for_candidate(undated))
+
+    def test_discovery_links_supplier_orders_and_meetings_to_records_in_same_evidence(self):
+        document, version, chunk = self.make_document()
+        candidates = [
+            CandidateMention(entity_type="supplier-orders", name="PO-8812", identifiers={"purchase_order_number": "PO-8812"}),
+            CandidateMention(entity_type="suppliers", name="SteelCo", identifiers={"supplier_id": "V017"}),
+            CandidateMention(entity_type="meetings", name="Weekly ops"),
+            CandidateMention(entity_type="clients", name="Acme"),
+        ]
+        for candidate in candidates:
+            candidate.citations = [str(chunk.id)]
+        with patch("app.knowledge_analysis.get_llm_client", return_value=FakeLLM(DiscoveryOutput(candidates=candidates))):
+            self.assertEqual(4, discover_document(self.session, version.id, None))
+        by_type = {
+            substack.stack_type: substack.id
+            for substack in self.session.scalars(select(Substack).where(Substack.organization_id == self.organization.id))
+        }
+        links = {
+            frozenset(pair)
+            for pair in self.session.execute(select(SubstackLink.substack_id, SubstackLink.related_substack_id)).all()
+            if set(pair) <= set(by_type.values())
+        }
+        expected = {
+            frozenset((by_type[left], by_type[right]))
+            for left, right in (
+                ("supplier-orders", "suppliers"),
+                ("meetings", "supplier-orders"),
+                ("meetings", "suppliers"),
+                ("meetings", "clients"),
+            )
+        }
+        self.assertEqual(expected, links)
+        prompt_keys = {
+            job.payload["substack_id"]: job.dedupe_key
+            for job in self.session.scalars(select(KnowledgeJob).where(
+                KnowledgeJob.organization_id == self.organization.id, KnowledgeJob.kind == "generate_substack",
+            ))
+        }
+        self.assertIn("supplier_orders.extract.v1", prompt_keys[str(by_type["supplier-orders"])])
+        self.assertIn("meetings.extract.v1", prompt_keys[str(by_type["meetings"])])
+
+    def test_generation_auto_confirms_supplier_order_with_cited_lines(self):
+        document, version, chunk = self.make_document()
+        cited = [str(chunk.id)]
+        _, substack, _ = resolve_candidate(
+            self.session,
+            document=document,
+            version=version,
+            candidate=CandidateMention(
+                entity_type="supplier-orders", name="PO-8812",
+                identifiers={"purchase_order_number": "PO-8812"}, citations=cited,
+            ),
+            prompt_key="discovery.core_entities.v2",
+            prompt_version="v2",
+            model="fake",
+            analysis_run_id=None,
+        )
+        extraction = SupplierOrderExtraction(
+            report=[
+                EvidenceValue(value="PO-8812 was placed with SteelCo for 200 kg of SS304 bar.", citations=cited),
+                EvidenceValue(value="Delivery is expected on 20 March 2026.", citations=cited),
+            ],
+            order_number=EvidenceValue(value="PO-8812", citations=cited),
+            supplier_name=EvidenceValue(value="SteelCo", citations=cited),
+            line_items=[SupplierOrderLine(
+                description=EvidenceValue(value="SS304 bar", citations=cited),
+                quantity=EvidenceValue(value="200", citations=cited),
+                unit=EvidenceValue(value="kg", citations=cited),
+            )],
+        )
+        with patch("app.retrieval.embed_query", return_value=[1.0] + [0.0] * 383), patch(
+            "app.knowledge_analysis.get_llm_client", return_value=FakeLLM(extraction)
+        ):
+            content = generate_substack(self.session, substack.id, None)
+        self.assertEqual(("supplier_orders.extract.v1", "confirmed"), (content.prompt_key, content.status))
+        self.assertEqual("confirmed", substack.status)
+        self.assertEqual(2, len(content.content["segments"]))
 
     def test_exact_identity_resolution_reuses_same_scope_substack(self):
         document, version, chunk = self.make_document()

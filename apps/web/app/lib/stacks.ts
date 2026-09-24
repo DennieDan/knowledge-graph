@@ -72,19 +72,16 @@ export const STACK_TYPES: StackType[] = [
   { id: "sales-orders", name: "Sales Orders", icon: "receipt", desc: "Customer POs, line items, quantities, revisions, and dates." },
   { id: "clients", name: "Clients", icon: "building-2", desc: "Customer companies, terms, locations, and account history." },
   { id: "items", name: "Items", icon: "package", desc: "Products, SKUs, materials, specifications, and customer codes." },
-  { id: "invoices", name: "Invoices", icon: "file-text", desc: "Sales invoices, GST, payments, credit notes, and InvoiceNow." },
   { id: "suppliers", name: "Suppliers", icon: "building-2", desc: "Material and service vendors, prices, lead times, and performance." },
   { id: "supplier-orders", name: "Supplier Orders", icon: "receipt", desc: "Purchases placed with suppliers and subcontractors." },
-  { id: "production-jobs", name: "Production Jobs", icon: "settings", desc: "Work orders, schedules, progress, and blockers." },
   { id: "specifications", name: "Specifications & Revisions", icon: "layers", desc: "Drawings, requirements, approvals, and revision history." },
   { id: "conversations", name: "Conversations", icon: "message-circle", desc: "WhatsApp and email changes, approvals, and commitments." },
-  { id: "pics", name: "PICs", icon: "user", desc: "People responsible for each task or decision." },
   { id: "meetings", name: "Meetings", icon: "users", desc: "Meeting notes, action items, and follow-ups." },
   { id: "files", name: "Files", icon: "folder", desc: "Documents, drawings, images, and attachments." },
 ];
 
 /** Stacks whose records can be generated from a description of a record Analyze missed. */
-export const DESCRIBABLE_STACK_TYPES = new Set(["sales-orders", "clients", "items"]);
+export const DESCRIBABLE_STACK_TYPES = new Set(["sales-orders", "clients", "items", "suppliers", "supplier-orders", "meetings"]);
 
 export const SCOPE_TABS: [Scope, string][] = [["all", "All Stacks"], ["mine", "My Stacks"], ["workspace", "Workspace"], ["shared", "Shared with me"]];
 
