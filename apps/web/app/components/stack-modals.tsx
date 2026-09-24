@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Icon from "./icons";
 import styles from "./stacks.module.css";
-import { DESCRIBABLE_STACK_TYPES, type StackType } from "../lib/stacks";
+import { DESCRIBABLE_STACK_TYPES, type StackType, type Substack } from "../lib/stacks";
 
 function FieldLabel({
   label,
@@ -99,6 +99,54 @@ export function CreateSubstackModal({
         </button>
         <button onClick={handleSubmit} className={styles.primaryBtn} disabled={busy}>
           {generate ? (busy ? "Starting…" : "Generate record") : "Add item"} <Icon name="arrow-right" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export function DeleteSubstackModal({
+  substack,
+  onClose,
+  onConfirm,
+}: {
+  substack: Substack;
+  onClose: () => void;
+  onConfirm: () => Promise<void>;
+}) {
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const handleDelete = () => {
+    setError("");
+    setBusy(true);
+    onConfirm()
+      .catch((reason) => setError(reason instanceof Error ? reason.message : "The substack could not be deleted."))
+      .finally(() => setBusy(false));
+  };
+
+  return (
+    <div>
+      <div className={styles.modalHead}>
+        <h2 id="dialog-title" className={styles.modalTitle}>
+          Delete &ldquo;{substack.name}&rdquo;?
+        </h2>
+        <button onClick={onClose} className={styles.ghostBtn} aria-label="Close">
+          <Icon name="x" />
+        </button>
+      </div>
+      <p className={styles.modalSub}>This substack may be auto-generated in the future.</p>
+      {error && (
+        <div role="alert" className={styles.error}>
+          {error}
+        </div>
+      )}
+      <div className={styles.modalFoot}>
+        <button onClick={onClose} className={styles.actionBtn}>
+          Cancel
+        </button>
+        <button onClick={handleDelete} className={styles.dangerBtn} disabled={busy}>
+          <Icon name="trash" /> {busy ? "Deleting…" : "Delete Substack"}
         </button>
       </div>
     </div>

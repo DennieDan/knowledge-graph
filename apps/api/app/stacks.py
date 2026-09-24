@@ -328,6 +328,18 @@ def update_substack(
     return _substack_json(session, substack, user)
 
 
+@router.delete("/substacks/{substack_id}")
+def delete_substack(
+    substack_id: UUID,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    substack = _get_substack(substack_id, user, session)
+    session.delete(substack)
+    session.commit()
+    return {"status": "deleted"}
+
+
 def _confirm_content(
     session: Session,
     substack: Substack,

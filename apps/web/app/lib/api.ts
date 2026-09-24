@@ -307,6 +307,10 @@ export function updateSubstack(id: string, patch: { name?: string; summary?: str
   return apiFetch(`/substacks/${id}`, { method: "PATCH", body: JSON.stringify(patch) });
 }
 
+export function deleteSubstack(id: string): Promise<{ status: string }> {
+  return apiFetch(`/substacks/${id}`, { method: "DELETE" });
+}
+
 export function confirmSubstack(id: string): Promise<ApiSubstack> {
   return apiFetch(`/substacks/${id}/confirm`, { method: "POST" });
 }

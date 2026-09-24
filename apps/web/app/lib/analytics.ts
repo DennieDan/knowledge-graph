@@ -11,6 +11,7 @@ export type AnalyticsEvent =
   | "view_changed"
   | "substack_opened"
   | "substack_created"
+  | "substack_deleted"
   | "substack_confirmed"
   | "confirm_all"
   | "analyze_workspace_clicked"

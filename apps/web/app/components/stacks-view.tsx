@@ -64,18 +64,22 @@ function SubstackCard({
   ss,
   type,
   onClick,
+  onDelete,
   listMode,
 }: {
   ss: Substack;
   type: StackType;
   onClick: () => void;
+  onDelete: () => void;
   listMode: boolean;
 }) {
   return (
-    <button
-      onClick={onClick}
-      className={`${styles.card} ${listMode ? styles.cardList : ""}`}
-    >
+    <div className={`${styles.card} ${listMode ? styles.cardList : ""}`}>
+      <button
+        onClick={onClick}
+        className={styles.cardOpen}
+        aria-label={`Open ${ss.name}`}
+      />
       <div className={styles.tileTop}>
         <span className={styles.cardIcon}>
           <Icon name={type.icon} />
@@ -99,9 +103,20 @@ function SubstackCard({
         <span>
           {ss.access} · {ss.role}
         </span>
-        <span>{ss.updated}</span>
+        <span className={styles.cardFootEnd}>
+          {ss.updated}
+          <button
+            type="button"
+            onClick={onDelete}
+            className={styles.deleteBtn}
+            aria-label={`Delete ${ss.name}`}
+            title="Delete"
+          >
+            <Icon name="trash" size={15} />
+          </button>
+        </span>
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -119,6 +134,7 @@ export default function StacksView({
   onToggleListMode,
   onOpenDetails,
   onAddItem,
+  onDeleteItem,
 }: {
   stackTypes: StackType[];
   substacks: Substack[];
@@ -133,6 +149,7 @@ export default function StacksView({
   onToggleListMode: () => void;
   onOpenDetails: (ss: Substack) => void;
   onAddItem: (typeId: string) => void;
+  onDeleteItem: (ss: Substack) => void;
 }) {
   const activeType = selectedType
     ? stackTypes.find((t) => t.id === selectedType)
@@ -330,6 +347,7 @@ export default function StacksView({
                 type={activeType}
                 listMode={listMode}
                 onClick={() => onOpenDetails(ss)}
+                onDelete={() => onDeleteItem(ss)}
               />
             ))}
           </div>

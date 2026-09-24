@@ -312,6 +312,20 @@ class StacksApiTests(unittest.TestCase):
         unsupported = self.client.post(url, json={"stack_type": "invoices", "name": "INV-1", "summary": "x", "generate": True})
         self.assertEqual("generation_unsupported_stack_type", unsupported.json()["detail"])
 
+    def test_delete_substack_removes_it_and_its_content(self):
+        self.ingest(owner=self.alice.id)
+        substack_id = self.list_substacks(self.alice)[0]["id"]
+        self.current_user = self.bob
+        self.assertEqual(404, self.client.delete(f"/substacks/{substack_id}").status_code)
+        self.current_user = self.alice
+        self.assertEqual(200, self.client.delete(f"/substacks/{substack_id}").status_code)
+        self.assertEqual([], self.list_substacks(self.alice))
+        self.assertEqual(404, self.client.get(f"/substacks/{substack_id}").status_code)
+        remaining = self.session.scalar(
+            select(func.count()).select_from(SubstackContent).where(SubstackContent.substack_id == UUID(substack_id))
+        )
+        self.assertEqual(0, remaining)
+
 
 if __name__ == "__main__":
     unittest.main()

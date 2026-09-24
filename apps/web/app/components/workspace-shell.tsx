@@ -15,7 +15,7 @@ import DrivePicker from "./drive-picker";
 import AccountOnboarding from "./account-onboarding";
 import AnalyzeDialog from "./analyze-dialog";
 import CompanyMembers from "./company-members";
-import { CreateSubstackModal } from "./stack-modals";
+import { CreateSubstackModal, DeleteSubstackModal } from "./stack-modals";
 import {
   STACK_TYPES,
   toSubstack,
@@ -33,6 +33,7 @@ import {
   confirmSubstackContent,
   convertToCompany,
   createSubstack,
+  deleteSubstack,
   getMe,
   getSubstackDetail,
   getSubstacks,
@@ -62,7 +63,8 @@ import styles from "./workspace-shell.module.css";
 
 type ModalState =
   | null
-  | { kind: "createSubstack"; typeId: string };
+  | { kind: "createSubstack"; typeId: string }
+  | { kind: "deleteSubstack"; substack: Substack };
 
 const NAV_ITEMS = [
   { icon: "activity", label: "Analyze workspace", id: "tocheck" },
@@ -458,6 +460,16 @@ export default function WorkspaceShell() {
     }
   };
 
+  const handleDeleteSubstack = async (ss: Substack) => {
+    await deleteSubstack(ss.id);
+    track("substack_deleted", { stack_type: ss.typeId, status: ss.status });
+    setSubstacks((prev) => prev.filter((item) => item.id !== ss.id));
+    setDetails(({ [ss.id]: _removed, ...rest }) => rest);
+    setRecentIds((current) => current.filter((id) => id !== ss.id));
+    setModal(null);
+    showNotice(`"${ss.name}" deleted.`);
+  };
+
   const openSubstack = (id: string) => {
     const target = substacks.find((item) => item.id === id);
     if (target) navigate(substackPath(target), "link");
@@ -826,6 +838,7 @@ export default function WorkspaceShell() {
                 onToggleListMode={() => setListMode((v) => !v)}
                 onOpenDetails={(ss) => openSubstack(ss.id)}
                 onAddItem={(typeId) => setModal({ kind: "createSubstack", typeId })}
+                onDeleteItem={(substack) => setModal({ kind: "deleteSubstack", substack })}
               />
             )}
           </div>
@@ -841,6 +854,15 @@ export default function WorkspaceShell() {
             }
             onClose={closeModal}
             onSubmit={handleAddSubstack}
+          />
+        </Modal>
+      )}
+      {modal?.kind === "deleteSubstack" && (
+        <Modal onClose={closeModal}>
+          <DeleteSubstackModal
+            substack={modal.substack}
+            onClose={closeModal}
+            onConfirm={() => handleDeleteSubstack(modal.substack)}
           />
         </Modal>
       )}
