@@ -83,7 +83,7 @@ export const STACK_TYPES: StackType[] = [
 /** Stacks whose records can be generated from a description of a record Analyze missed. */
 export const DESCRIBABLE_STACK_TYPES = new Set(["sales-orders", "clients", "items", "suppliers", "supplier-orders", "meetings"]);
 
-export const SCOPE_TABS: [Scope, string][] = [["all", "All Stacks"], ["mine", "My Stacks"], ["workspace", "Workspace"], ["shared", "Shared with me"]];
+export const SCOPE_TABS: [Scope, string][] = [["all", "All Stacks"], ["mine", "My Stacks"], ["workspace", "Workspace"]];
 
 export function inScope(ss: Substack, sc: Scope): boolean {
   return sc === "all" || ss.scope === sc || (sc === "workspace" && ss.access === "All members");
