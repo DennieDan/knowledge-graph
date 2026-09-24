@@ -45,6 +45,7 @@ jobs:
           <!doctype html>
           <meta charset="utf-8">
           <title>Canon</title>
+          <link rel="icon" href="./favicon.ico">
           <meta http-equiv="refresh" content="0; url=./landing/">
           <link rel="canonical" href="https://denniedan.github.io/knowledge-graph/landing/">
           <a href="./landing/">Continue to the Canon landing page</a>
