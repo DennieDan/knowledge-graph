@@ -7,8 +7,8 @@ from sqlalchemy.orm import Session
 from .checks import run_all_checks
 from .database import get_engine
 from .embedding_jobs import embed_document_version
-from .jobs import claim_job, fail_job, finish_job
-from .knowledge_analysis import discover_document, generate_substack
+from .jobs import JobNotReady, claim_job, defer_job, fail_job, finish_job
+from .knowledge_analysis import discover_document, generate_substack, regenerate_records
 from .models import KnowledgeJob, Substack
 
 # Scheduled kinds never retry into the next run; a miss is recorded as a failed job.
@@ -25,12 +25,16 @@ def _transient(error: Exception) -> bool:
 
 
 def _dispatch(session: Session, job: KnowledgeJob) -> None:
+    generate = job.payload.get("generate", "affected")
     if job.kind == "embed_version":
-        embed_document_version(session, UUID(job.payload["document_version_id"]), job.analysis_run_id)
+        embed_document_version(session, UUID(job.payload["document_version_id"]), job.analysis_run_id, generate)
     elif job.kind == "discover_document":
-        discover_document(session, UUID(job.payload["document_version_id"]), job.analysis_run_id)
+        discover_document(session, UUID(job.payload["document_version_id"]), job.analysis_run_id, generate)
     elif job.kind == "generate_substack":
-        generate_substack(session, UUID(job.payload["substack_id"]), job.analysis_run_id)
+        force = bool(job.payload.get("force"))
+        generate_substack(session, UUID(job.payload["substack_id"]), job.analysis_run_id, force)
+    elif job.kind == "reconcile_scope":
+        regenerate_records(session, job)
     elif job.kind == "run_checks":
         run_all_checks(session, job.organization_id)
     else:
@@ -48,10 +52,14 @@ def run_one(worker_id: str | None = None) -> bool:
             _dispatch(session, job)
         with Session(get_engine()) as session:
             finish_job(session, job.id)
+    except JobNotReady:
+        with Session(get_engine()) as session:
+            defer_job(session, job.id)
     except Exception as error:
         transient = _transient(error) and job.kind not in SCHEDULED_KINDS
         with Session(get_engine()) as session:
-            if job.kind == "generate_substack" and job.payload.get("substack_id") and (not transient or job.attempts >= job.max_attempts):
+            final_attempt = not transient or job.attempts >= job.max_attempts
+            if job.kind == "generate_substack" and job.payload.get("substack_id") and final_attempt:
                 substack = session.get(Substack, UUID(job.payload["substack_id"]))
                 if substack is not None:
                     substack.review_state = "generation_error"

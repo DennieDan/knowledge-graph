@@ -5,12 +5,12 @@ from uuid import UUID
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .config import get_settings
 from .database import get_session
-from .models import DriveConnection, GoogleIdentity, Organization, OrganizationMembership, User, WhatsappConnection
+from .models import DriveConnection, GoogleIdentity, Organization, OrganizationMembership, User, WhatsappChat, WhatsappConnection
 
 GOOGLE_AUTHORIZATION_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
@@ -175,6 +175,11 @@ def me(request: Request, user: User = Depends(get_current_user), session: Sessio
     whatsapp_linked = session.scalar(
         select(WhatsappConnection.id).where(WhatsappConnection.user_id == user.id, WhatsappConnection.status == "WORKING")
     ) is not None
+    whatsapp_uploaded_chats = session.scalar(
+        select(func.count(WhatsappChat.id))
+        .join(WhatsappConnection, WhatsappConnection.id == WhatsappChat.connection_id)
+        .where(WhatsappConnection.user_id == user.id, WhatsappChat.origin == "export")
+    ) or 0
     return {
         "id": str(user.id),
         "email": user.email,
@@ -186,6 +191,7 @@ def me(request: Request, user: User = Depends(get_current_user), session: Sessio
         "needs_account": not accounts,
         "drive_linked": any(item["id"] == active_id and item["drive_linked"] for item in accounts),
         "whatsapp_linked": whatsapp_linked,
+        "whatsapp_uploaded_chats": whatsapp_uploaded_chats,
     }
 
 

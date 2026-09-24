@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from hashlib import sha256
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from .chunking import chunk_text
@@ -72,8 +72,8 @@ def ingest_document(
 ) -> DocumentVersion | None:
     """Store a new revision and its chunks, or return None when the content is unchanged.
 
-    Earlier revisions keep their chunks so retrieval against them stays valid.
-    The caller commits.
+    Earlier revisions keep their chunks here; `ingest_and_file` drops them once
+    stale content has been flagged. The caller commits.
     """
     content = clean_text(document.content).strip()
     if not content:
@@ -104,6 +104,20 @@ def ingest_document(
     )
     session.flush()
     return version
+
+
+def drop_superseded_chunks(session: Session, document_id: UUID) -> int:
+    """Delete chunks of every revision except the latest, so only current text is retrievable."""
+    latest_revision = (
+        select(func.max(DocumentVersion.revision))
+        .where(DocumentVersion.document_id == document_id)
+        .scalar_subquery()
+    )
+    superseded = select(DocumentVersion.id).where(
+        DocumentVersion.document_id == document_id,
+        DocumentVersion.revision < latest_revision,
+    )
+    return session.execute(delete(Chunk).where(Chunk.document_version_id.in_(superseded))).rowcount or 0
 
 
 def chunk_count(session: Session, version: DocumentVersion) -> int:

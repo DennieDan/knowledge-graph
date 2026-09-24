@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from .config import get_settings
 from .entity_resolution import resolve_candidate
 from .extractions import ClientExtraction, DiscoveryOutput, ItemExtraction, SalesOrderExtraction
-from .jobs import enqueue_job, utcnow
+from .jobs import JobNotReady, complete_run_if_last, enqueue_job
 from .llm import LLMResult, get_llm_client
 from .models import (
     AnalysisRun,
@@ -39,9 +39,9 @@ from .segments import Segment
 
 DISCOVERY_KEY = "discovery.core_entities.v1"
 PROMPT_CONFIG = {
-    "sales-orders": ("sales_orders.extract.v2", SALES_ORDER_PROMPT, SALES_ORDER_QUERIES, SalesOrderExtraction),
-    "clients": ("clients.extract.v2", CLIENT_PROMPT, CLIENT_QUERIES, ClientExtraction),
-    "items": ("items.extract.v2", ITEM_PROMPT, ITEM_QUERIES, ItemExtraction),
+    "sales-orders": ("sales_orders.extract.v3", SALES_ORDER_PROMPT, SALES_ORDER_QUERIES, SalesOrderExtraction),
+    "clients": ("clients.extract.v3", CLIENT_PROMPT, CLIENT_QUERIES, ClientExtraction),
+    "items": ("items.extract.v3", ITEM_PROMPT, ITEM_QUERIES, ItemExtraction),
 }
 
 
@@ -111,7 +111,9 @@ def _link_document_entities(session: Session, version_id: UUID) -> None:
                 session.add(SubstackLink(substack_id=left, related_substack_id=right, reason="discovered in the same evidence"))
 
 
-def discover_document(session: Session, version_id: UUID, run_id: UUID | None) -> int:
+def discover_document(session: Session, version_id: UUID, run_id: UUID | None, generate: str = "affected") -> int:
+    """Find records in one version. `generate="affected"` regenerates every record found;
+    `"new"` only generates records created here (chosen records are queued separately)."""
     settings = get_settings()
     version = session.get(DocumentVersion, version_id)
     if version is None:
@@ -163,6 +165,8 @@ def discover_document(session: Session, version_id: UUID, run_id: UUID | None) -
         )
         created_count += int(created)
         updated_count += int(not created)
+        if not created and generate != "affected":
+            continue
         generation_prompt_key = PROMPT_CONFIG[substack.stack_type][0]
         enqueue_job(
             session,
@@ -190,7 +194,7 @@ def discover_document(session: Session, version_id: UUID, run_id: UUID | None) -
         run.substacks_updated += updated_count
         run.documents_processed += 1
         if not candidates:
-            _complete_run_if_last(session, run.id)
+            complete_run_if_last(session, run.id)
     session.commit()
     return len(candidates)
 
@@ -209,19 +213,12 @@ def _exact_terms(session: Session, substack: Substack) -> tuple[str, ...]:
     return tuple(dict.fromkeys(term for term in terms if term))
 
 
-def _field_segments(extraction: BaseModel) -> list[Segment]:
-    segments = [
+def _report_segments(extraction: BaseModel) -> list[Segment]:
+    return [
         Segment(kind="text", value=paragraph.value, citations=paragraph.citations)
         for paragraph in getattr(extraction, "report", [])
         if paragraph.value
     ]
-    for conflict in getattr(extraction, "conflicts", []):
-        citations = list(dict.fromkeys(citation for value in conflict.values for citation in value.citations))
-        values = ", ".join(value.value for value in conflict.values if value.value)
-        segments.append(Segment(kind="field", name=f"conflict: {conflict.field}", value=f"{values}. {conflict.explanation}".strip(), citations=citations))
-    for question in getattr(extraction, "open_questions", []):
-        segments.append(Segment(kind="field", name=f"open question: {question.field}", value=question.question, citations=question.citations))
-    return segments
 
 
 def _all_citations(extraction: BaseModel) -> set[str]:
@@ -243,7 +240,7 @@ def _all_citations(extraction: BaseModel) -> set[str]:
 
 
 def _high_confidence(substack: Substack, extraction: BaseModel) -> bool:
-    if not substack.identity_key or getattr(extraction, "conflicts", []):
+    if not substack.identity_key:
         return False
     if isinstance(extraction, SalesOrderExtraction):
         return bool(
@@ -265,21 +262,61 @@ def _high_confidence(substack: Substack, extraction: BaseModel) -> bool:
     return False
 
 
-def _complete_run_if_last(session: Session, run_id: UUID | None) -> None:
-    run = session.get(AnalysisRun, run_id) if run_id else None
-    if run is None:
-        return
-    remaining = session.scalar(select(func.count()).select_from(KnowledgeJob).where(
-        KnowledgeJob.analysis_run_id == run.id,
-        KnowledgeJob.kind.in_(("embed_version", "discover_document", "generate_substack")),
+def llm_substacks(session: Session, organization_id: UUID, owner_user_id: UUID | None):
+    """LLM-generated records (sales orders, clients, items) in one visibility scope."""
+    owner_filter = (
+        Substack.owner_user_id.is_(None) if owner_user_id is None else Substack.owner_user_id == owner_user_id
+    )
+    return select(Substack).where(
+        Substack.organization_id == organization_id,
+        owner_filter,
+        Substack.stack_type.in_(tuple(PROMPT_CONFIG)),
+    )
+
+
+def regenerate_records(session: Session, job: KnowledgeJob) -> int:
+    """Queue forced generation for chosen records once the run's discovery has finished."""
+    blocking = session.scalar(select(func.count()).select_from(KnowledgeJob).where(
+        KnowledgeJob.analysis_run_id == job.analysis_run_id,
+        KnowledgeJob.kind.in_(("embed_version", "discover_document")),
         KnowledgeJob.status.in_(("queued", "running")),
     )) or 0
-    if remaining <= 1:
-        run.status = "completed" if run.failures == 0 else "partial"
-        run.completed_at = utcnow()
+    if blocking:
+        raise JobNotReady()
+    statement = llm_substacks(session, job.organization_id, job.owner_user_id)
+    if job.payload.get("mode") != "all":
+        statement = statement.where(Substack.id.in_([UUID(value) for value in job.payload.get("substack_ids", [])]))
+    already = {
+        row.payload.get("substack_id")
+        for row in session.scalars(select(KnowledgeJob).where(
+            KnowledgeJob.analysis_run_id == job.analysis_run_id,
+            KnowledgeJob.kind == "generate_substack",
+        ))
+    }
+    queued = 0
+    for substack in session.scalars(statement):
+        if str(substack.id) in already:
+            continue
+        enqueue_job(
+            session,
+            organization_id=substack.organization_id,
+            owner_user_id=substack.owner_user_id,
+            kind="generate_substack",
+            payload={"substack_id": str(substack.id), "force": True},
+            dedupe_key=f"regenerate:{substack.id}:run:{job.analysis_run_id}",
+            analysis_run_id=job.analysis_run_id,
+        )
+        queued += 1
+    run = session.get(AnalysisRun, job.analysis_run_id) if job.analysis_run_id else None
+    if run is not None and queued:
+        run.status = "generating"
+    complete_run_if_last(session, job.analysis_run_id)
+    session.commit()
+    return queued
 
 
-def generate_substack(session: Session, substack_id: UUID, run_id: UUID | None) -> SubstackContent:
+def generate_substack(session: Session, substack_id: UUID, run_id: UUID | None, force: bool = False) -> SubstackContent:
+    """Generate a record's report. Unchanged evidence is skipped unless `force` is set."""
     settings = get_settings()
     substack = session.get(Substack, substack_id)
     if substack is None or substack.stack_type not in PROMPT_CONFIG:
@@ -295,15 +332,7 @@ def generate_substack(session: Session, substack_id: UUID, run_id: UUID | None) 
         substack.review_state = "unsupported"
         session.commit()
         raise ValueError("no_retrievable_evidence")
-    result = get_llm_client().parse(prompt=prompt, evidence=evidence_text(retrieved), schema=schema)
-    extraction = result.parsed
-    if len(getattr(extraction, "report", [])) < 2 or any(not paragraph.value for paragraph in extraction.report):
-        raise ValueError("generation_missing_natural_language_report")
     allowed = {str(item.chunk.id) for item in retrieved}
-    if not _valid_citations(extraction, allowed):
-        raise ValueError("generation_citation_outside_evidence")
-    if not _all_facts_cited(extraction):
-        raise ValueError("generation_contains_uncited_fact")
     fingerprint = sha256("|".join((
         prompt_key,
         settings.openai_model,
@@ -317,10 +346,18 @@ def generate_substack(session: Session, substack_id: UUID, run_id: UUID | None) 
         .order_by(SubstackContent.revision.desc())
         .limit(1)
     )
-    if latest is not None and latest.inputs_fingerprint == fingerprint:
-        _complete_run_if_last(session, run_id)
+    if latest is not None and latest.inputs_fingerprint == fingerprint and not force:
+        complete_run_if_last(session, run_id)
         session.commit()
         return latest
+    result = get_llm_client().parse(prompt=prompt, evidence=evidence_text(retrieved), schema=schema)
+    extraction = result.parsed
+    if len(getattr(extraction, "report", [])) < 2 or any(not paragraph.value for paragraph in extraction.report):
+        raise ValueError("generation_missing_natural_language_report")
+    if not _valid_citations(extraction, allowed):
+        raise ValueError("generation_citation_outside_evidence")
+    if not _all_facts_cited(extraction):
+        raise ValueError("generation_contains_uncited_fact")
     confirmed = session.scalar(
         select(SubstackContent)
         .where(SubstackContent.substack_id == substack.id, SubstackContent.status == "confirmed")
@@ -328,7 +365,7 @@ def generate_substack(session: Session, substack_id: UUID, run_id: UUID | None) 
         .limit(1)
     )
     auto_confirm = confirmed is None and _high_confidence(substack, extraction)
-    segments = _field_segments(extraction)
+    segments = _report_segments(extraction)
     content = SubstackContent(
         substack_id=substack.id,
         revision=(latest.revision + 1) if latest else 1,
@@ -382,6 +419,6 @@ def generate_substack(session: Session, substack_id: UUID, run_id: UUID | None) 
         substack.review_state = "clean"
     else:
         substack.review_state = "pending_update" if confirmed else "pending"
-    _complete_run_if_last(session, run_id)
+    complete_run_if_last(session, run_id)
     session.commit()
     return content

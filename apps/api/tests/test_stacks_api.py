@@ -3,7 +3,7 @@ import unittest
 from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
@@ -12,12 +12,15 @@ from app.filing import ingest_and_file
 from app.ingest import SourceDocument, ingest_document
 from app.main import app
 from app.models import (
+    Chunk,
     Document,
+    DocumentVersion,
+    EntityMention,
+    KnowledgeJob,
     Organization,
     OrganizationMembership,
     Substack,
     SubstackContent,
-    SubstackSource,
     User,
 )
 
@@ -116,6 +119,96 @@ class StacksApiTests(unittest.TestCase):
         self.assertEqual(0, private_run["generation_total"])
         self.assertEqual(0, private_run["generation_completed"])
         self.assertEqual(0, private_run["generation_failed"])
+
+    def mark_discovered(self, external_id):
+        document = self.session.scalar(select(Document).where(Document.external_id == external_id))
+        version = self.session.scalar(select(DocumentVersion).where(DocumentVersion.document_id == document.id))
+        self.session.add(KnowledgeJob(
+            organization_id=self.organization.id,
+            owner_user_id=document.owner_user_id,
+            kind="discover_document",
+            payload={"document_version_id": str(version.id)},
+            dedupe_key=f"test-discover:{version.id}",
+            status="succeeded",
+        ))
+        self.session.commit()
+        return document
+
+    def llm_record(self, name="Acme", owner=None):
+        substack = Substack(organization_id=self.organization.id, stack_type="clients", name=name, owner_user_id=owner)
+        self.session.add(substack)
+        self.session.commit()
+        return substack
+
+    def test_plan_lists_changed_files_and_affected_records(self):
+        external_id = self.ingest(owner=self.alice.id, title="PO2431.pdf")
+        record = self.llm_record(owner=self.alice.id)
+        plan = self.client.get(f"/accounts/{self.organization.id}/analysis/plan").json()
+        self.assertEqual(["PO2431.pdf"], [row["title"] for row in plan["changed_documents"]])
+        self.assertEqual("new", plan["changed_documents"][0]["change"])
+        self.assertEqual([str(record.id)], [row["id"] for row in plan["records"]])
+        self.assertEqual([], plan["affected_records"])
+        document = self.mark_discovered(external_id)
+        version = self.session.scalar(select(DocumentVersion).where(DocumentVersion.document_id == document.id))
+        self.session.add(EntityMention(
+            organization_id=self.organization.id,
+            owner_user_id=self.alice.id,
+            document_id=document.id,
+            document_version_id=version.id,
+            entity_type="clients",
+            candidate_key="acme",
+            data={},
+            substack_id=record.id,
+            prompt_key="discovery.core_entities.v1",
+            prompt_version="v1",
+            model="fake",
+        ))
+        self.session.commit()
+        plan_url = f"/accounts/{self.organization.id}/analysis/plan"
+        self.assertEqual([], self.client.get(plan_url).json()["changed_documents"])
+        self.ingest_external(external_id, owner=self.alice.id, content="order contents, revised")
+        plan = self.client.get(plan_url).json()
+        self.assertEqual("updated", plan["changed_documents"][0]["change"])
+        self.assertEqual([str(record.id)], [row["id"] for row in plan["affected_records"]])
+
+    def ingest_external(self, external_id, owner=None, content="order contents"):
+        ingest_and_file(
+            self.session,
+            self.organization.id,
+            SourceDocument(
+                source="google_drive", external_id=external_id, title="PO2431.pdf",
+                content=content, owner_user_id=owner,
+            ),
+        )
+        self.session.commit()
+
+    def test_changed_file_replaces_old_chunks(self):
+        external_id = self.ingest(owner=self.alice.id)
+        self.ingest_external(external_id, owner=self.alice.id, content="order contents, revised")
+        document = self.session.scalar(select(Document).where(Document.external_id == external_id))
+        revisions = self.session.execute(
+            select(DocumentVersion.revision, func.count(Chunk.id))
+            .outerjoin(Chunk, Chunk.document_version_id == DocumentVersion.id)
+            .where(DocumentVersion.document_id == document.id)
+            .group_by(DocumentVersion.revision)
+            .order_by(DocumentVersion.revision)
+        ).all()
+        self.assertEqual(0, revisions[0][1])
+        self.assertGreater(revisions[1][1], 0)
+
+    def test_analyze_with_nothing_changed_only_regenerates_on_request(self):
+        external_id = self.ingest(owner=self.alice.id)
+        self.mark_discovered(external_id)
+        record = self.llm_record(owner=self.alice.id)
+        url = f"/accounts/{self.organization.id}/analysis"
+        self.assertEqual([], self.client.post(url, json={"regenerate": "affected"}).json())
+        self.assertEqual(422, self.client.post(url, json={"regenerate": "selected"}).status_code)
+        runs = self.client.post(url, json={"regenerate": "selected", "substack_ids": [str(record.id)]}).json()
+        self.assertEqual(["mine"], [run["scope"] for run in runs])
+        run_id = UUID(runs[0]["id"])
+        jobs = self.session.scalars(select(KnowledgeJob).where(KnowledgeJob.analysis_run_id == run_id)).all()
+        self.assertEqual(["reconcile_scope"], [job.kind for job in jobs])
+        self.assertEqual([str(record.id)], jobs[0].payload["substack_ids"])
 
     def test_search_filters_by_name(self):
         self.ingest(owner=self.alice.id, title="PO2431.pdf")

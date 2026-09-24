@@ -4,11 +4,17 @@
 .header { display: flex; align-items: center; gap: 14px; min-height: 46px; }
 .header h1 { font-size: 22px; letter-spacing: -.35px; }
 .header > span { color: var(--cp-muted); font-size: 12px; }
-.historyButtons { display: flex; gap: 2px; }
-.historyButtons button, .panelToggle, .sourcesHeader button { display: grid; place-items: center; width: 30px; height: 30px; border: 0; background: transparent; border-radius: 6px; cursor: pointer; }
-.historyButtons button:hover:not(:disabled), .panelToggle:hover, .sourcesHeader button:hover { background: var(--cp-hover); }
-.historyButtons button:disabled { opacity: .25; cursor: default; }
+.backButton { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; max-width: 100%; margin-left: -8px; padding: 5px 8px; border: 0; border-radius: 6px; background: transparent; color: var(--cp-muted); font-family: inherit; font-size: 12px; cursor: pointer; }
+.backButton span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.backButton:hover { background: var(--cp-hover); color: var(--cp-ink); }
+.queueNav { display: flex; align-items: center; gap: 8px; margin-left: auto; color: var(--cp-muted); font-size: 12px; white-space: nowrap; }
+.queueNav button { display: inline-flex; align-items: center; gap: 4px; height: 30px; padding: 0 10px; border: 1px solid var(--cp-border); border-radius: 7px; background: var(--cp-canvas); color: var(--cp-ink); font-family: inherit; font-size: 12px; cursor: pointer; }
+.queueNav button:hover:not(:disabled) { border-color: var(--cp-muted); }
+.queueNav button:disabled { opacity: .45; cursor: default; }
+.panelToggle, .sourcesHeader button { display: grid; place-items: center; width: 30px; height: 30px; border: 0; background: transparent; border-radius: 6px; cursor: pointer; }
+.panelToggle:hover, .sourcesHeader button:hover { background: var(--cp-hover); }
 .panelToggle { margin-left: auto; color: var(--cp-muted); }
+.panelToggleInline { margin-left: 0; }
 .reviewBanner { display: flex; align-items: center; gap: 10px; margin-top: 16px; padding: 11px 13px; border: 1px solid var(--cp-border); border-radius: 8px; background: var(--md-sys-color-surface-container-low); font-size: 12px; }
 .reviewBanner span { flex: 1; }
 .reviewBanner button { border: 0; background: transparent; color: var(--md-sys-color-primary); font-weight: 600; cursor: pointer; }
@@ -35,7 +41,7 @@
 .topicMeta { margin-bottom: 5px; color: var(--cp-muted); font-size: 11px; }
 .topic h3 { margin-bottom: 8px; font-size: 14px; }
 .topic p { color: var(--md-sys-color-on-surface-variant); font-size: 13px; line-height: 1.7; }
-.clamped { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.clamped { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
 .topic > button { display: inline-flex; align-items: center; gap: 4px; margin-top: 10px; padding: 3px 0; border: 0; background: transparent; color: var(--md-sys-color-primary); font-size: 12px; font-weight: 600; cursor: pointer; }
 .topic > button svg { transition: transform .15s; }
 .topic:not(:has(.clamped)) > button svg { transform: rotate(180deg); }

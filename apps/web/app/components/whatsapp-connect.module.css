@@ -274,3 +274,111 @@
 .btnText:hover {
   background: color-mix(in srgb, var(--md-sys-color-primary) 8%, transparent);
 }
+
+.btnDanger {
+  color: var(--md-sys-color-error, #b3261e);
+}
+
+.btnDanger:hover {
+  background: color-mix(in srgb, var(--md-sys-color-error, #b3261e) 8%, transparent);
+}
+
+.options {
+  display: grid;
+  gap: 10px;
+}
+
+.option {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: 16px;
+  background: var(--md-sys-color-surface-container-lowest);
+  color: var(--md-sys-color-on-surface);
+  text-align: left;
+  cursor: pointer;
+}
+
+.option:hover {
+  background: color-mix(
+    in srgb,
+    var(--md-sys-color-on-surface) 4%,
+    var(--md-sys-color-surface-container-lowest)
+  );
+}
+
+.option:focus-visible {
+  outline: 2px solid var(--md-sys-color-primary);
+  outline-offset: 1px;
+}
+
+.optionTitle {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.optionText {
+  font-size: 13px;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.sectionLabel {
+  margin: 20px 0 0;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.uploadStep {
+  display: grid;
+  gap: 14px;
+}
+
+.steps {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--md-sys-color-on-surface);
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.dropZone {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 88px;
+  padding: 16px;
+  border: 1px dashed var(--md-sys-color-outline);
+  border-radius: 16px;
+  background: var(--md-sys-color-surface-container-lowest);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: 13px;
+  text-align: center;
+  cursor: pointer;
+  word-break: break-word;
+}
+
+.dropZone:hover {
+  border-color: var(--md-sys-color-primary);
+}
+
+.dropZone:focus-within {
+  outline: 2px solid var(--md-sys-color-primary);
+  outline-offset: 1px;
+}
+
+.dropZone input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}

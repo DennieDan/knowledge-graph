@@ -14,6 +14,7 @@ export type AnalyticsEvent =
   | "substack_confirmed"
   | "confirm_all"
   | "analyze_workspace_clicked"
+  | "analysis_started"
   | "drive_connect_clicked"
   | "drive_connected"
   | "drive_selection_saved"
@@ -21,9 +22,14 @@ export type AnalyticsEvent =
   | "drive_sync_completed"
   | "whatsapp_connect_started"
   | "whatsapp_import_started"
+  | "whatsapp_upload_completed"
+  | "whatsapp_uploads_wiped"
   | "evidence_panel_toggled"
   | "source_opened"
-  | "related_opened";
+  | "related_opened"
+  | "nav_back_clicked"
+  | "breadcrumb_clicked"
+  | "review_queue_step";
 
 const enabled = () => Boolean(process.env.NEXT_PUBLIC_POSTHOG_KEY);
 

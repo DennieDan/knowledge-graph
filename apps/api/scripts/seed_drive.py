@@ -17,6 +17,9 @@ account. Later runs reuse the cached token.
     personal     -> food-supply sample data (personal Gmail Drive)
 
 Use --wipe to trash the previously created sample root folder first.
+
+WhatsApp chats are not uploaded to Drive; they are real export files from
+scripts/generate_whatsapp_exports.py, uploaded through the WhatsApp modal.
 """
 import argparse
 import base64
@@ -334,15 +337,6 @@ def delivery_pdf(do_no: str, po_no: str, seller: str, buyer: str,
     return make_pdf(lines)
 
 
-def whatsapp_txt(chat_name: str, messages: list[tuple[str, str]]) -> bytes:
-    out = [f"WhatsApp Chat Export - {chat_name}", ""]
-    base = date(2026, 9, 1)
-    for i, (sender, text) in enumerate(messages):
-        d = base + timedelta(days=i // 6)
-        out.append(f"[{d:%d/%m/%Y}, {9 + (i % 8)}:{(i * 7) % 60:02d} AM] {sender}: {text}")
-    return "\n".join(out).encode()
-
-
 # ------------------------------------------------------------- datasets ----
 
 def d(n: int) -> date:
@@ -369,7 +363,7 @@ def build_precision_engineering() -> dict[str, list[tuple]]:
     folders: dict[str, list[tuple]] = {k: [] for k in [
         "Clients", "Sales Orders", "Specifications", "Supplier Orders",
         "Delivery Orders", "Invoices", "Price Lists", "Meetings",
-        "Conversations", "Scanned Forms"]}
+        "Scanned Forms"]}
 
     for name, addr in clients:
         folders["Clients"].append((f"Client Profile - {name}", "doc",
@@ -459,33 +453,6 @@ def build_precision_engineering() -> dict[str, list[tuple]]:
                 "Price hold agreed through Q4 2026."])),
     ]
 
-    folders["Conversations"] = [
-        ("WhatsApp - Meridian Procurement.txt", "txt", whatsapp_txt(
-            "Meridian Procurement", [
-                ("Meridian (Jon)", "Hi, PO MER-PO-4123 just sent by email. Same as last month but qty 60 on line 2."),
-                ("You", "Received, will confirm delivery date by tomorrow."),
-                ("Meridian (Jon)", "Also please use drawing SN-1004 Rev C when it releases, Rev B is obsolete for new orders."),
-                ("You", "Noted. We'll hold SN-1004 until Rev C is approved."),
-                ("Meridian (Jon)", "Approved Rev C today, check the spec folder I shared."),
-                ("You", "Got it, updating the job packet now. Thanks Jon."),
-            ])),
-        ("WhatsApp - Semicon Orders.txt", "txt", whatsapp_txt(
-            "Semicon Orders", [
-                ("Semicon (Aisha)", "Can you pull in delivery for SEM-PO-4121? Customer pushed the build earlier."),
-                ("You", "Checking capacity — can deliver 1 week early if we split the shipment."),
-                ("Semicon (Aisha)", "Split shipment is fine, send first batch when ready."),
-                ("You", "First batch ships Friday, DO to follow by email."),
-                ("Semicon (Aisha)", "Perfect. Also PO-4127 coming next week, titanium brackets again."),
-            ])),
-        ("WhatsApp - Harbour Marine.txt", "txt", whatsapp_txt(
-            "Harbour Marine Engineering", [
-                ("Harbour (Wei)", "Please hold HAR-PO-4126, we found an issue with the manifold drawing."),
-                ("You", "Held. Which rev should we work to?"),
-                ("Harbour (Wei)", "Rev B in your spec folder is correct, the PO was issued against the wrong rev."),
-                ("You", "Understood — we'll reissue the acknowledgement against Rev B."),
-            ])),
-    ]
-
     folders["Scanned Forms"] = [
         ("Scanned PO - Harbour Marine HAR-PO-4131.png", "png", make_png()),
         ("Scanned Delivery Note - MedFab.png", "png", make_png(400, 340)),
@@ -509,7 +476,7 @@ def build_food_supply() -> dict[str, list[tuple]]:
     ]
     folders: dict[str, list[tuple]] = {k: [] for k in [
         "Clients", "Sales Orders", "Supplier Orders", "Delivery Orders",
-        "Invoices", "Price Lists", "Meetings", "Conversations", "Scanned Forms"]}
+        "Invoices", "Price Lists", "Meetings", "Scanned Forms"]}
 
     for name, addr in clients:
         folders["Clients"].append((f"Client Profile - {name}", "doc",
@@ -560,32 +527,6 @@ def build_food_supply() -> dict[str, list[tuple]]:
                 "Cold chain van 2 serviced; back in rotation Monday.",
                 "Golden Wok complained about bruised tomatoes — QC to photograph each crate before dispatch.",
                 "PICs: procurement — Phuong; deliveries — Daniel; QC — Mei."])),
-    ]
-
-    folders["Conversations"] = [
-        ("WhatsApp - Marina Table Orders.txt", "txt", whatsapp_txt(
-            "Marina Table Orders", [
-                ("Chef Marcus", "Order for tomorrow: 20 spinach, 15 prawns, 10 barramundi."),
-                ("You", "Confirmed PO-5500. Delivery 7-9am slot as usual?"),
-                ("Chef Marcus", "Yes. Also add 5 chicken breast, event on Saturday."),
-                ("You", "Added. Sending revised invoice tonight."),
-                ("Chef Marcus", "Last batch of tomatoes was soft, please check QC."),
-                ("You", "Noted — we'll photograph crates before dispatch going forward."),
-            ])),
-        ("WhatsApp - Golden Wok.txt", "txt", whatsapp_txt(
-            "Golden Wok Catering", [
-                ("Golden Wok (Lyn)", "Can we change PO-5503 rice from 2 sacks to 5? Wedding job came in."),
-                ("You", "Done, updated to 5 sacks jasmine rice."),
-                ("Golden Wok (Lyn)", "And swap cooking oil to the 17L tin instead of 2 small ones."),
-                ("You", "Swapped. New total on the revised invoice."),
-            ])),
-        ("WhatsApp - Little Saigon Bistro.txt", "txt", whatsapp_txt(
-            "Little Saigon Bistro", [
-                ("Bistro (Anh)", "Hold tomorrow's delivery, kitchen renovation running late."),
-                ("You", "Held. Reschedule to Thursday same items?"),
-                ("Bistro (Anh)", "Thursday works, but drop the lettuce, we overstocked."),
-                ("You", "PO-5508 revised: lettuce removed, delivery Thursday 8am."),
-            ])),
     ]
 
     folders["Scanned Forms"] = [

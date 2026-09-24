@@ -9,18 +9,6 @@ class EvidenceValue(BaseModel):
     confidence: Literal["high", "medium", "low"] = "medium"
 
 
-class EvidenceConflict(BaseModel):
-    field: str
-    values: list[EvidenceValue] = Field(default_factory=list)
-    explanation: str
-
-
-class OpenQuestion(BaseModel):
-    field: str
-    question: str
-    citations: list[str] = Field(default_factory=list)
-
-
 class EntityReference(BaseModel):
     entity_type: Literal["sales-orders", "clients", "items"]
     name: str

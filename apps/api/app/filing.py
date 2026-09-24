@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from .embedding_jobs import enqueue_version_embedding
 from .generation import mark_stale_for_document, run_generation
-from .ingest import SourceDocument, ingest_document
+from .ingest import SourceDocument, drop_superseded_chunks, ingest_document
 from .models import Document, DocumentVersion, Substack, SubstackSource
 
 STACK_TYPE_FOR_SOURCE = {
@@ -78,5 +78,6 @@ def ingest_and_file(session: Session, organization_id: UUID, source_document: So
             stale = session.get(Substack, substack_id)
             if stale is not None and stale.stack_type in ("files", "conversations"):
                 run_generation(session, stale)
+        drop_superseded_chunks(session, document.id)
         enqueue_version_embedding(session, version, document)
     return version

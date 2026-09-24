@@ -11,10 +11,10 @@ interface Props {
   stackTypes: StackType[];
   detail: UiSubstackDetail | null;
   details: Record<string, UiSubstackDetail>;
-  canGoBack: boolean;
-  canGoForward: boolean;
+  backLabel: string;
   onBack: () => void;
-  onForward: () => void;
+  /** Present when the record was opened from the Analyze workspace queue. */
+  queue: { position: number; total: number; onPrev: (() => void) | null; onNext: (() => void) | null } | null;
   onOpen: (id: string) => void;
   onEnsureDetail: (id: string) => void;
   onConfirmContent: (contentId: string) => void;
@@ -25,7 +25,7 @@ function HighlightedToken({ children, sourceIds, onHover }: { children: React.Re
   return <mark className={styles.highlightedToken} onMouseEnter={() => onHover(sourceIds)} onMouseLeave={() => onHover(null)}>{children}</mark>;
 }
 
-export default function SubstackDetail({ substack, stackTypes, detail, details, canGoBack, canGoForward, onBack, onForward, onOpen, onEnsureDetail, onConfirmContent }: Props) {
+export default function SubstackDetail({ substack, stackTypes, detail, details, backLabel, onBack, queue, onOpen, onEnsureDetail, onConfirmContent }: Props) {
   const [query, setQuery] = useState("");
   const [showPending, setShowPending] = useState(false);
   const [hoveredSourceIds, setHoveredSourceIds] = useState<string[] | null>(null);
@@ -59,13 +59,19 @@ export default function SubstackDetail({ substack, stackTypes, detail, details, 
   return (
     <div className={`${styles.page} ${panelOpen ? "" : styles.pagePanelClosed}`}>
       <section className={styles.content}>
+        <button type="button" className={styles.backButton} onClick={onBack}>
+          <Icon name="arrow-left" size={14} /> <span>{backLabel}</span>
+        </button>
         <header className={styles.header}>
-          <div className={styles.historyButtons}>
-            <button onClick={onBack} disabled={!canGoBack} aria-label="Back"><Icon name="arrow-left" size={19} /></button>
-            <button onClick={onForward} disabled={!canGoForward} aria-label="Next"><Icon name="arrow-right" size={19} /></button>
-          </div>
           <h1>{substack.name}</h1><span>{type?.name ?? "Stack"}</span>
-          <button className={styles.panelToggle} onClick={() => togglePanel(!panelOpen)} aria-label={panelOpen ? "Close side panel" : "Open side panel"} aria-expanded={panelOpen}><Icon name="panel-right" size={18} /></button>
+          {queue && (
+            <nav className={styles.queueNav} aria-label="Review queue">
+              <button type="button" onClick={queue.onPrev ?? undefined} disabled={!queue.onPrev} aria-label="Previous item to check"><Icon name="chevron-left" size={16} /></button>
+              <span>{queue.position} of {queue.total}</span>
+              <button type="button" onClick={queue.onNext ?? undefined} disabled={!queue.onNext} aria-label="Next item to check"><Icon name="chevron-right" size={16} /></button>
+            </nav>
+          )}
+          <button className={queue ? `${styles.panelToggle} ${styles.panelToggleInline}` : styles.panelToggle} onClick={() => togglePanel(!panelOpen)} aria-label={panelOpen ? "Close side panel" : "Open side panel"} aria-expanded={panelOpen}><Icon name="panel-right" size={18} /></button>
         </header>
 
         {substack.reviewState === "unsupported" && (

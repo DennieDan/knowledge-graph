@@ -6,13 +6,17 @@ from sqlalchemy.orm import Session
 
 from .config import get_settings
 from .embeddings import embed_passages
-from .jobs import create_run, enqueue_job
+from .jobs import complete_run_if_last, create_run, enqueue_job
 from .models import AnalysisRun, Chunk, Document, DocumentVersion
 
 
 def enqueue_version_embedding(session: Session, version: DocumentVersion, document: Document) -> AnalysisRun:
     settings = get_settings()
-    owner_filter = AnalysisRun.owner_user_id.is_(None) if document.owner_user_id is None else AnalysisRun.owner_user_id == document.owner_user_id
+    owner_filter = (
+        AnalysisRun.owner_user_id.is_(None)
+        if document.owner_user_id is None
+        else AnalysisRun.owner_user_id == document.owner_user_id
+    )
     run = session.scalar(
         select(AnalysisRun)
         .where(
@@ -46,7 +50,8 @@ def enqueue_version_embedding(session: Session, version: DocumentVersion, docume
     return run
 
 
-def embed_document_version(session: Session, version_id: UUID, run_id: UUID | None) -> int:
+def embed_document_version(session: Session, version_id: UUID, run_id: UUID | None, generate: str = "affected") -> int:
+    """Embed a version's missing chunks. Analyze runs continue to discovery; ingest runs stop here."""
     settings = get_settings()
     run = session.get(AnalysisRun, run_id) if run_id else None
     if run is not None:
@@ -68,7 +73,7 @@ def embed_document_version(session: Session, version_id: UUID, run_id: UUID | No
     ).all()
     total = 0
     for start in range(0, len(chunks), settings.embedding_batch_size):
-        batch = chunks[start : start + settings.embedding_batch_size]
+        batch = chunks[start:start + settings.embedding_batch_size]
         vectors = embed_passages(chunk.text for chunk in batch)
         for chunk, vector in zip(batch, vectors):
             chunk.embedding = vector
@@ -77,15 +82,21 @@ def embed_document_version(session: Session, version_id: UUID, run_id: UUID | No
         total += len(batch)
     run = session.get(AnalysisRun, run_id) if run_id else None
     if run is not None:
-        run.status = "discovering"
         run.chunks_embedded += total
+    if run is not None and run.trigger == "ingest":
+        run.documents_processed += 1
+        complete_run_if_last(session, run.id)
+        session.commit()
+        return total
+    if run is not None:
+        run.status = "discovering"
     enqueue_job(
         session,
         organization_id=document.organization_id,
         owner_user_id=document.owner_user_id,
         kind="discover_document",
-        payload={"document_version_id": str(version.id)},
-        dedupe_key=f"discover:{version.id}:{settings.analysis_config_version}:{settings.openai_model}",
+        payload={"document_version_id": str(version.id), "generate": generate},
+        dedupe_key=f"discover:{version.id}:{settings.analysis_config_version}:{settings.openai_model}:run:{run_id}",
         analysis_run_id=run_id,
     )
     session.commit()

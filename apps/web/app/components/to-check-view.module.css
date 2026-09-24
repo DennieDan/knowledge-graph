@@ -48,6 +48,99 @@
   color: var(--cp-muted);
 }
 
+.heroActions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.ghostBtn {
+  border: 0;
+  background: transparent;
+  padding: 8px 10px;
+  color: var(--cp-muted);
+  cursor: pointer;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: inherit;
+  white-space: nowrap;
+}
+
+.ghostBtn:hover:not(:disabled) {
+  background: var(--cp-hover);
+  color: var(--cp-ink);
+}
+
+.ghostBtn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.analysisStatus {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  margin: 0 0 20px;
+  padding: 12px 14px;
+  border: 1px solid var(--cp-border);
+  border-radius: 8px;
+  background: var(--md-sys-color-surface-container-low);
+  font-size: 12px;
+}
+
+.analysisStatus span {
+  color: var(--cp-muted);
+}
+
+.analysisSummary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.generationProgress {
+  display: grid;
+  gap: 6px;
+}
+
+.progressLabels {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.progressTrack {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--cp-border);
+}
+
+.progressTrack > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--md-sys-color-primary);
+  transition: width 0.25s ease;
+}
+
+.analysisStatus button {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: var(--md-sys-color-primary);
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .filterRow {
   display: flex;
   gap: 8px;
@@ -78,9 +171,76 @@
   font-weight: 500;
 }
 
+.filterDivider {
+  width: 1px;
+  align-self: stretch;
+  margin: 2px 2px;
+  background: var(--cp-border);
+}
+
 .list {
   display: grid;
   gap: 8px;
+  scroll-margin-top: 72px;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.pagerRange {
+  font-size: 12px;
+  color: var(--cp-muted);
+}
+
+.pagerButtons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pageBtn {
+  min-width: 30px;
+  height: 30px;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--cp-border);
+  border-radius: 7px;
+  background: var(--cp-canvas);
+  color: var(--cp-ink);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.pageBtn:hover:not(:disabled) {
+  border-color: var(--cp-muted);
+}
+
+.pageBtn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.pageBtnActive {
+  border-color: var(--cp-ink);
+  background: var(--cp-ink);
+  color: var(--cp-canvas);
+  font-weight: 600;
+}
+
+.pageGap {
+  min-width: 20px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--cp-muted);
 }
 
 .row {
@@ -112,6 +272,7 @@
   font-size: inherit;
   line-height: inherit;
   color: inherit;
+  text-decoration: none;
 }
 
 .rowMain:hover .rowName {
@@ -223,6 +384,7 @@
   line-height: inherit;
   white-space: nowrap;
   min-width: 128px;
+  text-decoration: none;
 }
 
 .reviewBtn:hover {

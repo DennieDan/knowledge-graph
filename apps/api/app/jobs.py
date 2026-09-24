@@ -2,7 +2,7 @@
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -11,10 +11,30 @@ from .models import AnalysisRun, KnowledgeJob
 
 LEASE_SECONDS = 300
 RETRY_DELAYS_SECONDS = (10, 30, 120, 600)
+RUN_JOB_KINDS = ("embed_version", "discover_document", "generate_substack", "reconcile_scope")
+
+
+class JobNotReady(Exception):
+    """Raised by a job that must wait for other jobs in its run; the worker re-queues it."""
 
 
 def utcnow() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def complete_run_if_last(session: Session, run_id: UUID | None) -> None:
+    """Close the run when the calling (still running) job is the last one left."""
+    run = session.get(AnalysisRun, run_id) if run_id else None
+    if run is None:
+        return
+    remaining = session.scalar(select(func.count()).select_from(KnowledgeJob).where(
+        KnowledgeJob.analysis_run_id == run.id,
+        KnowledgeJob.kind.in_(RUN_JOB_KINDS),
+        KnowledgeJob.status.in_(("queued", "running")),
+    )) or 0
+    if remaining <= 1:
+        run.status = "completed" if run.failures == 0 else "partial"
+        run.completed_at = utcnow()
 
 
 def enqueue_job(
@@ -106,6 +126,18 @@ def finish_job(session: Session, job_id: UUID) -> None:
     job.locked_at = None
     job.locked_by = None
     job.last_error = None
+    session.commit()
+
+
+def defer_job(session: Session, job_id: UUID, seconds: int = 5) -> None:
+    job = session.get(KnowledgeJob, job_id)
+    if job is None:
+        return
+    job.status = "queued"
+    job.attempts = max(0, job.attempts - 1)
+    job.available_at = utcnow() + timedelta(seconds=seconds)
+    job.locked_at = None
+    job.locked_by = None
     session.commit()
 
 
