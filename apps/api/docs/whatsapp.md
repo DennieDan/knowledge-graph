@@ -106,6 +106,44 @@ applies to chats the user explicitly imported. If `WAHA_WEBHOOK_URL` is unset,
 new sessions get no webhook and the system runs in poll-only mode — fine for
 the MVP.
 
+## Chat export upload (no linking)
+
+The WhatsApp modal opens on a choice: **Upload chat export** or **Link
+WhatsApp**. Uploads need no WAHA and are the path for demo/test accounts.
+
+- `app/whatsapp_export.py` parses iOS (`WhatsApp Chat - <name>.zip` →
+  `_chat.txt`, `[d/m/yy, h:mm:ss AM] Name: …`) and Android
+  (`WhatsApp Chat with <name>.txt`, `dd/mm/yyyy, h:mm am - Name: …`) exports:
+  any date order, 12/24-hour clocks, U+200E/U+202F marks, multi-line
+  messages, system lines (skipped), media/document placeholders, deleted and
+  edited markers. Times are device-local; Singapore (UTC+8) is assumed.
+- Uploaded chats reuse `whatsapp_chats` / `whatsapp_messages` with
+  `origin='export'`, so transcripts, Conversations records and search work
+  unchanged. `chat_jid` is `export_<hash(user, chat name)>@export` and message
+  ids hash `(time, sender, body, ordinal)`: re-uploading a longer export of the
+  same chat only adds new messages.
+- The uploader's own messages are matched by the "Your name in these chats"
+  field (defaults to the account display name).
+- Uploads never mark WhatsApp as linked; the Sources card shows
+  "Chats uploaded · no live sync". **Wipe out imported chats** deletes the
+  uploaded chats, their transcript documents, and their Conversations
+  records. **Disconnect** (WAHA) keeps uploaded chats.
+
+| Method & path | Description |
+| --- | --- |
+| `POST /whatsapp/uploads` | Multipart `file` (.txt/.zip, ≤ 5 MB), `organization_id`, optional `me_name`. Parses, stores, and ingests synchronously. |
+| `GET /whatsapp/uploads` | Uploaded chats for the current user. |
+| `DELETE /whatsapp/uploads` | Wipe out all uploaded chats and their derived records. |
+
+### Sample exports
+
+`python -m scripts.generate_whatsapp_exports` writes
+`fixtures/whatsapp/{studionorth,food}/` from
+`scripts/sample_conversations.py`. The chats continue the `seed_drive`
+datasets (same POs, parts, revisions, dates); the "me" names are `Linh Tran`
+(Studio North) and `Phuong Nguyen` (food supply) — type these in the upload
+dialog so those messages render as "Me".
+
 ## Setup
 
 ### Local development

@@ -22,6 +22,8 @@ export type AnalyticsEvent =
   | "drive_sync_completed"
   | "whatsapp_connect_started"
   | "whatsapp_import_started"
+  | "whatsapp_upload_completed"
+  | "whatsapp_uploads_wiped"
   | "evidence_panel_toggled"
   | "source_opened"
   | "related_opened"

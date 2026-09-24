@@ -1,11 +1,12 @@
+import hashlib
 import time
 from datetime import datetime, timezone
 from uuid import UUID
 
 import httpx
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Header, HTTPException, Request, UploadFile
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from . import waha_client
@@ -14,12 +15,14 @@ from .auth import get_current_user
 from .config import get_settings
 from .database import get_engine, get_session
 from .filing import ingest_and_file
-from .models import User, WhatsappChat, WhatsappConnection, WhatsappMessage
-from .sources import whatsapp_chat_document
+from .models import Document, Substack, SubstackSource, User, WhatsappChat, WhatsappConnection, WhatsappMessage
+from .sources import WHATSAPP_SOURCE, whatsapp_chat_document
+from .whatsapp_export import ExportFormatError, ParsedChat, parse_export
 
 MESSAGES_PAGE_SIZE = 100
 CHATS_PAGE_SIZE = 100
 INGEST_DEBOUNCE_SECONDS = 30
+UPLOAD_MAX_BYTES = 5 * 1024 * 1024
 
 router = APIRouter(prefix="/whatsapp", tags=["whatsapp"])
 
@@ -219,9 +222,165 @@ def disconnect(user: User = Depends(get_current_user), session: Session = Depend
         waha_client.delete_session(conn.waha_session)
     except httpx.HTTPError:
         pass
-    session.delete(conn)  # cascades to chats and imported messages
+    if export_chats(session, conn):
+        # Uploaded exports outlive the live link; only WAHA-imported chats go.
+        session.execute(delete(WhatsappChat).where(WhatsappChat.connection_id == conn.id, WhatsappChat.origin == "waha"))
+        conn.status = "STOPPED"
+        conn.phone_number = None
+    else:
+        session.delete(conn)  # cascades to chats and imported messages
     session.commit()
     return {"status": "ok"}
+
+
+def export_chats(session: Session, conn: WhatsappConnection) -> list[WhatsappChat]:
+    return list(session.scalars(
+        select(WhatsappChat).where(WhatsappChat.connection_id == conn.id, WhatsappChat.origin == "export")
+    ))
+
+
+def export_chat_jid(user_id: UUID, name: str) -> str:
+    digest = hashlib.sha1(f"{user_id}|{name.strip().casefold()}".encode()).hexdigest()
+    return f"export_{digest[:20]}@export"
+
+
+def store_export(session: Session, conn: WhatsappConnection, parsed: ParsedChat, organization_id: UUID) -> tuple[WhatsappChat, int]:
+    """Upsert an uploaded chat and its messages; re-uploads only add new messages."""
+    jid = export_chat_jid(conn.user_id, parsed.name)
+    chat = session.scalar(
+        select(WhatsappChat).where(WhatsappChat.connection_id == conn.id, WhatsappChat.chat_jid == jid)
+    )
+    if chat is None:
+        chat = WhatsappChat(connection_id=conn.id, chat_jid=jid, origin="export")
+        session.add(chat)
+        session.flush()
+    chat.name = parsed.name
+    chat.chat_type = parsed.chat_type
+    chat.organization_id = organization_id
+    existing = {
+        message.wa_message_id: message
+        for message in session.scalars(select(WhatsappMessage).where(WhatsappMessage.chat_id == chat.id))
+    }
+    added = 0
+    for message in parsed.messages:
+        stored = existing.get(message.wa_message_id)
+        if stored is not None:
+            stored.from_me = message.from_me
+            continue
+        session.add(WhatsappMessage(
+            chat_id=chat.id,
+            wa_message_id=message.wa_message_id,
+            sent_at=message.sent_at,
+            sender_name=message.sender,
+            from_me=message.from_me,
+            msg_type=message.msg_type,
+            body=message.body,
+            has_media=message.has_media,
+            raw={"source": "export", "format": message.line_format, "edited": message.edited},
+        ))
+        added += 1
+    session.flush()
+    chat.message_count = session.scalar(
+        select(func.count(WhatsappMessage.id)).where(WhatsappMessage.chat_id == chat.id)
+    ) or 0
+    latest = max(message.sent_at for message in parsed.messages)
+    if chat.last_message_at is None or latest > chat.last_message_at:
+        chat.last_message_at = latest
+    return chat, added
+
+
+def delete_chat_documents(session: Session, chat: WhatsappChat) -> None:
+    """Remove the transcript documents filed from a chat and their Conversations records."""
+    documents = session.scalars(
+        select(Document).where(Document.source == WHATSAPP_SOURCE, Document.external_id == chat.chat_jid)
+    ).all()
+    for document in documents:
+        substack_ids = session.scalars(
+            select(SubstackSource.substack_id)
+            .join(Substack, Substack.id == SubstackSource.substack_id)
+            .where(SubstackSource.document_id == document.id, Substack.stack_type == "conversations")
+        ).all()
+        if substack_ids:
+            session.execute(delete(Substack).where(Substack.id.in_(substack_ids)))
+        session.delete(document)
+
+
+def upload_item(chat: WhatsappChat) -> dict:
+    return {
+        "chat_jid": chat.chat_jid,
+        "name": chat.name,
+        "chat_type": chat.chat_type,
+        "last_message_at": chat.last_message_at.isoformat() if chat.last_message_at else None,
+        "import_status": chat.import_status,
+        "import_error": chat.import_error,
+        "message_count": chat.message_count,
+    }
+
+
+@router.post("/uploads")
+def upload_export(
+    file: UploadFile = File(...),
+    organization_id: UUID = Form(...),
+    me_name: str | None = Form(default=None, max_length=200),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    membership_for(organization_id, user, session)
+    data = file.file.read(UPLOAD_MAX_BYTES + 1)
+    if len(data) > UPLOAD_MAX_BYTES:
+        raise HTTPException(status_code=413, detail="export_too_large")
+    try:
+        parsed = parse_export(data, file.filename, me_name=me_name or user.display_name)
+    except ExportFormatError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    conn = get_connection(user, session)
+    if conn is None:
+        conn = WhatsappConnection(user_id=user.id, waha_session=waha_client.session_name_for(user.id), status="STOPPED")
+        session.add(conn)
+        session.flush()
+    chat, added = store_export(session, conn, parsed, organization_id)
+    ingest_chat_transcript(session, conn, chat)
+    chat.import_status = "imported"
+    chat.import_error = None
+    session.commit()
+    return {
+        **upload_item(chat),
+        "new_messages": added,
+        "export_format": parsed.export_format,
+        "participants": parsed.participants,
+        "me_name": parsed.me_name,
+    }
+
+
+@router.get("/uploads")
+def list_uploads(user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    conn = get_connection(user, session)
+    if conn is None:
+        return []
+    chats = sorted(
+        export_chats(session, conn),
+        key=lambda c: c.last_message_at or datetime.min.replace(tzinfo=timezone.utc),
+        reverse=True,
+    )
+    return [upload_item(chat) for chat in chats]
+
+
+@router.delete("/uploads")
+def wipe_uploads(user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    conn = get_connection(user, session)
+    if conn is None:
+        return {"deleted": 0}
+    chats = export_chats(session, conn)
+    for chat in chats:
+        delete_chat_documents(session, chat)
+        session.delete(chat)  # cascades to its messages
+    session.flush()
+    remaining = session.scalar(select(func.count(WhatsappChat.id)).where(WhatsappChat.connection_id == conn.id)) or 0
+    if conn.status != "WORKING" and remaining == 0:
+        session.delete(conn)
+    session.commit()
+    return {"deleted": len(chats)}
 
 
 @router.get("/chats")
@@ -317,6 +476,7 @@ def import_status(user: User = Depends(get_current_user), session: Session = Dep
     chats = session.scalars(
         select(WhatsappChat).where(
             WhatsappChat.connection_id == conn.id,
+            WhatsappChat.origin == "waha",
             WhatsappChat.import_status.in_(["importing", "imported", "failed"]),
         )
     ).all()

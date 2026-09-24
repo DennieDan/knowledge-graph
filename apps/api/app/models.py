@@ -185,12 +185,14 @@ class WhatsappChat(Base):
     __table_args__ = (
         UniqueConstraint("connection_id", "chat_jid"),
         CheckConstraint("import_status IN ('none','importing','imported','failed')", name="valid_import_status"),
+        CheckConstraint("origin IN ('waha','export')", name="valid_chat_origin"),
     )
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     connection_id: Mapped[UUID] = mapped_column(ForeignKey("whatsapp_connections.id", ondelete="CASCADE"), index=True)
     chat_jid: Mapped[str] = mapped_column(Text)
     name: Mapped[Optional[str]] = mapped_column(Text)
     chat_type: Mapped[str] = mapped_column(String(32), default="contact")
+    origin: Mapped[str] = mapped_column(String(16), default="waha", server_default="waha")
     last_message_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     organization_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("organizations.id", ondelete="SET NULL"), index=True)
     pending_ingest: Mapped[bool] = mapped_column(Boolean, default=False)

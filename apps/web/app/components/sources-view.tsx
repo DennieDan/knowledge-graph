@@ -43,6 +43,7 @@ export default function SourcesView({
   const [syncMsg, setSyncMsg] = useState("");
   const [syncState, setSyncState] = useState<{ done: number; total: number } | null>(null);
   const syncing = syncState !== null;
+  const uploadedChats = me?.whatsapp_uploaded_chats ?? 0;
 
   const handleSync = async () => {
     if (!activeAccount || syncing) return;
@@ -141,16 +142,20 @@ export default function SourcesView({
           <p className={styles.connName}>WhatsApp</p>
           <div className={styles.connRow}>
             <span className={me?.whatsapp_linked ? styles.pillDark : styles.pillLight}>
-              {me?.whatsapp_linked ? "Connected" : "Not linked"}
+              {me?.whatsapp_linked ? "Connected" : uploadedChats > 0 ? "Chats uploaded" : "Not linked"}
             </span>
-            {me?.whatsapp_linked && (
-              <span className={styles.connMeta}>WAHA session</span>
+            {me?.whatsapp_linked ? (
+              <span className={styles.connMeta}>Live sync</span>
+            ) : uploadedChats > 0 && (
+              <span className={styles.connMeta}>
+                {uploadedChats} chat{uploadedChats === 1 ? "" : "s"} · no live sync
+              </span>
             )}
           </div>
           <div className={styles.connAction}>
             {me ? (
               <button type="button" onClick={onManageWhatsApp}>
-                {me.whatsapp_linked ? "Manage / import chats" : "Connect"}
+                {me.whatsapp_linked ? "Manage / import chats" : uploadedChats > 0 ? "Manage chats" : "Connect"}
               </button>
             ) : (
               <a href={loginUrl}>Sign in to connect</a>

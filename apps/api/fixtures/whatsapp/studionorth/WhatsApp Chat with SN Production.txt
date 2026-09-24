@@ -1,0 +1,16 @@
+31/08/2026, 8:12 am - Messages and calls are end-to-end encrypted. Only people in this chat can read, listen to, or share them. Learn more.
+31/08/2026, 8:12 am - You created group "SN Production"
+31/08/2026, 8:12 am - You added Wei Ming and Priya QC
+31/08/2026, 8:15 am - Linh Tran: Morning. Week 36 priorities:
+1. SEM-PO-4121 second batch SN-1002 x21 (grinding at Tuas Tooling)
+2. HAR / MER Rev changes coming, pls don't start SN-1003 or SN-1004 yet
+31/08/2026, 8:22 am - Wei Ming: Ok. Grinder spindle back Thursday, Tuas Tooling returns shafts Wed
+31/08/2026, 8:40 am - Priya QC: MedFab FAI for SN-1005 bushing due 18 Sep, need CMM slot
+31/08/2026, 8:41 am - Linh Tran: Priya can you own the MedFab FAI? Wei Ming to machine 5 samples by 11 Sep
+31/08/2026, 8:45 am - Wei Ming: Can
+08/09/2026, 5:20 pm - Linh Tran: HAR-PO-4127 now Rev B, SN-1003 qty 42. Ok to start after ack tomorrow
+11/09/2026, 4:58 pm - Wei Ming: <Media omitted>
+11/09/2026, 4:58 pm - Wei Ming: 5 SN-1005 samples done, passed to QC
+14/09/2026, 9:15 am - Linh Tran: MER-PO-4128 line 2 SN-1004 increased to 60 pcs, Rev C drawing. Need Ti bar check
+14/09/2026, 9:32 am - Wei Ming: Stock is 18kg, enough for 60 + scrap
+17/09/2026, 6:05 pm - Priya QC: SN-1005 FAI report done, all dims within tolerance. Submitting to MedFab tomorrow

@@ -552,15 +552,6 @@ export default function WorkspaceShell() {
           </nav>
 
           <div>
-            <div className={styles.sectionLabel}>Your Groups</div>
-            {["Product & Design", "All members"].map((g) => (
-              <div key={g} className={styles.groupItem}>
-                {g}
-              </div>
-            ))}
-          </div>
-
-          <div>
             <div className={styles.sectionLabel}>Recent Substacks</div>
             {recentIds.map((id) => substacks.find((item) => item.id === id)).filter((item): item is Substack => Boolean(item)).map((ss) => {
               const type = stackTypes.find((t) => t.id === ss.typeId);
@@ -841,6 +832,8 @@ export default function WorkspaceShell() {
           onClose={() => setWaOpen(false)}
           onChanged={refreshMe}
           accountId={activeAccount?.id}
+          linked={me.whatsapp_linked}
+          displayName={me.display_name}
         />
       )}
 

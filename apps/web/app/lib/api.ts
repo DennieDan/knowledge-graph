@@ -24,6 +24,7 @@ export interface Me {
   needs_account: boolean;
   drive_linked: boolean;
   whatsapp_linked: boolean;
+  whatsapp_uploaded_chats: number;
 }
 
 export interface DriveFile {
@@ -81,7 +82,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     credentials: "include",
     ...init,
     headers: {
-      ...(init?.body ? { "Content-Type": "application/json" } : {}),
+      ...(init?.body && !(init.body instanceof FormData) ? { "Content-Type": "application/json" } : {}),
       ...init?.headers,
     },
   });
@@ -196,6 +197,23 @@ export function whatsappImport(chatIds: string[], organizationId?: string): Prom
   });
 }
 export function whatsappImports(): Promise<WhatsappImportItem[]> { return apiFetch("/whatsapp/imports") }
+
+export interface WhatsappUploadItem {
+  chat_jid: string; name: string | null; chat_type: string; last_message_at: string | null;
+  import_status: "none" | "importing" | "imported" | "failed"; import_error: string | null; message_count: number;
+}
+export interface WhatsappUploadResult extends WhatsappUploadItem {
+  new_messages: number; export_format: "ios" | "android"; participants: string[]; me_name: string | null;
+}
+export function whatsappUploads(): Promise<WhatsappUploadItem[]> { return apiFetch("/whatsapp/uploads") }
+export function whatsappUpload(file: File, organizationId: string, meName?: string): Promise<WhatsappUploadResult> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("organization_id", organizationId);
+  if (meName?.trim()) form.append("me_name", meName.trim());
+  return apiFetch("/whatsapp/uploads", { method: "POST", body: form });
+}
+export function whatsappWipeUploads(): Promise<{ deleted: number }> { return apiFetch("/whatsapp/uploads", { method: "DELETE" }) }
 
 // ── Stacks ──────────────────────────────────────────────────────────────
 
