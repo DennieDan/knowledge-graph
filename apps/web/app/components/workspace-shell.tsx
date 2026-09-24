@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import Icon from "./icons";
 import Modal from "./modal";
 import SearchView from "./search-view";
@@ -67,6 +67,19 @@ const FALLBACK_TYPE: StackType = {
   desc: "",
 };
 
+const SIDEBAR_DEFAULT = 220;
+const SIDEBAR_MIN = 180;
+const SIDEBAR_MAX = 420;
+const SIDEBAR_STORAGE_KEY = "crosspod.sidebarWidth";
+
+const clampSidebar = (width: number) => Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, Math.round(width)));
+
+function initialSidebarWidth(): number {
+  if (typeof window === "undefined") return SIDEBAR_DEFAULT;
+  const stored = Number(window.localStorage.getItem(SIDEBAR_STORAGE_KEY));
+  return stored ? clampSidebar(stored) : SIDEBAR_DEFAULT;
+}
+
 function analysisInProgress(run: AnalysisRun): boolean {
   return ["queued", "embedding", "discovering", "generating"].includes(run.status)
     || run.generation_queued > 0
@@ -85,6 +98,9 @@ function initials(me: Me): string {
 
 export default function WorkspaceShell() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarWidth, setSidebarWidth] = useState(initialSidebarWidth);
+  const [resizing, setResizing] = useState(false);
+  const shellRef = useRef<HTMLDivElement>(null);
   const [activeNav, setActiveNav] = useState<NavId>("stacks");
   const stackTypes = STACK_TYPES;
   const [substacks, setSubstacks] = useState<Substack[]>([]);
@@ -199,6 +215,41 @@ export default function WorkspaceShell() {
   }, [activeAccount, analysisRuns, ensureDetail, refreshSubstacks, selectedSubstackId]);
 
   const closeModal = useCallback(() => setModal(null), []);
+
+  const commitSidebarWidth = (width: number) => {
+    const next = clampSidebar(width);
+    setSidebarWidth(next);
+    window.localStorage.setItem(SIDEBAR_STORAGE_KEY, String(next));
+  };
+
+  const handleResizeStart = (event: React.PointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setResizing(true);
+  };
+
+  const handleResizeMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!resizing) return;
+    const left = shellRef.current?.getBoundingClientRect().left ?? 0;
+    setSidebarWidth(clampSidebar(event.clientX - left));
+  };
+
+  const handleResizeEnd = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!resizing) return;
+    event.currentTarget.releasePointerCapture(event.pointerId);
+    setResizing(false);
+    commitSidebarWidth(sidebarWidth);
+  };
+
+  const handleResizeKey = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const step = event.shiftKey ? 48 : 16;
+    if (event.key === "ArrowLeft") commitSidebarWidth(sidebarWidth - step);
+    else if (event.key === "ArrowRight") commitSidebarWidth(sidebarWidth + step);
+    else if (event.key === "Home") commitSidebarWidth(SIDEBAR_MIN);
+    else if (event.key === "End") commitSidebarWidth(SIDEBAR_MAX);
+    else return;
+    event.preventDefault();
+  };
 
   const showNotice = (msg: string) => {
     setNotice(msg);
@@ -350,9 +401,11 @@ export default function WorkspaceShell() {
             : null;
 
   return (
-    <div className={styles.app}>
+    <div className={`${styles.app} ${resizing ? styles.appResizing : ""}`}>
       <div
+        ref={shellRef}
         className={`${styles.shell} ${sidebarOpen ? "" : styles.shellCollapsed}`}
+        style={{ "--sidebar-width": `${sidebarWidth}px` } as CSSProperties}
       >
         {/* ── Sidebar ── */}
         <aside
@@ -458,6 +511,26 @@ export default function WorkspaceShell() {
             )}
           </div>
         </aside>
+
+        {sidebarOpen && (
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize sidebar"
+            aria-valuemin={SIDEBAR_MIN}
+            aria-valuemax={SIDEBAR_MAX}
+            aria-valuenow={sidebarWidth}
+            tabIndex={0}
+            title="Drag to resize · double-click to reset"
+            className={`${styles.resizer} ${resizing ? styles.resizerActive : ""}`}
+            onPointerDown={handleResizeStart}
+            onPointerMove={handleResizeMove}
+            onPointerUp={handleResizeEnd}
+            onPointerCancel={handleResizeEnd}
+            onDoubleClick={() => commitSidebarWidth(SIDEBAR_DEFAULT)}
+            onKeyDown={handleResizeKey}
+          />
+        )}
 
         {/* ── Main ── */}
         <main className={styles.main}>
