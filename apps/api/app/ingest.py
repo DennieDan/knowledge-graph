@@ -1,7 +1,11 @@
 """Turn connector data into documents, versions, and chunks.
 
 Chunks are stored without embeddings; `python -m scripts.reembed` fills them in.
+
+#92 Step 3: hash idempotency (skip unchanged content_hash), PDF text-layer
+extraction (no OCR), and share-gated callers in drive_sync (`may_see`).
 """
+import io
 import re
 from dataclasses import dataclass
 from hashlib import sha256
@@ -12,6 +16,8 @@ from sqlalchemy.orm import Session
 
 from .chunking import chunk_text
 from .models import Chunk, Document, DocumentVersion
+
+PDF_MIME = "application/pdf"
 
 
 @dataclass(frozen=True)
@@ -37,6 +43,51 @@ def clean_text(text: str) -> str:
 
 def content_hash(content: str) -> str:
     return sha256(content.encode("utf-8")).hexdigest()
+
+
+def _minimal_pdf_text_fallback(data: bytes) -> str:
+    """Best-effort pull of parentheses strings from a text-layer PDF (no OCR)."""
+    # Tj / TJ operands: (...); keep latin-1 so binary noise does not crash.
+    text = data.decode("latin-1", errors="replace")
+    parts = re.findall(r"\((?:\\.|[^\\)])*\)\s*Tj", text)
+    lines: list[str] = []
+    for part in parts:
+        inner = part[1 : part.rfind(")")]
+        inner = (
+            inner.replace("\\(", "(")
+            .replace("\\)", ")")
+            .replace("\\\\", "\\")
+            .replace("\\n", "\n")
+        )
+        if inner.strip():
+            lines.append(inner)
+    return "\n".join(lines)
+
+
+def extract_pdf_text(data: bytes) -> str:
+    """Text-layer PDF extraction only — never OCR. Prefer pypdf when installed."""
+    if not data.startswith(b"%PDF"):
+        return ""
+    try:
+        from pypdf import PdfReader
+
+        reader = PdfReader(io.BytesIO(data))
+        pages = []
+        for page in reader.pages:
+            pages.append(page.extract_text() or "")
+        return "\n".join(pages).strip()
+    except Exception:
+        return _minimal_pdf_text_fallback(data).strip()
+
+
+def text_from_bytes(data: bytes, mime_type: str | None = None) -> str:
+    """Decode download bytes; PDF mime or magic → text-layer extract."""
+    if mime_type == PDF_MIME or data.startswith(b"%PDF"):
+        return extract_pdf_text(data)
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError:
+        return data.decode("utf-8", errors="replace")
 
 
 def _document_for(session: Session, organization_id: UUID, document: SourceDocument) -> Document:
