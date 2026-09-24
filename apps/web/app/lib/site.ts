@@ -1,6 +1,8 @@
 export const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "https://canon.sg";
 
+export const landingOnly = process.env.NEXT_PUBLIC_LANDING_ONLY === "true";
+
 export const site = {
   name: "Canon",
   tagline: "Every order, confirmed in one place",
