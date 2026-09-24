@@ -787,3 +787,26 @@ class OrderEvent(Base):
     actor_user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), index=True)
     at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     payload: Mapped[dict] = mapped_column(JSONB, default=dict)
+
+
+class Subscription(Base):
+    """Push-watch subscription for Drive, Gmail, or Graph (#92).
+
+    Stub until a verified webhook domain is registered. Drive polling in
+    drive_sync.py remains the live sync path.
+    """
+
+    __tablename__ = "subscriptions"
+    __table_args__ = (Index("ix_subscriptions_expires_at", "expires_at"),)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    provider: Mapped[str] = mapped_column(String(40))
+    external_channel_id: Mapped[Optional[str]] = mapped_column(String(255))
+    resource_id: Mapped[Optional[str]] = mapped_column(String(255))
+    cursor: Mapped[Optional[str]] = mapped_column(Text)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    connection_id: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey("drive_connections.id", ondelete="SET NULL"), index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

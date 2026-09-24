@@ -25,6 +25,9 @@ from .replies import router as replies_router
 from .search import router as search_router
 from .stacks import router as stacks_router
 from .timeline import router as timeline_router
+
+
+from .subscriptions import router as subscriptions_router
 from .whatsapp import router as whatsapp_router
 
 app = FastAPI(title="Knowledge Graph API")
@@ -59,6 +62,7 @@ app.include_router(accounts_router)
 app.include_router(analysis_router)
 app.include_router(drive_router)
 app.include_router(drive_sync_router)
+app.include_router(subscriptions_router)
 app.include_router(whatsapp_router)
 app.include_router(stacks_router)
 app.include_router(graph_router)
