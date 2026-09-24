@@ -13,6 +13,7 @@ from .findings import create_finding
 from .jobs import JobNotReady, claim_job, defer_job, fail_job, finish_job, park_budget_exhausted
 from .knowledge_analysis import discover_document, generate_substack, regenerate_records
 from .models import DriveConnection, DriveWorkspace, DriveWorkspaceConnection, KnowledgeJob, Substack, User
+from .propose import run_propose_version
 from .recheck import run_recheck
 from .scoring import run_score_job
 from .spend import budget_exhausted
@@ -138,6 +139,8 @@ def _dispatch(session: Session, job: KnowledgeJob) -> None:
         run_score_job(session, job.organization_id)
     elif job.kind == "run_recheck":
         run_recheck(session, job.organization_id)
+    elif job.kind == "propose_version":
+        run_propose_version(session, UUID(job.payload["document_version_id"]))
     else:
         raise ValueError(f"unsupported_job_kind:{job.kind}")
 

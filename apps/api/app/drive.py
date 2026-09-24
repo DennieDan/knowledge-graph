@@ -14,6 +14,7 @@ from .accounts import membership_for
 from .auth import GOOGLE_AUTHORIZATION_URL, GOOGLE_DRIVE_SCOPES, GOOGLE_TOKEN_URL, exchange_code, get_current_user
 from .config import get_settings
 from .database import get_session
+from .ingest import PDF_MIME, text_from_bytes
 from .models import (
     DriveConnection,
     DriveSelection,
@@ -32,7 +33,7 @@ EXPORTABLE_MIME_TYPES = {
     "application/vnd.google-apps.presentation": "text/plain",
     "application/vnd.google-apps.spreadsheet": "text/csv",
 }
-DOWNLOADABLE_MIME_TYPES = {"application/json", "application/xml"}
+DOWNLOADABLE_MIME_TYPES = {"application/json", "application/xml", "application/pdf"}
 
 router = APIRouter(tags=["drive"])
 
@@ -140,6 +141,9 @@ def fetch_file_text(access_token: str, file: dict) -> str:
         raise HTTPException(status_code=502, detail="drive_request_failed") from exc
     if response.status_code >= 400:
         raise HTTPException(status_code=502, detail="drive_request_failed")
+    # #92 Step 3: text-layer PDF extract (no OCR); other downloads stay charset-decoded.
+    if mime_type == PDF_MIME or response.content.startswith(b"%PDF"):
+        return text_from_bytes(response.content, PDF_MIME)
     return _decode_file_text(response.content, response.charset_encoding)
 
 

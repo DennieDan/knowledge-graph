@@ -32,7 +32,8 @@ def fake_settings(secret=None):
     return SimpleNamespace(
         waha_webhook_secret=(
             SimpleNamespace(get_secret_value=lambda: secret) if secret else None
-        )
+        ),
+        whatsapp_app_secret=None,
     )
 
 
