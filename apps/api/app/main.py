@@ -17,8 +17,10 @@ from .drive import router as drive_router
 from .drive_sync import router as drive_sync_router
 from .health_api import router as health_router
 from .models import Base
+from .queue import router as queue_router
 from .search import router as search_router
 from .stacks import router as stacks_router
+from .timeline import router as timeline_router
 from .whatsapp import router as whatsapp_router
 
 app = FastAPI(title="Knowledge Graph API")
@@ -58,6 +60,9 @@ app.include_router(stacks_router)
 app.include_router(search_router)
 app.include_router(chat_router)
 app.include_router(health_router)
+# #93 Steps 3–4: review queue + order timeline (extend findings; keep /findings).
+app.include_router(queue_router)
+app.include_router(timeline_router)
 
 
 @app.get("/health")
