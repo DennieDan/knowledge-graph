@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 
-from .common import EntityReference, EvidenceConflict, EvidenceValue, OpenQuestion
+from .common import EntityReference, EvidenceValue
 
 
 class SalesOrderLine(BaseModel):
@@ -27,5 +27,3 @@ class SalesOrderExtraction(BaseModel):
     changes: list[EvidenceValue] = Field(default_factory=list)
     approvals: list[EvidenceValue] = Field(default_factory=list)
     references: list[EntityReference] = Field(default_factory=list)
-    conflicts: list[EvidenceConflict] = Field(default_factory=list)
-    open_questions: list[OpenQuestion] = Field(default_factory=list)

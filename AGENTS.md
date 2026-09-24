@@ -9,7 +9,7 @@
 ## Commands
 
 - Dev (all apps): `pnpm run dev` — web:3000, docs:3001, api:8000 (FastAPI
-  uvicorn, `apps/api/.venv`)
+  uvicorn, `apps/api/.venv`), plus the knowledge worker (`turbo run dev worker`)
 - Web only: `pnpm dev` in `apps/web`
 - Verify web changes: `pnpm check-types` and `pnpm lint` in `apps/web`
 - Knowledge worker: `pnpm worker` in `apps/api` (run alongside the API); process one queued job with `pnpm worker:once`

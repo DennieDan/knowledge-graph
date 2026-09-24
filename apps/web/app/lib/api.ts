@@ -316,8 +316,36 @@ export interface AnalysisRun {
   error: string | null;
 }
 
-export function startAnalysis(accountId: string): Promise<AnalysisRun[]> {
-  return apiFetch(`/accounts/${accountId}/analysis`, { method: "POST" });
+export type RegenerateMode = "affected" | "selected" | "all";
+
+export interface AnalysisRecord {
+  id: string;
+  name: string;
+  type_id: string;
+  status: "proposed" | "confirmed";
+  review_state: string;
+  scope: "mine" | "workspace";
+}
+
+export interface AnalysisPlan {
+  changed_documents: { id: string; title: string; source: string; revision: number; change: "new" | "updated" }[];
+  affected_records: AnalysisRecord[];
+  records: AnalysisRecord[];
+}
+
+export function getAnalysisPlan(accountId: string): Promise<AnalysisPlan> {
+  return apiFetch(`/accounts/${accountId}/analysis/plan`);
+}
+
+export function startAnalysis(
+  accountId: string,
+  regenerate: RegenerateMode = "affected",
+  substackIds: string[] = [],
+): Promise<AnalysisRun[]> {
+  return apiFetch(`/accounts/${accountId}/analysis`, {
+    method: "POST",
+    body: JSON.stringify({ regenerate, substack_ids: substackIds }),
+  });
 }
 
 export function listAnalysis(accountId: string): Promise<AnalysisRun[]> {

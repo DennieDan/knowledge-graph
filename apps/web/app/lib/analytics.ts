@@ -14,6 +14,7 @@ export type AnalyticsEvent =
   | "substack_confirmed"
   | "confirm_all"
   | "analyze_workspace_clicked"
+  | "analysis_started"
   | "drive_connect_clicked"
   | "drive_connected"
   | "drive_selection_saved"

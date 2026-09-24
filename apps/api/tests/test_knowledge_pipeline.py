@@ -8,8 +8,9 @@ from sqlalchemy.orm import Session
 from app.database import get_engine
 from app.entity_resolution import identity_for_candidate, resolve_candidate
 from app.extractions import CandidateMention, ClientExtraction, EvidenceValue
-from app.jobs import create_run, enqueue_job
-from app.knowledge_analysis import generate_substack
+from app.embedding_jobs import embed_document_version
+from app.jobs import JobNotReady, create_run, enqueue_job
+from app.knowledge_analysis import generate_substack, regenerate_records
 from app.llm import LLMResult
 from app.models import (
     Chunk,
@@ -96,10 +97,51 @@ class KnowledgePipelineTests(unittest.TestCase):
             analysis_run_id=run.id,
         )
         self.assertEqual(first.id, second.id)
-        self.assertEqual(1, len(self.session.scalars(select(KnowledgeJob).where(KnowledgeJob.analysis_run_id == run.id)).all()))
+        jobs = self.session.scalars(select(KnowledgeJob).where(KnowledgeJob.analysis_run_id == run.id)).all()
+        self.assertEqual(1, len(jobs))
+
+    def test_ingest_run_embeds_without_discovery(self):
+        document, version, chunk = self.make_document()
+        chunk.embedding = None
+        chunk.embedding_model = None
+        self.session.flush()
+        run = create_run(self.session, self.organization.id, None, "ingest", documents_total=1)
+        with patch("app.embedding_jobs.embed_passages", return_value=[[1.0] + [0.0] * 383]):
+            embed_document_version(self.session, version.id, run.id)
+        kinds = self.session.scalars(select(KnowledgeJob.kind).where(KnowledgeJob.analysis_run_id == run.id)).all()
+        self.assertEqual([], kinds)
+        self.assertEqual("completed", run.status)
+
+    def test_regenerate_records_waits_for_discovery_then_forces_generation(self):
+        _, version, _ = self.make_document()
+        wanted = Substack(organization_id=self.organization.id, stack_type="clients", name="Acme")
+        other = Substack(organization_id=self.organization.id, stack_type="items", name="Bracket")
+        self.session.add_all([wanted, other])
+        self.session.flush()
+        run = create_run(self.session, self.organization.id, None, "manual", documents_total=1)
+        discover = enqueue_job(
+            self.session, organization_id=self.organization.id, owner_user_id=None, kind="discover_document",
+            payload={"document_version_id": str(version.id)}, dedupe_key=f"test:{uuid4()}", analysis_run_id=run.id,
+        )
+        barrier = enqueue_job(
+            self.session, organization_id=self.organization.id, owner_user_id=None, kind="reconcile_scope",
+            payload={"mode": "selected", "substack_ids": [str(wanted.id)]}, dedupe_key=f"test:{uuid4()}",
+            analysis_run_id=run.id,
+        )
+        with self.assertRaises(JobNotReady):
+            regenerate_records(self.session, barrier)
+        discover.status = "succeeded"
+        self.session.flush()
+        self.assertEqual(1, regenerate_records(self.session, barrier))
+        generated = self.session.scalars(select(KnowledgeJob).where(
+            KnowledgeJob.analysis_run_id == run.id, KnowledgeJob.kind == "generate_substack",
+        )).all()
+        self.assertEqual([{"substack_id": str(wanted.id), "force": True}], [job.payload for job in generated])
 
     def test_identity_requires_stable_type_specific_identifiers(self):
-        client = CandidateMention(entity_type="clients", name="Acme", identifiers={"registration_number": "2019-12345-K"})
+        client = CandidateMention(
+            entity_type="clients", name="Acme", identifiers={"registration_number": "2019-12345-K"}
+        )
         unnamed = CandidateMention(entity_type="clients", name="Acme")
         order = CandidateMention(entity_type="sales-orders", name="PO 42", identifiers={"order_number": "42"})
         self.assertEqual(("registration:201912345K", "registration_number"), identity_for_candidate(client))
@@ -151,7 +193,13 @@ class KnowledgePipelineTests(unittest.TestCase):
         hidden_version = DocumentVersion(document_id=hidden.id, revision=1, content_hash="b" * 64, content="hidden")
         self.session.add(hidden_version)
         self.session.flush()
-        self.session.add(Chunk(document_version_id=hidden_version.id, position=0, text="hidden", embedding=[1.0] + [0.0] * 383, embedding_model="intfloat/multilingual-e5-small"))
+        self.session.add(Chunk(
+            document_version_id=hidden_version.id,
+            position=0,
+            text="hidden",
+            embedding=[1.0] + [0.0] * 383,
+            embedding_model="intfloat/multilingual-e5-small",
+        ))
         self.session.flush()
         with patch("app.retrieval.embed_query", return_value=[1.0] + [0.0] * 383):
             result = retrieve_chunks(self.session, self.organization.id, None, "Acme")
@@ -179,8 +227,16 @@ class KnowledgePipelineTests(unittest.TestCase):
         )
         extraction = ClientExtraction(
             report=[
-                EvidenceValue(value="Acme Engineering is identified by UEN 201912345K.", citations=[str(chunk.id)], confidence="high"),
-                EvidenceValue(value="The available evidence does not state commercial terms.", citations=[str(chunk.id)], confidence="high"),
+                EvidenceValue(
+                    value="Acme Engineering is identified by UEN 201912345K.",
+                    citations=[str(chunk.id)],
+                    confidence="high",
+                ),
+                EvidenceValue(
+                    value="The available evidence does not state commercial terms.",
+                    citations=[str(chunk.id)],
+                    confidence="high",
+                ),
             ],
             name=EvidenceValue(value="Acme Engineering", citations=[str(chunk.id)], confidence="high"),
             registration_number=EvidenceValue(value="201912345K", citations=[str(chunk.id)], confidence="high"),
@@ -190,8 +246,8 @@ class KnowledgePipelineTests(unittest.TestCase):
         ):
             content = generate_substack(self.session, substack.id, None)
         self.assertEqual("confirmed", content.status)
-        self.assertEqual("clients.extract.v2", content.prompt_key)
-        self.assertEqual("v2", content.prompt_version)
+        self.assertEqual("clients.extract.v3", content.prompt_key)
+        self.assertEqual("v3", content.prompt_version)
         self.assertEqual("confirmed", substack.status)
         self.assertEqual("clean", substack.review_state)
         self.assertEqual(["text", "text"], [segment["kind"] for segment in content.content["segments"]])
@@ -225,7 +281,10 @@ class KnowledgePipelineTests(unittest.TestCase):
         extraction = ClientExtraction(
             report=[
                 EvidenceValue(value="Acme Engineering is identified by UEN 201912345K.", citations=[str(chunk.id)]),
-                EvidenceValue(value="The customer record is supported by the current master document.", citations=[str(chunk.id)]),
+                EvidenceValue(
+                    value="The customer record is supported by the current master document.",
+                    citations=[str(chunk.id)],
+                ),
             ],
             name=EvidenceValue(value="Acme Engineering", citations=[str(chunk.id)]),
             registration_number=EvidenceValue(value="201912345K", citations=[str(chunk.id)]),
@@ -235,7 +294,10 @@ class KnowledgePipelineTests(unittest.TestCase):
         ):
             content = generate_substack(self.session, substack.id, None)
         self.assertEqual("proposed", content.status)
-        self.assertEqual("confirmed", self.session.scalar(select(SubstackContent).where(SubstackContent.substack_id == substack.id, SubstackContent.revision == 1)).status)
+        original = self.session.scalar(
+            select(SubstackContent).where(SubstackContent.substack_id == substack.id, SubstackContent.revision == 1)
+        )
+        self.assertEqual("confirmed", original.status)
         self.assertEqual("pending_update", substack.review_state)
 
 

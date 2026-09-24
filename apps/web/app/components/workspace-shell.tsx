@@ -11,6 +11,7 @@ import ToCheckView from "./to-check-view";
 import WhatsAppConnect from "./whatsapp-connect";
 import DrivePicker from "./drive-picker";
 import AccountOnboarding from "./account-onboarding";
+import AnalyzeDialog from "./analyze-dialog";
 import CompanyMembers from "./company-members";
 import { CreateSubstackModal } from "./stack-modals";
 import {
@@ -40,6 +41,7 @@ import {
   startAnalysis,
   type AnalysisRun,
   type Me,
+  type RegenerateMode,
 } from "../lib/api";
 import { identifyUser, resetAnalytics, track } from "../lib/analytics";
 import styles from "./workspace-shell.module.css";
@@ -104,6 +106,7 @@ export default function WorkspaceShell() {
   const [membersOpen, setMembersOpen] = useState(false);
   const [analysisRuns, setAnalysisRuns] = useState<AnalysisRun[]>([]);
   const [analysisBusy, setAnalysisBusy] = useState(false);
+  const [analyzeOpen, setAnalyzeOpen] = useState(false);
   const [inviteToken, setInviteToken] = useState<string | null>(null);
   const driveSetupPending = useRef(false);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -205,15 +208,22 @@ export default function WorkspaceShell() {
 
   const handleAnalyze = () => {
     if (!activeAccount || analysisBusy) return;
-    setAnalysisBusy(true);
     track("analyze_workspace_clicked", { substack_count: substacks.length });
-    startAnalysis(activeAccount.id)
-      .then((runs) => {
-        setAnalysisRuns(runs);
-        showNotice("Workspace analysis queued.");
-      })
-      .catch((reason) => showNotice(reason instanceof Error ? reason.message : "Analysis could not be started."))
-      .finally(() => setAnalysisBusy(false));
+    setAnalyzeOpen(true);
+  };
+
+  const handleStartAnalysis = async (mode: RegenerateMode, substackIds: string[]) => {
+    if (!activeAccount) return;
+    setAnalysisBusy(true);
+    try {
+      const runs = await startAnalysis(activeAccount.id, mode, substackIds);
+      track("analysis_started", { mode, record_count: substackIds.length, run_count: runs.length });
+      setAnalysisRuns((current) => [...runs, ...current.filter((run) => !runs.some((item) => item.id === run.id))]);
+      setAnalyzeOpen(false);
+      showNotice(runs.length ? "Workspace analysis queued." : "Nothing changed, so there was nothing to analyze.");
+    } finally {
+      setAnalysisBusy(false);
+    }
   };
 
   const handleConfirmAll = () => {
@@ -620,6 +630,12 @@ export default function WorkspaceShell() {
           onChanged={refreshMe}
           accountId={activeAccount?.id}
         />
+      )}
+
+      {analyzeOpen && activeAccount && (
+        <Modal onClose={() => setAnalyzeOpen(false)}>
+          <AnalyzeDialog accountId={activeAccount.id} onClose={() => setAnalyzeOpen(false)} onStart={handleStartAnalysis} />
+        </Modal>
       )}
 
       {driveOpen && activeAccount && (
