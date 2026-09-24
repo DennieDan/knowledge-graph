@@ -40,7 +40,9 @@ export type AnalyticsEvent =
   | "related_opened"
   | "nav_back_clicked"
   | "breadcrumb_clicked"
-  | "review_queue_step";
+  | "review_queue_step"
+  | "reply_drafted"
+  | "reply_sent";
 
 const enabled = () => Boolean(process.env.NEXT_PUBLIC_POSTHOG_KEY);
 

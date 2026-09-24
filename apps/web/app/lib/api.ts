@@ -355,6 +355,36 @@ export function confirmAllSubstacks(accountId: string): Promise<{ confirmed: num
   return apiFetch(`/accounts/${accountId}/substacks/confirm-all`, { method: "POST" });
 }
 
+export type ReplyChannel = "email" | "whatsapp";
+
+export interface ReplyDraft {
+  body: string;
+  channel: ReplyChannel;
+  sources_used: { field_key: string; value: string; claim_id: string | null }[];
+}
+
+export function draftSubstackReply(
+  accountId: string,
+  substackId: string,
+  channel?: ReplyChannel,
+): Promise<ReplyDraft> {
+  return apiFetch(`/accounts/${accountId}/substacks/${substackId}/reply/draft`, {
+    method: "POST",
+    body: JSON.stringify(channel ? { channel } : {}),
+  });
+}
+
+export function sendSubstackReply(
+  accountId: string,
+  substackId: string,
+  input: { body: string; channel: ReplyChannel },
+): Promise<{ status: "logged" }> {
+  return apiFetch(`/accounts/${accountId}/substacks/${substackId}/reply/send`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
 export interface AnalysisRun {
   id: string;
   scope: "mine" | "workspace";
