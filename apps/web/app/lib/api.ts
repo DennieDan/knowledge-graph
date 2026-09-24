@@ -436,6 +436,7 @@ export interface ChatStep {
   query?: string;
   hits?: number;
   new_chunks?: number;
+  skipped?: string;
 }
 
 export interface ChatMessage {
@@ -479,6 +480,52 @@ export function postChatMessage(accountId: string, threadId: string, text: strin
     method: "POST",
     body: JSON.stringify({ text }),
   });
+}
+
+export type ChatSearchTool = "search_records" | "search_sources";
+
+export type ChatProgress =
+  | { type: "searching"; tool: ChatSearchTool; query: string }
+  | ({ type: "step" } & ChatStep)
+  | { type: "thinking"; stage: "deciding" | "answering" };
+
+type ChatStreamEvent = ChatProgress | { type: "message"; message: ChatMessage } | { type: "error" };
+
+/** Ask a question, reporting the agent's progress as it runs; resolves with the saved answer. */
+export async function streamChatMessage(
+  accountId: string,
+  threadId: string,
+  text: string,
+  onProgress: (event: ChatProgress) => void,
+): Promise<ChatMessage> {
+  const path = `/accounts/${accountId}/chat/threads/${threadId}/messages/stream`;
+  const res = await fetch(`${API_URL}${path}`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+  if (!res.ok || !res.body) {
+    const detail = await res.json().catch(() => ({}));
+    throw new Error(detail.detail ?? `POST ${path} failed: ${res.status}`);
+  }
+  const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+  let buffered = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffered += value;
+    const lines = buffered.split("\n");
+    buffered = lines.pop() ?? "";
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      const event = JSON.parse(line) as ChatStreamEvent;
+      if (event.type === "message") return event.message;
+      if (event.type === "error") throw new Error("chat_stream_failed");
+      onProgress(event);
+    }
+  }
+  throw new Error("chat_stream_ended_early");
 }
 
 export function setChatFeedback(accountId: string, messageId: string, rating: "up" | "down"): Promise<ChatMessage> {

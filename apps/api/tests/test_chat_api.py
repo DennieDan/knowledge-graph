@@ -1,5 +1,7 @@
 """Chat API: the agent loop, citation validation, thread privacy, feedback."""
+import json
 import unittest
+from contextlib import nullcontext
 from datetime import datetime, timezone
 from unittest.mock import patch
 from uuid import UUID, uuid4
@@ -9,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user
-from app.chat import NO_ANSWER_TEXT
+from app.chat import NO_ANSWER_TEXT, get_session_factory
 from app.chat_agent import AgentStep, Answer, AnswerSentence, StandaloneQuestion
 from app.config import get_settings
 from app.database import get_engine, get_session
@@ -73,6 +75,7 @@ class ChatApiTests(unittest.TestCase):
 
         app.dependency_overrides[get_current_user] = lambda: self.current_user
         app.dependency_overrides[get_session] = override_session
+        app.dependency_overrides[get_session_factory] = lambda: (lambda: nullcontext(self.session))
         self.client = TestClient(app)
 
     def tearDown(self):
@@ -289,6 +292,70 @@ class ChatApiTests(unittest.TestCase):
         self.assertEqual(steps + 1, len(llm.calls))
         self.assertTrue(body["steps"][-1]["forced"])
         self.assertFalse(body["answered"])
+
+
+    def ask_streaming(self, thread_id, text, llm, user=None):
+        self.current_user = user or self.alice
+        with patch("app.chat_agent.get_llm_client", return_value=llm):
+            response = self.client.post(
+                f"/accounts/{self.organization.id}/chat/threads/{thread_id}/messages/stream",
+                json={"text": text},
+            )
+        events = [json.loads(line) for line in response.text.splitlines() if line]
+        return response, events
+
+    def test_streams_each_step_before_the_saved_answer(self):
+        version = self.ingest("PO2431.pdf", "Purchase order 2431: 120 stainless steel brackets, due 14 March.")
+        chunk_id = self.chunk_id(version)
+        llm = ScriptedLLM([
+            search_step("PO2431 brackets"),
+            answer_step("PO2431 orders 120 stainless steel brackets.", [chunk_id]),
+        ])
+        thread_id = self.thread().json()["id"]
+
+        response, events = self.ask_streaming(thread_id, "how many brackets are on PO2431?", llm)
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual("application/x-ndjson", response.headers["content-type"])
+        self.assertEqual(
+            ["searching", "step", "searching", "step", "thinking", "searching", "step", "thinking", "step", "message"],
+            [event["type"] for event in events],
+        )
+        self.assertEqual(
+            {"type": "searching", "tool": "search_sources", "query": "PO2431 brackets"}, events[5]
+        )
+        self.assertEqual(1, events[6]["hits"])
+        message = events[-1]["message"]
+        self.assertTrue(message["answered"])
+        self.assertEqual([chunk_id], [citation["chunk_id"] for citation in message["citations"]])
+        stored = self.client.get(f"/accounts/{self.organization.id}/chat/threads/{thread_id}").json()["messages"]
+        self.assertEqual(["user", "assistant"], [m["role"] for m in stored])
+        self.assertEqual(message, stored[-1])
+        self.assertEqual(
+            [event for event in events if event["type"] == "step"],
+            [{"type": "step", **step} for step in message["steps"]],
+        )
+
+    def test_stream_ends_with_an_error_line_and_saves_nothing_when_the_model_fails(self):
+        class FailingLLM:
+            def parse(self, **_):
+                raise RuntimeError("model down")
+
+        thread_id = self.thread().json()["id"]
+
+        response, events = self.ask_streaming(thread_id, "how many brackets?", FailingLLM())
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual({"type": "error"}, events[-1])
+        stored = self.client.get(f"/accounts/{self.organization.id}/chat/threads/{thread_id}").json()["messages"]
+        self.assertEqual([], stored)
+
+    def test_stream_refuses_another_persons_thread_before_streaming(self):
+        thread_id = self.thread().json()["id"]
+
+        response, _ = self.ask_streaming(thread_id, "how many brackets?", ScriptedLLM([]), user=self.bob)
+
+        self.assertEqual(404, response.status_code)
 
 
 if __name__ == "__main__":
