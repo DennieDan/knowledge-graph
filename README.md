@@ -1,20 +1,28 @@
-# Turborepo starter
+# crossPOd
 
-This Turborepo starter is maintained by the Turborepo core team.
+**Every order, confirmed in one place.**
 
-## Using this example
+crossPOd is a knowledge platform for B2B suppliers and Singapore SMEs. It reads
+the purchase orders, WhatsApp messages, scanned forms, email attachments and
+Drive files customers already send, proposes structured records with evidence
+links, and answers questions from confirmed data. AI proposes — a person
+confirms every change.
 
-Run the following command:
+- **Live app:** https://knowledge-graph-web-sooty.vercel.app
+- CS3216 Assignment 3 · Group `asg3-dinh-subramanian-ng-kalent`
 
-```sh
-npx create-turbo@latest
-```
+## Team
 
-## What's inside?
+| Matriculation No. | Name | Main contributions |
+| ----------------- | ---- | ------------------ |
+| EXXXXXXX | Đinh Duy Linh Đan | Repository lead; knowledge pipeline (WhatsApp/Drive ingestion, chunking, embeddings), LLM extraction and generation, Stacks/Substacks API and UI |
+| E1121733 | Subramanian Karthikeyan | Marketing landing page, SEO/OG metadata, Vercel deployment configuration; backend API and tests |
+| EXXXXXXX | Ng Chen Meng | Backend review/operations stack: findings and checks, background job scheduler, question set, nightly scorer and regression gate, health/Maintenance |
+| E1406293 | Kalent Chia Chang Rong | Frontend: Ask chat interface, "To check" review queue, Stacks/substack detail, workspace shell and UI refinement; end-to-end testing |
+
+## What's inside
 
 This Turborepo includes the following packages/apps:
-
-### Apps and Packages
 
 - `web`: the [Next.js](https://nextjs.org/) frontend application
 - `api`: the [FastAPI](https://fastapi.tiangolo.com/) backend application
@@ -42,10 +50,12 @@ GET /health -> {"status":"ok"}
 GET /ready  -> 200 when PostgreSQL, pgvector, and application tables are ready; otherwise 503
 ```
 
-### Backend setup
+## Set-up instructions (local testing)
 
-Prerequisites: Docker with Compose, Python 3.9+, and the Node/pnpm versions in
-`package.json`. Start the local PostgreSQL 18 service (pgvector 0.8.6):
+Prerequisites: Docker with Compose, Python 3.9+, Node 24 (`nvm use` reads
+`.nvmrc`), and pnpm via corepack.
+
+Start the local PostgreSQL 18 service (pgvector 0.8.6):
 
 ```sh
 docker compose up -d --wait db
@@ -71,9 +81,10 @@ are recreated. `docker compose down` retains that volume; `down -v` deletes it.
 A database already using port 5432 must be stopped, or both the Compose host port
 and the backend connection URL must be changed.
 
-Then start all applications with:
+Then install JS dependencies and start all applications with:
 
 ```sh
+pnpm install
 pnpm dev
 ```
 
@@ -88,6 +99,23 @@ To run only the backend:
 ```sh
 pnpm --filter api dev
 ```
+
+The knowledge worker (needed for the in-app "Analyze" pipeline) runs alongside
+the API:
+
+```sh
+cd apps/api && pnpm worker        # or: .venv/bin/python -m scripts.worker
+```
+
+> **Note:** root `pnpm dev` also starts the API via a Unix-only script — use the
+> per-app commands above on Windows.
+
+### Sign-in without Google OAuth
+
+Google sign-in requires `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` in
+`apps/api/.env`. For local testing without OAuth you can forge a session
+cookie — `kg_session` is `itsdangerous.TimestampSigner(SESSION_SECRET).sign(...)`
+of a JSON `{"user_id": ...}` payload; see `.agents/skills/testing-knowledge-graph/SKILL.md`.
 
 ### WhatsApp setup (WAHA, development only)
 
@@ -124,30 +152,6 @@ The browser calls FastAPI; only the backend connects to PostgreSQL. Settings rea
 an exported `DATABASE_URL` overrides the file. No credentials belong in frontend
 `NEXT_PUBLIC_*` variables.
 
-Initial schema:
-
-- `organizations`: company/workspace ownership.
-- `documents`: organization, title, source, external ID, and source/file URI.
-- `document_versions`: revision number, original extracted text, SHA-256 hash,
-  and creation time. A document cannot have duplicate revision numbers.
-- `chunks`: version reference, ordered text, optional embedding and model ID.
-  The model ID is required when an embedding exists.
-
-Foreign keys preserve the source chain and cascade deletions. This is storage
-infrastructure: authentication, memberships, document permissions, upload/search
-endpoints, and automatic embedding generation are subsequent work. Organization
-ownership alone does not enforce access control. Add permission checks before
-exposing private document retrieval to users. Future search must restrict both
-organization/access and embedding model before ranking.
-
-The vector column has **384 dimensions**, matching
-[`intfloat/multilingual-e5-small`](https://huggingface.co/intfloat/multilingual-e5-small) —
-self-hosted on CPU, MIT-licensed, and the model
-[the survey recommends](docs/research/embedding-model.md) for mixed English/Chinese/Malay
-content. Changing dimensions requires a migration; changing models requires re-embedding.
-Search initially uses exact cosine distance; no approximate vector index is needed
-for the foundation checks. [pgvector documentation](https://github.com/pgvector/pgvector)
-
 ### Ingestion
 
 `app/ingest.py` turns connector data into a `Document`, a new `DocumentVersion`,
@@ -160,8 +164,7 @@ becomes `[image]`), and a Drive file is exported to text (Google editor files vi
 `app/chunking.py` splits on paragraphs, then sentences, and finally into
 overlapping windows for unspaced text such as Chinese.
 
-Documents are organization-scoped, but memberships do not exist yet, so the
-organization is passed explicitly:
+Documents are organization-scoped:
 
 ```sh
 pnpm --filter api db:ingest -- --organization-id UUID whatsapp --user-email me@example.com
@@ -217,136 +220,25 @@ account should have only the application permissions it needs.
 the database is unavailable, the extension is missing, or the expected tables/columns
 are absent. Database errors and credentials are not returned to clients.
 
-### Utilities
+## Deployment
 
-This Turborepo has some additional tools already setup for you:
+Production runs on Supabase (Postgres + pgvector), Render (API, worker, WAHA via
+the root `render.yaml` Blueprint), and Vercel (web). The web app proxies
+`/backend/*` to the API so the session cookie stays first-party. The full
+deployment checklist (OAuth redirect URIs, environment variables) lives in
+[`AGENTS.md`](AGENTS.md).
 
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
+## Resources used
 
-### Build
-
-To build all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo build
-```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo build
-pnpm exec turbo build
-pnpm exec turbo build
-```
-
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo build --filter=docs
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-```
-
-### Develop
-
-To develop all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo dev
-```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo dev
-pnpm exec turbo dev
-pnpm exec turbo dev
-```
-
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo dev --filter=web
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-```
-
-### Remote Caching
-
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo login
-```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo login
-pnpm exec turbo login
-pnpm exec turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo link
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo link
-pnpm exec turbo link
-pnpm exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+- [create-turbo / Turborepo starter](https://turborepo.dev/) — monorepo scaffold, build orchestration, pnpm workspaces
+- [Next.js 16](https://nextjs.org/) (App Router, Turbopack) and [React 19](https://react.dev/) — web frontend and landing page
+- [Material Design 3](https://m3.material.io/) — design system and color tokens (`--md-sys-color-*` in `apps/web/app/globals.css`)
+- [FastAPI](https://fastapi.tiangolo.com/) + [SQLAlchemy](https://www.sqlalchemy.org/) + [Alembic](https://alembic.sqlalchemy.org/) — API, ORM, migrations
+- [PostgreSQL](https://www.postgresql.org/) + [pgvector](https://github.com/pgvector/pgvector) — storage and vector similarity search
+- [sentence-transformers](https://www.sbert.net/) with [`intfloat/multilingual-e5-small`](https://huggingface.co/intfloat/multilingual-e5-small) — self-hosted embeddings (model choice: [our survey](docs/research/embedding-model.md))
+- [OpenAI API](https://platform.openai.com/) — document analysis, stack discovery and generation, cited chat answers
+- [WAHA](https://waha.devlike.pro/) — unofficial WhatsApp Web API sidecar for chat ingestion (development only)
+- [Google APIs](https://developers.google.com/) — OAuth sign-in and Drive export (`drive.readonly`)
+- [PostHog](https://posthog.com/) — product analytics (first-party `/ingest` proxy)
+- [Supabase](https://supabase.com/), [Render](https://render.com/), [Vercel](https://vercel.com/) — production hosting
+- [Prettier](https://prettier.io), [ESLint](https://eslint.org), [TypeScript](https://www.typescriptlang.org/) — formatting, linting, type checking
