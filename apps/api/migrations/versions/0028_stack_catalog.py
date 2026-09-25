@@ -1,7 +1,7 @@
 """stack catalogue: stacks + stack_fields (#97 Step 1)
 
-Revision ID: 0016
-Revises: 0015
+Revision ID: 0028
+Revises: 0027
 
 Industry profiles seed rows here; do not confuse with substacks (record instances).
 """
@@ -9,8 +9,8 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision = "0016"
-down_revision = "0015"
+revision = "0028"
+down_revision = "0027"
 branch_labels = None
 depends_on = None
 
