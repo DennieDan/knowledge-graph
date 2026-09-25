@@ -1,7 +1,7 @@
 """Extend membership roles for field-level access (#101).
 
-Revision ID: 0016
-Revises: 0015
+Revision ID: 0026
+Revises: 0025
 
 Additive only: keeps admin|member (issue #9 / main) and adds
 owner|sales|planner|supervisor from the Rows to Records PRD.
@@ -14,8 +14,8 @@ merges second must rebase its migration number.
 from alembic import op
 
 
-revision = "0016"
-down_revision = "0015"
+revision = "0026"
+down_revision = "0025"
 branch_labels = None
 depends_on = None
 
