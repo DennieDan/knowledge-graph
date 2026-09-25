@@ -26,12 +26,15 @@ from .models import (
     DocumentVersion,
     DriveWorkspace,
     KnowledgeJob,
+    Stack,
+    StackField,
     Substack,
     SubstackContent,
     SubstackLink,
     SubstackSource,
     User,
 )
+from .stack_profiles import get_profile
 
 router = APIRouter(tags=["stacks"])
 
@@ -49,6 +52,10 @@ class SubstackIn(BaseModel):
 class SubstackPatch(BaseModel):
     name: str | None = None
     summary: str | None = None
+
+
+class IndustryOnboardingIn(BaseModel):
+    key: str
 
 
 def _visible(user: User):
@@ -528,3 +535,119 @@ def file_all(
     filed = [substack.id for document in unfiled if (substack := file_document(session, document)) is not None]
     session.commit()
     return {"filed": len(filed)}
+
+def _field_json(field: StackField) -> dict:
+    return {
+        "id": str(field.id),
+        "key": field.key,
+        "label": field.label,
+        "value_type": field.value_type,
+        "required": field.required,
+        "meaning": field.meaning,
+        "searchable": field.searchable,
+    }
+
+
+def _stack_json(stack: Stack, fields: list[StackField]) -> dict:
+    return {
+        "id": str(stack.id),
+        "key": stack.key,
+        "name": stack.name,
+        "parent_stack_id": str(stack.parent_stack_id) if stack.parent_stack_id else None,
+        "profile_key": stack.profile_key,
+        "created_at": stack.created_at.isoformat() if stack.created_at else None,
+        "fields": [_field_json(field) for field in fields],
+    }
+
+
+def _catalog_for_org(session: Session, organization_id: UUID) -> list[dict]:
+    stacks = session.scalars(
+        select(Stack).where(Stack.organization_id == organization_id).order_by(Stack.created_at, Stack.key)
+    ).all()
+    if not stacks:
+        return []
+    fields_by_stack: dict[UUID, list[StackField]] = {stack.id: [] for stack in stacks}
+    for field in session.scalars(
+        select(StackField).where(StackField.stack_id.in_([stack.id for stack in stacks])).order_by(StackField.id)
+    ).all():
+        fields_by_stack[field.stack_id].append(field)
+    return [_stack_json(stack, fields_by_stack[stack.id]) for stack in stacks]
+
+
+def _seed_profile(session: Session, organization_id: UUID, profile_key: str) -> list[dict]:
+    """Create catalogue stacks + fields from an industry profile. Caller commits."""
+    profile = get_profile(profile_key)
+    if profile is None:
+        raise HTTPException(status_code=422, detail="unknown_industry_profile")
+
+    existing = session.scalars(select(Stack).where(Stack.organization_id == organization_id)).all()
+    if existing:
+        existing_profile = existing[0].profile_key
+        if existing_profile == profile_key:
+            return _catalog_for_org(session, organization_id)
+        raise HTTPException(status_code=409, detail="industry_profile_already_seeded")
+
+    key_to_id: dict[str, UUID] = {}
+    for stack_def in profile:
+        stack = Stack(
+            organization_id=organization_id,
+            key=stack_def.key,
+            name=stack_def.name,
+            profile_key=profile_key,
+        )
+        session.add(stack)
+        session.flush()
+        key_to_id[stack_def.key] = stack.id
+        for field_def in stack_def.fields:
+            session.add(
+                StackField(
+                    stack_id=stack.id,
+                    key=field_def.key,
+                    label=field_def.label,
+                    value_type=field_def.value_type,
+                    required=field_def.required,
+                    meaning=field_def.meaning,
+                    searchable=field_def.searchable,
+                )
+            )
+
+    for stack_def in profile:
+        if stack_def.parent_key is None:
+            continue
+        parent_id = key_to_id.get(stack_def.parent_key)
+        if parent_id is None:
+            continue
+        stack = session.get(Stack, key_to_id[stack_def.key])
+        if stack is not None:
+            stack.parent_stack_id = parent_id
+
+    session.flush()
+    return _catalog_for_org(session, organization_id)
+
+
+@router.post("/accounts/{organization_id}/onboarding/industry")
+def onboard_industry(
+    organization_id: UUID,
+    body: IndustryOnboardingIn,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Seed the org stack catalogue from an industry profile (idempotent per profile)."""
+    membership_for(organization_id, user, session)
+    stacks = _seed_profile(session, organization_id, body.key.strip())
+    session.commit()
+    return {"profile_key": body.key.strip(), "stacks": stacks}
+
+
+@router.get("/accounts/{organization_id}/stack-catalog")
+def stack_catalog(
+    organization_id: UUID,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """List catalogue stacks and their field definitions for the organization."""
+    membership_for(organization_id, user, session)
+    stacks = _catalog_for_org(session, organization_id)
+    profile_key = stacks[0]["profile_key"] if stacks else None
+    return {"profile_key": profile_key, "stacks": stacks}
+

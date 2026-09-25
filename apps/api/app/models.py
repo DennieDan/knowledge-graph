@@ -814,3 +814,47 @@ class Subscription(Base):
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+# Industry catalogue (#97). Distinct from Substack, which holds record instances.
+STACK_FIELD_VALUE_TYPES = ("text", "numeric", "date", "bool")
+
+
+class Stack(Base):
+    """Per-org stack type in the industry catalogue (not a Substack record)."""
+
+    __tablename__ = "stacks"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "key", name="uq_stacks_organization_key"),
+        Index("ix_stacks_profile_key", "organization_id", "profile_key"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    key: Mapped[str] = mapped_column(String(80))
+    name: Mapped[str] = mapped_column(Text)
+    parent_stack_id: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey("stacks.id", ondelete="SET NULL"), index=True
+    )
+    profile_key: Mapped[str] = mapped_column(String(80))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class StackField(Base):
+    """Field definition belonging to a catalogue Stack row."""
+
+    __tablename__ = "stack_fields"
+    __table_args__ = (
+        UniqueConstraint("stack_id", "key", name="uq_stack_fields_stack_key"),
+        CheckConstraint(
+            "value_type IN (" + ",".join(f"'{t}'" for t in STACK_FIELD_VALUE_TYPES) + ")",
+            name="valid_stack_field_value_type",
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    stack_id: Mapped[UUID] = mapped_column(ForeignKey("stacks.id", ondelete="CASCADE"), index=True)
+    key: Mapped[str] = mapped_column(String(80))
+    label: Mapped[str] = mapped_column(Text)
+    value_type: Mapped[str] = mapped_column(String(20))
+    required: Mapped[bool] = mapped_column(Boolean, default=False)
+    meaning: Mapped[Optional[str]] = mapped_column(Text)
+    searchable: Mapped[bool] = mapped_column(Boolean, default=False)
