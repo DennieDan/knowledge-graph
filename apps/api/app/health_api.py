@@ -2,13 +2,17 @@
 
 #102 extends this with per-template ladder metrics and a golden panel — additive
 only; existing alarms / windows / jobs shape is preserved.
+
+Handover pack export (#103) is mounted here beside findings — same auth and org
+membership gate; it does not replace the To-check queue.
 """
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
@@ -17,6 +21,7 @@ from .accounts import membership_for
 from .auth import get_current_user
 from .database import get_session
 from .findings import create_finding, dismiss_finding
+from .handover import Focus, build_handover_pack, pack_to_markdown
 from .golden import acceptance_for_template, fixture_golden_metrics, golden_panel
 from .models import (
     DISMISSAL_REASONS,
@@ -442,3 +447,32 @@ def get_health_tests(
             for run in runs
         ]
     }
+
+
+@router.get("/accounts/{organization_id}/handover-pack")
+def handover_pack(
+    organization_id: UUID,
+    focus: Focus = Query(..., description="client or orders"),
+    format: str = Query("json", pattern="^(json|markdown|md)$"),
+    user_id: UUID | None = Query(None, description="Optional person whose confirms/overrides to highlight"),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Export a handover pack for clients or sales-orders (JSON or downloadable markdown)."""
+    membership_for(organization_id, user, session)
+    if focus not in ("client", "orders"):
+        raise HTTPException(status_code=422, detail="invalid_focus")
+    if user_id is not None:
+        target = session.get(User, user_id)
+        if target is None:
+            raise HTTPException(status_code=404, detail="user_not_found")
+    pack = build_handover_pack(session, organization_id, focus=focus, user_id=user_id)
+    if format in ("markdown", "md"):
+        body = pack_to_markdown(pack)
+        filename = f"handover-{focus}.md"
+        return PlainTextResponse(
+            body,
+            media_type="text/markdown; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    return pack

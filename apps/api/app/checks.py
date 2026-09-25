@@ -446,8 +446,13 @@ ALL_CHECKS = (
 
 
 def run_all_checks(session: Session, organization_id: UUID) -> list:
+    # Gap checks (#103) live in gaps.py; imported lazily so checks stays free of
+    # a circular import with DraftFinding. run_gap_checks remains the dedicated
+    # entry point when callers only want concentration / missing-field findings.
+    from .gaps import ALL_GAP_CHECKS
+
     created = []
-    for check in ALL_CHECKS:
+    for check in (*ALL_CHECKS, *ALL_GAP_CHECKS):
         for draft in check(session, organization_id):
             finding = create_finding(
                 session,
