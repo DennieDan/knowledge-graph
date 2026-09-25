@@ -6,15 +6,29 @@ import {
   createChatThread,
   getChatThread,
   isRecordCitation,
+  listAnalysis,
   listChatThreads,
   setChatFeedback,
   streamChatMessage,
+  type AnalysisRun,
   type ChatCitation,
   type ChatMessage,
   type ChatProgress,
   type ChatThread,
 } from "../lib/api";
 import styles from "./search-view.module.css";
+
+const ANALYSIS_IN_PROGRESS = ["queued", "embedding", "discovering", "generating"];
+
+/** What to say while records are still being built from the account's files. */
+function indexingNote(runs: AnalysisRun[]): string | null {
+  const active = runs.filter((run) => ANALYSIS_IN_PROGRESS.includes(run.status));
+  if (active.length === 0) return null;
+  const total = active.reduce((n, run) => n + run.documents_total, 0);
+  const read = active.reduce((n, run) => n + run.documents_processed, 0);
+  const progress = total > 0 ? ` (${read} of ${total} files read)` : "";
+  return `Still reading your files${progress}. Answers can miss records until this finishes.`;
+}
 
 function checkedClass(note: string | null): string {
   if (!note) return "";
@@ -65,10 +79,12 @@ function CitationChip({
 function AnswerBlock({
   message,
   accountId,
+  indexing,
   onOpenRecord,
 }: {
   message: ChatMessage;
   accountId: string;
+  indexing: string | null;
   onOpenRecord: (id: string) => void;
 }) {
   const [feedback, setFeedback] = useState(message.feedback);
@@ -91,6 +107,12 @@ function AnswerBlock({
       <p className={message.answered ? styles.answerText : styles.answerTextNone}>
         {message.text}
       </p>
+      {!message.answered && indexing && (
+        <p className={styles.incomplete}>
+          <Icon name="shield" size={12} />
+          {indexing}
+        </p>
+      )}
       {message.checked_note && (
         <p className={`${styles.checkedNote} ${checkedClass(message.checked_note)}`}>
           <Icon name="shield" size={12} />
@@ -213,6 +235,7 @@ export default function SearchView({
   const [progress, setProgress] = useState<ChatProgress[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [indexing, setIndexing] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   // Set when we create a thread ourselves: local state is already
   // authoritative, so the thread-load effect must not clobber it.
@@ -244,6 +267,24 @@ export default function SearchView({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, busy, progress]);
+
+  // Records appear as files are read, so an answer given mid-run can be incomplete.
+  useEffect(() => {
+    if (!accountId) return;
+    let cancelled = false;
+    const read = () =>
+      listAnalysis(accountId)
+        .then((runs) => {
+          if (!cancelled) setIndexing(indexingNote(runs));
+        })
+        .catch(() => {});
+    read();
+    const timer = setInterval(read, 15000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [accountId]);
 
   const send = async () => {
     const text = input.trim();
@@ -289,7 +330,11 @@ export default function SearchView({
         setInput("");
       } else {
         setMessages((m) => m.filter((msg) => msg.id !== localId));
-        setError("Could not get an answer. Try again.");
+        setError(
+          indexing
+            ? "Could not get an answer yet. Your files are still being read - try again shortly."
+            : "Could not get an answer. Try again.",
+        );
       }
     } finally {
       setBusy(false);
@@ -325,6 +370,12 @@ export default function SearchView({
 
       <div className={styles.chat}>
         <div className={styles.messages} aria-live="polite">
+          {indexing && (
+            <p className={styles.indexing} role="status">
+              <Icon name="search" size={12} />
+              {indexing}
+            </p>
+          )}
           {loading ? (
             <p className={styles.empty}>Loading…</p>
           ) : messages.length === 0 && !busy ? (
@@ -342,6 +393,7 @@ export default function SearchView({
                   key={m.id}
                   message={m}
                   accountId={accountId ?? ""}
+                  indexing={indexing}
                   onOpenRecord={onOpenRecord}
                 />
               ),

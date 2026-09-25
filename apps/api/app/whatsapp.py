@@ -15,6 +15,7 @@ from .auth import get_current_user
 from .config import get_settings
 from .database import get_engine, get_session
 from .filing import ingest_and_file
+from .jobs import enqueue_job, utcnow
 from .models import Document, Substack, SubstackSource, User, WhatsappChat, WhatsappConnection, WhatsappMessage
 from .sources import WHATSAPP_SOURCE, whatsapp_chat_document
 from .whatsapp_export import ExportFormatError, ParsedChat, parse_export
@@ -129,18 +130,25 @@ def ingest_chat_transcript(session: Session, conn: WhatsappConnection, chat: Wha
     ingest_and_file(session, chat.organization_id, whatsapp_chat_document(chat, messages, conn.user_id))
 
 
-def debounced_ingest(chat_id: UUID) -> None:
-    """Re-ingest a transcript once a webhook burst settles; pending_ingest coalesces messages."""
-    time.sleep(INGEST_DEBOUNCE_SECONDS)
-    with Session(get_engine()) as session:
-        chat = session.get(WhatsappChat, chat_id)
-        if chat is None or not chat.pending_ingest:
-            return
-        conn = session.get(WhatsappConnection, chat.connection_id)
-        chat.pending_ingest = False
-        if conn is not None and chat.import_status == "imported":
-            ingest_chat_transcript(session, conn, chat)
-        session.commit()
+def schedule_whatsapp_ingest(session: Session, chat: WhatsappChat) -> None:
+    """Enqueue a coalesced ingest job ~30s out (replaces time.sleep debounce)."""
+    if chat.organization_id is None:
+        return
+    now = utcnow()
+    minute_bucket = now.replace(second=0, microsecond=0)
+    # Floor to debounce window so a burst shares one dedupe key.
+    bucket = minute_bucket.timestamp() // INGEST_DEBOUNCE_SECONDS
+    job = enqueue_job(
+        session,
+        organization_id=chat.organization_id,
+        owner_user_id=None,
+        kind="whatsapp_ingest",
+        payload={"chat_id": str(chat.id)},
+        dedupe_key=f"whatsapp:{chat.id}:{int(bucket)}",
+    )
+    # Delay availability so the burst can coalesce before the worker runs.
+    from datetime import timedelta
+    job.available_at = now + timedelta(seconds=INGEST_DEBOUNCE_SECONDS)
 
 
 def run_import(connection_id: UUID, chat_jids: list[str]) -> None:
@@ -543,9 +551,9 @@ async def webhook(
                     chat.last_message_at = sent_at
             schedule_ingest = not chat.pending_ingest and chat.organization_id is not None
             chat.pending_ingest = schedule_ingest or chat.pending_ingest
-            session.commit()
             if schedule_ingest:
-                background_tasks.add_task(debounced_ingest, chat.id)
+                schedule_whatsapp_ingest(session, chat)
+            session.commit()
         return {"status": "ok"}
 
     return {"status": "ignored"}

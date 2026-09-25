@@ -24,6 +24,7 @@ from .llm import get_llm_client
 from .models import (
     AnalysisRun,
     Chunk,
+    ConfirmEvent,
     ContentCitation,
     Document,
     DocumentVersion,
@@ -35,6 +36,7 @@ from .models import (
     SubstackLink,
     SubstackSource,
 )
+from .spend import add_tokens
 from .prompts import (
     CLIENT_PROMPT,
     CLIENT_QUERIES,
@@ -250,6 +252,12 @@ def discover_document(session: Session, version_id: UUID, run_id: UUID | None, g
         raise ValueError("document_has_no_current_embeddings")
     result = get_llm_client().parse(
         prompt=DISCOVERY_PROMPT, evidence=_chunk_evidence(chunks, document), schema=DiscoveryOutput,
+    )
+    add_tokens(
+        session,
+        document.organization_id,
+        input_tokens=result.input_tokens or 0,
+        output_tokens=result.output_tokens or 0,
     )
     output = result.parsed
     if not isinstance(output, DiscoveryOutput):
@@ -546,6 +554,12 @@ def generate_substack(session: Session, substack_id: UUID, run_id: UUID | None, 
         prompt = f"{prompt}\n\n{DESCRIBED_RECORD_PROMPT}"
         evidence = f"<user_request>\n{escape(description)}\n</user_request>\n\n{evidence}"
     result = get_llm_client().parse(prompt=prompt, evidence=evidence, schema=schema)
+    add_tokens(
+        session,
+        substack.organization_id,
+        input_tokens=result.input_tokens or 0,
+        output_tokens=result.output_tokens or 0,
+    )
     extraction = result.parsed
     if not is_conversation and (
         len(getattr(extraction, "report", [])) < 2 or any(not paragraph.value for paragraph in extraction.report)
@@ -589,6 +603,10 @@ def generate_substack(session: Session, substack_id: UUID, run_id: UUID | None, 
     )
     session.add(content)
     session.flush()
+    if auto_confirm:
+        from datetime import datetime, timezone
+        content.confirmed_at = datetime.now(timezone.utc)
+        content.confirmed_by_user_id = None
     chunk_documents = {str(item.chunk.id): item.document.id for item in retrieved}
     for index, segment in enumerate(segments):
         for chunk_id in segment.citations:
@@ -624,6 +642,15 @@ def generate_substack(session: Session, substack_id: UUID, run_id: UUID | None, 
     if auto_confirm:
         substack.status = "confirmed"
         substack.review_state = "clean"
+        session.add(
+            ConfirmEvent(
+                organization_id=substack.organization_id,
+                substack_id=substack.id,
+                content_id=content.id,
+                kind="auto",
+                by_user_id=None,
+            )
+        )
     else:
         substack.review_state = "pending_update" if confirmed else "pending"
     complete_run_if_last(session, run_id)

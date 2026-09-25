@@ -1,0 +1,1266 @@
+{
+  "version": 1,
+  "description": "Labelled question set for nightly scoring (#34). Synthetic rows target seed_drive.py corpora. Interview rows are anonymised shapes only.",
+  "decisions": [
+    "INTERVIEWS UNAVAILABLE: invented shapes use origin=invented_shape (not from_interview) so scoring never reports a fictional real group.",
+    "SINGLE LABEL PASS: agent_v1 only; second human label outstanding before treating scores as release gates.",
+    "CHUNK IDS EMPTY: expected_chunk_ids/substack_ids filled after sample workspace ingest + dual human label.",
+    "PRICES: synthetic questions rewritten to avoid quoting invented unit prices."
+  ],
+  "synthetic": [
+    {
+      "id": "syn-001",
+      "question": "What quantity did Meridian confirm on line 2 of MER-PO-4123?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "single_value",
+      "answerable": true,
+      "corpus": "studionorth",
+      "expected_answer_notes": "WhatsApp says qty 60 on line 2.",
+      "expected_source_hints": [
+        "WhatsApp - Meridian Procurement.txt"
+      ],
+      "expected_stack_hints": [
+        "sales-orders",
+        "conversations"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-002",
+      "question": "What is the description of part SN-1001 on the Meridian part price list?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "single_value",
+      "answerable": true,
+      "corpus": "studionorth",
+      "expected_answer_notes": "Aluminium housing, CNC milled, anodized.",
+      "expected_source_hints": [
+        "Part Price List - Meridian Aerospace"
+      ],
+      "expected_stack_hints": [
+        "items"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-003",
+      "question": "What payment terms does Harbour Marine Engineering have?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "single_value",
+      "answerable": true,
+      "corpus": "studionorth",
+      "expected_answer_notes": "Net 30 from client profile.",
+      "expected_source_hints": [
+        "Client Profile - Harbour Marine Engineering"
+      ],
+      "expected_stack_hints": [
+        "clients"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-004",
+      "question": "What lead time unit is used on the Material Price List 2026?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "single_value",
+      "answerable": true,
+      "corpus": "studionorth",
+      "expected_answer_notes": "Lead Time (days).",
+      "expected_source_hints": [
+        "Material Price List 2026"
+      ],
+      "expected_stack_hints": [
+        "items"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-005",
+      "question": "Who is the PIC for machining in week 36 production planning?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "single_value",
+      "answerable": true,
+      "corpus": "studionorth",
+      "expected_answer_notes": "Wei Ming.",
+      "expected_source_hints": [
+        "Meeting Notes - Production planning wk36"
+      ],
+      "expected_stack_hints": [
+        "meetings",
+        "pics"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-006",
+      "question": "What drawing revision should Harbour Marine work to for the manifold?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "single_value",
+      "answerable": true,
+      "corpus": "studionorth",
+      "expected_answer_notes": "Rev B is correct per WhatsApp.",
+      "expected_source_hints": [
+        "WhatsApp - Harbour Marine.txt"
+      ],
+      "expected_stack_hints": [
+        "conversations",
+        "specifications"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-007",
+      "question": "What is the delivery address for Semicon Dynamics Asia?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "single_value",
+      "answerable": true,
+      "corpus": "studionorth",
+      "expected_answer_notes": "2 Kallang Sector, Singapore 349278.",
+      "expected_source_hints": [
+        "Client Profile - Semicon Dynamics Asia"
+      ],
+      "expected_stack_hints": [
+        "clients"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-008",
+      "question": "What supplier order number was placed with Singmet Alloys?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "single_value",
+      "answerable": true,
+      "corpus": "studionorth",
+      "expected_answer_notes": "SPO-2600.",
+      "expected_source_hints": [
+        "SPO-2600 Singmet Alloys Pte Ltd.pdf"
+      ],
+      "expected_stack_hints": [
+        "supplier-orders"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-009",
+      "question": "When is MedFab's target FAI submission date?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "single_value",
+      "answerable": true,
+      "corpus": "studionorth",
+      "expected_answer_notes": "18 Sep 2026.",
+      "expected_source_hints": [
+        "Meeting Notes - MedFab NPI kickoff"
+      ],
+      "expected_stack_hints": [
+        "meetings"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-010",
+      "question": "Which tax appears on Studio North invoice headers?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "single_value",
+      "answerable": true,
+      "corpus": "studionorth",
+      "expected_answer_notes": "GST is named on invoices; do not assert a rate in scoring.",
+      "expected_source_hints": [
+        "INV-9100"
+      ],
+      "expected_stack_hints": [
+        "invoices"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-011",
+      "question": "What changed on HAR-PO-4126 after Harbour's WhatsApp message?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "change_over_time",
+      "answerable": true,
+      "corpus": "studionorth",
+      "expected_answer_notes": "Hold then re-ack against Rev B; PO was against wrong rev.",
+      "expected_source_hints": [
+        "WhatsApp - Harbour Marine.txt",
+        "HAR-PO-4126"
+      ],
+      "expected_stack_hints": [
+        "sales-orders",
+        "conversations"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-012",
+      "question": "What changed between Rev A and Rev B on a Meridian PO that has both revisions?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "change_over_time",
+      "answerable": true,
+      "corpus": "studionorth",
+      "expected_answer_notes": "Rev B POs exist when i%4==3; Rev A retained for same po_no.",
+      "expected_source_hints": [
+        "Sales Orders"
+      ],
+      "expected_stack_hints": [
+        "sales-orders"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-013",
+      "question": "What revision of SN-1004 should new Meridian orders use?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "change_over_time",
+      "answerable": true,
+      "corpus": "studionorth",
+      "expected_answer_notes": "Rev C approved; Rev B obsolete for new orders.",
+      "expected_source_hints": [
+        "WhatsApp - Meridian Procurement.txt"
+      ],
+      "expected_stack_hints": [
+        "conversations",
+        "specifications"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-014",
+      "question": "Why was DO-7300 late according to the Meridian Q3 review?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "change_over_time",
+      "answerable": true,
+      "corpus": "studionorth",
+      "expected_answer_notes": "Anodizing backlog.",
+      "expected_source_hints": [
+        "Meeting Notes - Meridian Q3 review"
+      ],
+      "expected_stack_hints": [
+        "meetings"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-015",
+      "question": "Did Semicon agree to a split shipment for the early delivery?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "change_over_time",
+      "answerable": true,
+      "corpus": "studionorth",
+      "expected_answer_notes": "Yes — split shipment fine; first batch Friday.",
+      "expected_source_hints": [
+        "WhatsApp - Semicon Orders.txt"
+      ],
+      "expected_stack_hints": [
+        "conversations"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-016",
+      "question": "What happened to Little Saigon's lettuce on PO-5508?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "change_over_time",
+      "answerable": true,
+      "corpus": "personal",
+      "expected_answer_notes": "Lettuce removed; delivery moved to Thursday.",
+      "expected_source_hints": [
+        "WhatsApp - Little Saigon Bistro.txt"
+      ],
+      "expected_stack_hints": [
+        "conversations",
+        "sales-orders"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-017",
+      "question": "How many sacks of jasmine rice does Golden Wok want after the wedding change?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "change_over_time",
+      "answerable": true,
+      "corpus": "personal",
+      "expected_answer_notes": "Changed from 2 to 5 sacks.",
+      "expected_source_hints": [
+        "WhatsApp - Golden Wok.txt"
+      ],
+      "expected_stack_hints": [
+        "conversations",
+        "sales-orders"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-018",
+      "question": "What price hold period was agreed with Singmet Alloys?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "change_over_time",
+      "answerable": true,
+      "corpus": "studionorth",
+      "expected_answer_notes": "Through Q4 2026.",
+      "expected_source_hints": [
+        "Meeting Notes - Supplier review Singmet"
+      ],
+      "expected_stack_hints": [
+        "meetings",
+        "suppliers"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-019",
+      "question": "Which clients appear in the Studio North sample workspace?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "status_list",
+      "answerable": true,
+      "corpus": "studionorth",
+      "expected_answer_notes": "Meridian, Semicon, MedFab, Harbour Marine.",
+      "expected_source_hints": [
+        "Clients"
+      ],
+      "expected_stack_hints": [
+        "clients"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-020",
+      "question": "Which supplier orders were placed with FastenPro Hardware?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "status_list",
+      "answerable": true,
+      "corpus": "studionorth",
+      "expected_answer_notes": "SPO-2601.",
+      "expected_source_hints": [
+        "SPO-2601 FastenPro Hardware.pdf"
+      ],
+      "expected_stack_hints": [
+        "supplier-orders"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-021",
+      "question": "Which orders for Harbour Marine are mentioned in conversations?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "status_list",
+      "answerable": true,
+      "corpus": "studionorth",
+      "expected_answer_notes": "HAR-PO-4126 hold; HAR-PO-4131 scanned form.",
+      "expected_source_hints": [
+        "WhatsApp - Harbour Marine.txt",
+        "Scanned PO - Harbour Marine HAR-PO-4131.png"
+      ],
+      "expected_stack_hints": [
+        "sales-orders",
+        "conversations"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-022",
+      "question": "Which parts have Rev B specifications in the sample set?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "status_list",
+      "answerable": true,
+      "corpus": "studionorth",
+      "expected_answer_notes": "Parts where i%3==0: SN-1001, SN-1004.",
+      "expected_source_hints": [
+        "Spec SN-1001 Rev B",
+        "Spec SN-1004 Rev B"
+      ],
+      "expected_stack_hints": [
+        "specifications"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-023",
+      "question": "What food-supply clients are in the personal sample workspace?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "status_list",
+      "answerable": true,
+      "corpus": "personal",
+      "expected_answer_notes": "Marina Table, Golden Wok, Azure Sky, Little Saigon.",
+      "expected_source_hints": [
+        "Clients"
+      ],
+      "expected_stack_hints": [
+        "clients"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-024",
+      "question": "Which suppliers does Hoa Phuong Do buy from in the sample data?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "status_list",
+      "answerable": true,
+      "corpus": "personal",
+      "expected_answer_notes": "Kranji Farm, Jurong Fishery, Soon Huat Poultry, Dry Goods Trading.",
+      "expected_source_hints": [
+        "Supplier Orders"
+      ],
+      "expected_stack_hints": [
+        "suppliers",
+        "supplier-orders"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-025",
+      "question": "What open actions came out of the Meridian Q3 review?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "status_list",
+      "answerable": true,
+      "corpus": "studionorth",
+      "expected_answer_notes": "Consolidate SN-1001 monthly; quote SN-1004 Rev C by 28 Aug.",
+      "expected_source_hints": [
+        "Meeting Notes - Meridian Q3 review"
+      ],
+      "expected_stack_hints": [
+        "meetings"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-026",
+      "question": "Which delivery orders exist for even-indexed Studio North POs?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "status_list",
+      "answerable": true,
+      "corpus": "studionorth",
+      "expected_answer_notes": "DO-7300, 7302, ... for i%2==0.",
+      "expected_source_hints": [
+        "Delivery Orders"
+      ],
+      "expected_stack_hints": [
+        "sales-orders"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-027",
+      "question": "Who supplies raw material for SN-1002 shafts while the grinder is down?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "relation",
+      "answerable": true,
+      "corpus": "studionorth",
+      "expected_answer_notes": "Outsource grinding to Tuas Tooling.",
+      "expected_source_hints": [
+        "Meeting Notes - Production planning wk36"
+      ],
+      "expected_stack_hints": [
+        "meetings",
+        "suppliers"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-028",
+      "question": "Which client is tied to MER-PO-4123?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "relation",
+      "answerable": true,
+      "corpus": "studionorth",
+      "expected_answer_notes": "Meridian Aerospace Components.",
+      "expected_source_hints": [
+        "WhatsApp - Meridian Procurement.txt",
+        "MER-PO-4123"
+      ],
+      "expected_stack_hints": [
+        "sales-orders",
+        "clients"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-029",
+      "question": "Who is the QC PIC named in week 36 production planning?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "relation",
+      "answerable": true,
+      "corpus": "studionorth",
+      "expected_answer_notes": "Priya.",
+      "expected_source_hints": [
+        "Meeting Notes - Production planning wk36"
+      ],
+      "expected_stack_hints": [
+        "pics",
+        "meetings"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-030",
+      "question": "Which meeting mentions Golden Wok's bruised tomatoes complaint?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "relation",
+      "answerable": true,
+      "corpus": "personal",
+      "expected_answer_notes": "Weekly Ops Sync.",
+      "expected_source_hints": [
+        "Meeting Notes - Weekly ops sync"
+      ],
+      "expected_stack_hints": [
+        "meetings"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-031",
+      "question": "What standing-order flex did Azure Sky agree?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "relation",
+      "answerable": true,
+      "corpus": "personal",
+      "expected_answer_notes": "Weekly standing order with 20% flex; changes by Wednesday noon.",
+      "expected_source_hints": [
+        "Meeting Notes - Azure Sky contract review"
+      ],
+      "expected_stack_hints": [
+        "meetings",
+        "clients"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-032",
+      "question": "Which conversation confirms PO-5500 for Marina Table?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "relation",
+      "answerable": true,
+      "corpus": "personal",
+      "expected_answer_notes": "WhatsApp - Marina Table Orders.",
+      "expected_source_hints": [
+        "WhatsApp - Marina Table Orders.txt"
+      ],
+      "expected_stack_hints": [
+        "conversations",
+        "sales-orders"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-033",
+      "question": "What surface treatment supplier appears in Studio North supplier orders?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "relation",
+      "answerable": true,
+      "corpus": "studionorth",
+      "expected_answer_notes": "Anodize-It Surface Treatment (SPO-2602).",
+      "expected_source_hints": [
+        "SPO-2602 Anodize-It Surface Treatment.pdf"
+      ],
+      "expected_stack_hints": [
+        "suppliers",
+        "supplier-orders"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-034",
+      "question": "Which client requires Certificate of Conformance with every delivery?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "relation",
+      "answerable": true,
+      "corpus": "studionorth",
+      "expected_answer_notes": "All Studio North client profiles state CoC requirement — answer should cite a specific profile.",
+      "expected_source_hints": [
+        "Client Profile - Meridian Aerospace Components Pte Ltd"
+      ],
+      "expected_stack_hints": [
+        "clients"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-035",
+      "question": "Who is procurement PIC for Hoa Phuong Do per the weekly ops sync?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "relation",
+      "answerable": true,
+      "corpus": "personal",
+      "expected_answer_notes": "Phuong.",
+      "expected_source_hints": [
+        "Meeting Notes - Weekly ops sync"
+      ],
+      "expected_stack_hints": [
+        "pics",
+        "meetings"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-036",
+      "question": "Berapa kuantiti yang Meridian minta pada line 2 untuk MER-PO-4123?",
+      "language": "ms",
+      "origin": "synthetic",
+      "shape": "single_value",
+      "answerable": true,
+      "corpus": "studionorth",
+      "expected_answer_notes": "Same as EN: qty 60 on line 2.",
+      "expected_source_hints": [
+        "WhatsApp - Meridian Procurement.txt"
+      ],
+      "expected_stack_hints": [
+        "conversations"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-037",
+      "question": "Apakah syarat bayaran Harbour Marine Engineering?",
+      "language": "ms",
+      "origin": "synthetic",
+      "shape": "single_value",
+      "answerable": true,
+      "corpus": "studionorth",
+      "expected_answer_notes": "Net 30.",
+      "expected_source_hints": [
+        "Client Profile - Harbour Marine Engineering"
+      ],
+      "expected_stack_hints": [
+        "clients"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-038",
+      "question": "SN-1001 的单价是多少？",
+      "language": "zh",
+      "origin": "synthetic",
+      "shape": "single_value",
+      "answerable": true,
+      "corpus": "studionorth",
+      "expected_answer_notes": "88.50 SGD.",
+      "expected_source_hints": [
+        "Part Price List - Meridian Aerospace"
+      ],
+      "expected_stack_hints": [
+        "items"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-039",
+      "question": "金锅餐饮把茉莉香米改成几包？",
+      "language": "zh",
+      "origin": "synthetic",
+      "shape": "change_over_time",
+      "answerable": true,
+      "corpus": "personal",
+      "expected_answer_notes": "5 sacks.",
+      "expected_source_hints": [
+        "WhatsApp - Golden Wok.txt"
+      ],
+      "expected_stack_hints": [
+        "conversations"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-040",
+      "question": "Siapa PIC untuk QC dalam perancangan pengeluaran minggu 36?",
+      "language": "ms",
+      "origin": "synthetic",
+      "shape": "relation",
+      "answerable": true,
+      "corpus": "studionorth",
+      "expected_answer_notes": "Priya.",
+      "expected_source_hints": [
+        "Meeting Notes - Production planning wk36"
+      ],
+      "expected_stack_hints": [
+        "pics",
+        "meetings"
+      ],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-041",
+      "question": "What is the bank account number for Studio North Precision?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "not_in_sources",
+      "answerable": false,
+      "corpus": "studionorth",
+      "expected_answer_notes": "No bank details in corpus.",
+      "expected_source_hints": [],
+      "expected_stack_hints": [],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-042",
+      "question": "What is Kestrel Dynamics' credit limit?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "not_in_sources",
+      "answerable": false,
+      "corpus": "studionorth",
+      "expected_answer_notes": "Kestrel does not exist in sample data.",
+      "expected_source_hints": [],
+      "expected_stack_hints": [],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-043",
+      "question": "SN-1001 的零件描述是什么？",
+      "language": "zh",
+      "origin": "synthetic",
+      "shape": "single_value",
+      "answerable": false,
+      "corpus": "studionorth",
+      "expected_answer_notes": "Aluminium housing description, not a price.",
+      "expected_source_hints": [],
+      "expected_stack_hints": [],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-044",
+      "question": "What was the Q2 2025 revenue for Meridian Aerospace?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "not_in_sources",
+      "answerable": false,
+      "corpus": "studionorth",
+      "expected_answer_notes": "No financials in corpus.",
+      "expected_source_hints": [],
+      "expected_stack_hints": [],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-045",
+      "question": "Did MedFab approve the FAI for SN-1005?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "not_in_sources",
+      "answerable": false,
+      "corpus": "studionorth",
+      "expected_answer_notes": "Only kickoff/target date; no approval.",
+      "expected_source_hints": [],
+      "expected_stack_hints": [],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-046",
+      "question": "What is the WhatsApp phone number for Chef Marcus?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "not_in_sources",
+      "answerable": false,
+      "corpus": "studionorth",
+      "expected_answer_notes": "No phone numbers in export text.",
+      "expected_source_hints": [],
+      "expected_stack_hints": [],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-047",
+      "question": "Which insurance policy covers cold-chain van 2?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "not_in_sources",
+      "answerable": false,
+      "corpus": "studionorth",
+      "expected_answer_notes": "Ops sync mentions service only.",
+      "expected_source_hints": [],
+      "expected_stack_hints": [],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-048",
+      "question": "What is the unit price of SN-1099?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "not_in_sources",
+      "answerable": false,
+      "corpus": "studionorth",
+      "expected_answer_notes": "SN-1099 not in part list.",
+      "expected_source_hints": [],
+      "expected_stack_hints": [],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-049",
+      "question": "When does Studio North's GST registration expire?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "not_in_sources",
+      "answerable": false,
+      "corpus": "studionorth",
+      "expected_answer_notes": "Registration mentioned, no expiry.",
+      "expected_source_hints": [],
+      "expected_stack_hints": [],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    },
+    {
+      "id": "syn-050",
+      "question": "What did the customer pay for INV-9999?",
+      "language": "en",
+      "origin": "synthetic",
+      "shape": "not_in_sources",
+      "answerable": false,
+      "corpus": "studionorth",
+      "expected_answer_notes": "INV-9999 not in corpus.",
+      "expected_source_hints": [],
+      "expected_stack_hints": [],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": "agent_v1",
+      "second_human_label": "outstanding"
+    }
+  ],
+  "from_interview_shapes": [
+    {
+      "id": "int-001",
+      "question": "what's still open for that hotel account?",
+      "language": "en",
+      "origin": "invented_shape",
+      "shape": "interview_mined",
+      "answerable": null,
+      "corpus": null,
+      "expected_answer_notes": null,
+      "expected_source_hints": [],
+      "expected_stack_hints": [],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": null,
+      "second_human_label": "n/a",
+      "contains_names_or_abbreviations": true,
+      "notes": "Invented anonymised shape — real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence."
+    },
+    {
+      "id": "int-002",
+      "question": "what changed on this order after the WhatsApp?",
+      "language": "en",
+      "origin": "invented_shape",
+      "shape": "interview_mined",
+      "answerable": null,
+      "corpus": null,
+      "expected_answer_notes": null,
+      "expected_source_hints": [],
+      "expected_stack_hints": [],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": null,
+      "second_human_label": "n/a",
+      "contains_names_or_abbreviations": true,
+      "notes": "Invented anonymised shape — real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence."
+    },
+    {
+      "id": "int-003",
+      "question": "which revision did we actually confirm?",
+      "language": "en",
+      "origin": "invented_shape",
+      "shape": "interview_mined",
+      "answerable": null,
+      "corpus": null,
+      "expected_answer_notes": null,
+      "expected_source_hints": [],
+      "expected_stack_hints": [],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": null,
+      "second_human_label": "n/a",
+      "contains_names_or_abbreviations": true,
+      "notes": "Invented anonymised shape — real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence."
+    },
+    {
+      "id": "int-004",
+      "question": "who is chasing the late delivery on the aerospace job?",
+      "language": "en",
+      "origin": "invented_shape",
+      "shape": "interview_mined",
+      "answerable": null,
+      "corpus": null,
+      "expected_answer_notes": null,
+      "expected_source_hints": [],
+      "expected_stack_hints": [],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": null,
+      "second_human_label": "n/a",
+      "contains_names_or_abbreviations": true,
+      "notes": "Invented anonymised shape — real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence."
+    },
+    {
+      "id": "int-005",
+      "question": "did we acknowledge the PO revision within one day?",
+      "language": "en",
+      "origin": "invented_shape",
+      "shape": "interview_mined",
+      "answerable": null,
+      "corpus": null,
+      "expected_answer_notes": null,
+      "expected_source_hints": [],
+      "expected_stack_hints": [],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": null,
+      "second_human_label": "n/a",
+      "contains_names_or_abbreviations": true,
+      "notes": "Invented anonymised shape — real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence."
+    },
+    {
+      "id": "int-006",
+      "question": "what's the standing order for the F&B client this week?",
+      "language": "en",
+      "origin": "invented_shape",
+      "shape": "interview_mined",
+      "answerable": null,
+      "corpus": null,
+      "expected_answer_notes": null,
+      "expected_source_hints": [],
+      "expected_stack_hints": [],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": null,
+      "second_human_label": "n/a",
+      "contains_names_or_abbreviations": true,
+      "notes": "Invented anonymised shape — real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence."
+    },
+    {
+      "id": "int-007",
+      "question": "any drawing hold I should know about before we cut?",
+      "language": "en",
+      "origin": "invented_shape",
+      "shape": "interview_mined",
+      "answerable": null,
+      "corpus": null,
+      "expected_answer_notes": null,
+      "expected_source_hints": [],
+      "expected_stack_hints": [],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": null,
+      "second_human_label": "n/a",
+      "contains_names_or_abbreviations": true,
+      "notes": "Invented anonymised shape — real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence."
+    },
+    {
+      "id": "int-008",
+      "question": "which supplier is late on the stainless bar?",
+      "language": "en",
+      "origin": "invented_shape",
+      "shape": "interview_mined",
+      "answerable": null,
+      "corpus": null,
+      "expected_answer_notes": null,
+      "expected_source_hints": [],
+      "expected_stack_hints": [],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": null,
+      "second_human_label": "n/a",
+      "contains_names_or_abbreviations": true,
+      "notes": "Invented anonymised shape — real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence."
+    },
+    {
+      "id": "int-009",
+      "question": "can you show me the last thing the buyer said about quantity?",
+      "language": "en",
+      "origin": "invented_shape",
+      "shape": "interview_mined",
+      "answerable": null,
+      "corpus": null,
+      "expected_answer_notes": null,
+      "expected_source_hints": [],
+      "expected_stack_hints": [],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": null,
+      "second_human_label": "n/a",
+      "contains_names_or_abbreviations": true,
+      "notes": "Invented anonymised shape — real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence."
+    },
+    {
+      "id": "int-010",
+      "question": "is this the same PO as the scanned form or a new one?",
+      "language": "en",
+      "origin": "invented_shape",
+      "shape": "interview_mined",
+      "answerable": null,
+      "corpus": null,
+      "expected_answer_notes": null,
+      "expected_source_hints": [],
+      "expected_stack_hints": [],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": null,
+      "second_human_label": "n/a",
+      "contains_names_or_abbreviations": true,
+      "notes": "Invented anonymised shape — real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence."
+    },
+    {
+      "id": "int-011",
+      "question": "ada perubahan pada order tadi malam ke?",
+      "language": "ms",
+      "origin": "invented_shape",
+      "shape": "interview_mined",
+      "answerable": null,
+      "corpus": null,
+      "expected_answer_notes": null,
+      "expected_source_hints": [],
+      "expected_stack_hints": [],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": null,
+      "second_human_label": "n/a",
+      "contains_names_or_abbreviations": true,
+      "notes": "Invented anonymised shape — real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence."
+    },
+    {
+      "id": "int-012",
+      "question": "rev mana yang kita kerja sekarang?",
+      "language": "ms",
+      "origin": "invented_shape",
+      "shape": "interview_mined",
+      "answerable": null,
+      "corpus": null,
+      "expected_answer_notes": null,
+      "expected_source_hints": [],
+      "expected_stack_hints": [],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": null,
+      "second_human_label": "n/a",
+      "contains_names_or_abbreviations": true,
+      "notes": "Invented anonymised shape — real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence."
+    },
+    {
+      "id": "int-013",
+      "question": "这个单还有没有未交的？",
+      "language": "zh",
+      "origin": "invented_shape",
+      "shape": "interview_mined",
+      "answerable": null,
+      "corpus": null,
+      "expected_answer_notes": null,
+      "expected_source_hints": [],
+      "expected_stack_hints": [],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": null,
+      "second_human_label": "n/a",
+      "contains_names_or_abbreviations": true,
+      "notes": "Invented anonymised shape — real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence."
+    },
+    {
+      "id": "int-014",
+      "question": "客户在群里改数量了吗？",
+      "language": "zh",
+      "origin": "invented_shape",
+      "shape": "interview_mined",
+      "answerable": null,
+      "corpus": null,
+      "expected_answer_notes": null,
+      "expected_source_hints": [],
+      "expected_stack_hints": [],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": null,
+      "second_human_label": "n/a",
+      "contains_names_or_abbreviations": true,
+      "notes": "Invented anonymised shape — real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence."
+    },
+    {
+      "id": "int-015",
+      "question": "what's checked in the record versus only in chat?",
+      "language": "en",
+      "origin": "invented_shape",
+      "shape": "interview_mined",
+      "answerable": null,
+      "corpus": null,
+      "expected_answer_notes": null,
+      "expected_source_hints": [],
+      "expected_stack_hints": [],
+      "expected_chunk_ids": [],
+      "expected_substack_ids": [],
+      "label_pass": null,
+      "second_human_label": "n/a",
+      "contains_names_or_abbreviations": true,
+      "notes": "Invented anonymised shape — real interview transcripts were not available. origin=invented_shape so #19 never treats these as real interview evidence."
+    }
+  ]
+}

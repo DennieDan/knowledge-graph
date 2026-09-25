@@ -13,7 +13,9 @@ from app.auth import get_current_user
 from app.database import get_engine, get_session
 from app.main import app
 from app.models import Document, DocumentVersion, Organization, OrganizationMembership, User, WhatsappChat, WhatsappConnection, WhatsappMessage
-from app.whatsapp import debounced_ingest, run_import
+from app.models import KnowledgeJob
+from app.whatsapp import run_import
+from app.worker import _handle_whatsapp_ingest
 
 
 class _NoClose:
@@ -109,7 +111,7 @@ class WhatsappIngestTests(unittest.TestCase):
             run_import(self.conn.id, [chat.chat_jid])
         self.assertIsNone(self.document())
 
-    def test_webhook_marks_pending_and_debounced_ingest_revises_transcript(self):
+    def test_webhook_enqueues_ingest_job_and_worker_revises_transcript(self):
         chat = self.make_chat(import_status="imported", organization_id=self.organization.id)
         self.session.add(WhatsappMessage(
             chat_id=chat.id, wa_message_id="m1",
@@ -117,12 +119,7 @@ class WhatsappIngestTests(unittest.TestCase):
             body="first",
         ))
         self.session.flush()
-        # The TestClient runs background tasks synchronously; silence the debounce
-        # sleep and give the task a session that cannot see uncommitted test data.
-        with (
-            patch("app.whatsapp.get_settings", return_value=fake_settings(None)),
-            patch("app.whatsapp.time.sleep"),
-        ):
+        with patch("app.whatsapp.get_settings", return_value=fake_settings(None)):
             resp = self.client.post(
                 "/whatsapp/webhooks",
                 json={
@@ -133,13 +130,19 @@ class WhatsappIngestTests(unittest.TestCase):
             )
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(chat.pending_ingest)
-        with (
-            patch("app.whatsapp.Session", new=lambda *a, **k: _NoClose(self.session)),
-            patch("app.whatsapp.time.sleep"),
-        ):
-            debounced_ingest(chat.id)
+        # The webhook no longer sleeps in-process: it enqueues one coalesced job per debounce window.
+        job = self.session.scalar(
+            select(KnowledgeJob).where(
+                KnowledgeJob.kind == "whatsapp_ingest",
+                KnowledgeJob.payload["chat_id"].astext == str(chat.id),
+            )
+        )
+        self.assertIsNotNone(job)
+        self.assertEqual(job.status, "queued")
+        _handle_whatsapp_ingest(self.session, job)
         self.session.refresh(chat)
         self.assertFalse(chat.pending_ingest)
+        self.assertIsNotNone(chat.last_success_at)
         document = self.document()
         self.assertIsNotNone(document)
         version = self.session.scalar(

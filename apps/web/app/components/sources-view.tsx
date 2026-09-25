@@ -1,7 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { driveConnectUrl, listDriveWorkspaces, loginUrl, syncDriveWorkspace, type Account, type Me } from "../lib/api";
+import { useEffect, useState } from "react";
+import {
+  driveConnectUrl,
+  listDriveWorkspaces,
+  loginUrl,
+  syncDriveWorkspace,
+  type Account,
+  type DriveWorkspace,
+  type Me,
+} from "../lib/api";
 import { track } from "../lib/analytics";
 import Icon from "./icons";
 import styles from "./sources.module.css";
@@ -21,8 +29,23 @@ export default function SourcesView({
 }) {
   const [syncMsg, setSyncMsg] = useState("");
   const [syncState, setSyncState] = useState<{ done: number; total: number } | null>(null);
+  const [workspaces, setWorkspaces] = useState<DriveWorkspace[]>([]);
   const syncing = syncState !== null;
   const uploadedChats = me?.whatsapp_uploaded_chats ?? 0;
+
+  const refresh = () => {
+    if (!activeAccount?.drive_linked) {
+      setWorkspaces([]);
+      return;
+    }
+    listDriveWorkspaces(activeAccount.id)
+      .then(setWorkspaces)
+      .catch(() => setWorkspaces([]));
+  };
+
+  useEffect(() => {
+    refresh();
+  }, [activeAccount?.id, activeAccount?.drive_linked]);
 
   const handleSync = async () => {
     if (!activeAccount || syncing) return;
@@ -30,31 +53,27 @@ export default function SourcesView({
     setSyncState({ done: 0, total: 0 });
     const startedAt = performance.now();
     try {
-      const workspaces = await listDriveWorkspaces(activeAccount.id);
-      setSyncState({ done: 0, total: workspaces.length });
-      track("drive_sync_started", { workspaces: workspaces.length });
-      let synced = 0, ingested = 0;
-      const errors: string[] = [];
-      for (const [index, workspace] of workspaces.entries()) {
+      const rows = await listDriveWorkspaces(activeAccount.id);
+      setWorkspaces(rows);
+      setSyncState({ done: 0, total: rows.length });
+      track("drive_sync_started", { workspaces: rows.length });
+      let queued = 0;
+      for (const [index, workspace] of rows.entries()) {
         const result = await syncDriveWorkspace(workspace.id);
-        synced += result.synced;
-        ingested += result.ingested;
-        errors.push(...result.errors);
-        setSyncState({ done: index + 1, total: workspaces.length });
+        if (result.queued) queued += 1;
+        setSyncState({ done: index + 1, total: rows.length });
       }
       track("drive_sync_completed", {
-        workspaces: workspaces.length,
-        synced,
-        ingested,
-        errors: errors.length,
+        workspaces: rows.length,
+        queued,
         duration_ms: Math.round(performance.now() - startedAt),
       });
-      if (workspaces.length === 0) {
+      if (rows.length === 0) {
         setSyncMsg("No Drive workspaces to sync.");
       } else {
-        onSynced();
-        setSyncMsg(errors.length > 0 ? `Synced ${synced} files, ingested ${ingested} · ${errors.length} error(s)` : `Synced ${synced} files, ingested ${ingested}`);
+        setSyncMsg(`Queued ${queued} sync documents.`);
       }
+      refresh();
     } catch (reason) {
       setSyncMsg(reason instanceof Error ? reason.message : "Sync failed.");
     } finally {
@@ -62,13 +81,15 @@ export default function SourcesView({
     }
   };
 
+  const failed = workspaces.filter((row) => row.health === "failed");
+  const stale = workspaces.filter((row) => row.health === "stale");
+
   return (
     <div className={styles.page}>
       <div className={styles.headRow}>
         <p className={styles.subtitle}>Connection health and indexing freshness.</p>
       </div>
 
-      {/* Connection summary cards */}
       <div className={styles.connGrid}>
         <div className={styles.connCard}>
           <p className={styles.connName}>Google Drive</p>
@@ -91,9 +112,9 @@ export default function SourcesView({
                     <Icon name="refresh-cw" size={13} />
                   </span>
                   {syncing
-                    ? syncState.total > 1
-                      ? `Syncing ${syncState.done}/${syncState.total}…`
-                      : "Syncing…"
+                    ? syncState && syncState.total > 1
+                      ? `Queueing ${syncState.done}/${syncState.total}…`
+                      : "Queueing…"
                     : "Sync now"}
                 </button>
               </>
@@ -102,7 +123,11 @@ export default function SourcesView({
             ) : (
               <a href={loginUrl}>Sign in to connect</a>
             )}
-            {syncMsg && <span className={styles.connMeta} role="status" aria-live="polite">{syncMsg}</span>}
+            {syncMsg && (
+              <span className={styles.connMeta} role="status" aria-live="polite">
+                {syncMsg}
+              </span>
+            )}
           </div>
         </div>
 
@@ -128,6 +153,16 @@ export default function SourcesView({
             ) : (
               <a href={loginUrl}>Sign in to connect</a>
             )}
+          </div>
+        </div>
+
+        <div className={styles.connCard}>
+          <p className={styles.connName}>Coverage</p>
+          <div className={styles.connRow}>
+            <span className={styles.pillLight}>
+              {failed.length + stale.length} gap{failed.length + stale.length === 1 ? "" : "s"}
+            </span>
+            <span className={styles.connMeta}>Drive health</span>
           </div>
         </div>
       </div>
