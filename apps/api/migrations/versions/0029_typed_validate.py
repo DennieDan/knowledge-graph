@@ -1,7 +1,7 @@
 """current_values view + capped searchable generated columns (#97 Steps 2–3)
 
-Revision ID: 0018
-Revises: 0017
+Revision ID: 0029
+Revises: 0028
 
 Additive only. Claims already have typed value_* columns (0016). This migration:
 - creates current_values so UI paths never self-join the claims version table
@@ -11,8 +11,8 @@ Additive only. Claims already have typed value_* columns (0016). This migration:
 from alembic import op
 
 
-revision = "0018"
-down_revision = "0017"
+revision = "0029"
+down_revision = "0028"
 branch_labels = None
 depends_on = None
 
