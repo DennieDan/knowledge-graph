@@ -79,6 +79,5 @@
 .emptyPanel { display: grid; justify-items: center; gap: 8px; padding: 44px 24px; color: var(--cp-muted); text-align: center; }
 .emptyPanel p, .empty { color: var(--cp-muted); font-size: 12px; }
 .empty { padding: 18px 2px; }
-.chat { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding: 17px 16px; border: 0; border-top: 1px solid var(--cp-border); background: white; font-weight: 600; cursor: pointer; }
 @media (max-width: 900px) { .page { grid-template-columns: 1fr; } .sources { position: static; height: auto; min-height: 260px; } .related { margin-top: 40px; } }
 @media (max-width: 640px) { .page { padding: 12px; } .header { flex-wrap: wrap; } .toolbar { justify-content: stretch; flex-wrap: wrap; } .toolbar label { width: 100%; } .relatedGrid { grid-template-columns: 1fr; } }
