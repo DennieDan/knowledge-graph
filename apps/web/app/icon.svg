@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" role="img" aria-label="crossPOd">
-  <rect width="48" height="48" rx="11" fill="#353535" />
-  <g transform="translate(8 8)" fill="none" stroke="#ffffff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M16 3.4 L26.6 9.2 L16 15 L5.4 9.2 Z" fill="#ffffff" />
-    <path d="M5.4 17.2 L16 23 L26.6 17.2" />
-    <path d="M5.4 23.4 L16 29.2 L26.6 23.4" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" role="img" aria-label="crosspod">
+  <rect width="1080" height="1080" rx="210" fill="#000000" />
+  <g fill="#ffffff" stroke="#ffffff" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M540 282 L772 395 L540 508 L308 395 Z" stroke-width="44" />
+    <path d="M272 520 L540 650 L808 520" fill="none" stroke-width="104" />
+    <path d="M272 680 L540 810 L808 680" fill="none" stroke-width="104" />
   </g>
 </svg>
