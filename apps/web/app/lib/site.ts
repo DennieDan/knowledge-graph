@@ -1,7 +1,7 @@
 // Canonical origin of the marketing deployment; override once a domain exists.
 export const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ??
-  "https://knowledge-graph-web-sooty.vercel.app";
+  "https://discover-crosspod.vercel.app";
 
 export const landingOnly = process.env.NEXT_PUBLIC_LANDING_ONLY === "true";
 
@@ -9,23 +9,21 @@ export const site = {
   name: "crossPOd",
   tagline: "Every order, confirmed in one place",
   description:
-    "crossPOd reads the purchase orders, WhatsApp messages, scanned forms and Drive files your customers already send, turns them into confirmed records with evidence, and answers questions about them. Built for B2B suppliers and Singapore SMEs.",
-  // Search results cut off around 160 characters; the long form is for og: and JSON-LD.
+    "crossPOd reads the WhatsApp messages and Google Drive documents your customers and team already use, turns them into confirmed records with evidence, and answers questions about them. Built for B2B suppliers and Singapore SMEs.",
+  // The long `description` is for JSON-LD. Search results cut off around 160
+  // characters; link previews (og:/twitter:) around 125.
   metaDescription:
-    "Turn PO PDFs, WhatsApp messages and scanned forms into confirmed orders with evidence on every field — purchase order automation for Singapore B2B suppliers.",
+    "Turn WhatsApp threads and Drive documents into confirmed order records with evidence on every field — for Singapore B2B suppliers.",
+  socialDescription:
+    "Turn WhatsApp threads and Drive documents into confirmed orders, with evidence on every field.",
+  addressLocality: "Singapore",
+  addressCountry: "SG",
   locale: "en_SG",
   language: "en-SG",
   twitter: "@crosspodhq",
   contactEmail: "hello@crosspod.sg",
   // Raster logo for structured data; the nav uses an inline SVG of the same mark.
   logoPath: "/crosspod-logo.png",
-} as const;
-
-// TODO: replace with the registered entity's details before launch.
-export const company = {
-  legalName: "crossPOd Pte. Ltd.",
-  addressLocality: "Singapore",
-  addressCountry: "SG",
 } as const;
 
 export const plans = [
@@ -39,7 +37,7 @@ export const plans = [
     features: [
       "5 users",
       "200 documents a month",
-      "WhatsApp and email ingestion",
+      "WhatsApp ingestion",
       "Sales Orders, Clients and Items Stacks",
       "Evidence links on every confirmed field",
     ],
@@ -56,9 +54,9 @@ export const plans = [
     features: [
       "20 users",
       "2,000 documents a month",
-      "All connectors, including PDF, scans and Google Drive",
-      "All 12 Stacks with revision tracking and change alerts",
-      "Ask crossPOd with citations, plus API access",
+      "WhatsApp and Google Drive, including Shared Drives",
+      "All 9 Stacks with revision tracking",
+      "Ask crossPOd with citations",
     ],
     cta: "Start a 14-day trial",
     featured: true,
@@ -72,9 +70,7 @@ export const plans = [
     summary: "For multi-site operations with their own compliance rules.",
     features: [
       "Unlimited users and documents",
-      "Single sign-on and role-based access control",
-      "Custom Stacks and ERP integrations",
-      "Data residency, retention policies and audit exports",
+      "Company account with an administrator and members",
       "Named onboarding lead",
     ],
     cta: "Talk to us",
@@ -92,24 +88,19 @@ export const sources = [
     example: "\u201cMake PO 88213 500pcs instead of 300, same date ok?\u201d",
   },
   {
-    channel: "PO PDFs",
-    detail: "Line items, part codes, quantities and delivery dates.",
-    example: "PO-88213.pdf \u00b7 4 lines \u00b7 delivery 14 Oct",
+    channel: "WhatsApp exports",
+    detail: "Older threads from a phone, uploaded as a chat export.",
+    example: "WhatsApp Chat with Acme Purchasing.zip",
   },
   {
-    channel: "Scanned forms",
-    detail: "Faxed and photographed orders that never reach your ERP.",
-    example: "scan_0142.jpg \u00b7 handwritten quantity on line 2",
+    channel: "Google Docs & Sheets",
+    detail: "Order schedules, price lists and specs your team keeps in Drive.",
+    example: "/Customers/Acme/Oct delivery schedule",
   },
   {
-    channel: "Email attachments",
-    detail: "Revisions sent as replies to a thread nobody else can see.",
-    example: "Re: Oct schedule \u00b7 revised_spec_revB.xlsx",
-  },
-  {
-    channel: "Google Drive",
-    detail: "Shared folders of drawings, specs and price lists.",
-    example: "/Customers/Acme/Drawings/ACM-220-revC.pdf",
+    channel: "Shared Drives",
+    detail: "Each Shared Drive becomes its own workspace; you pick the folders.",
+    example: "Sales Shared Drive \u00b7 /Customers",
   },
 ] as const;
 
@@ -117,17 +108,17 @@ export const faqs = [
   {
     question: "Does crossPOd change how my customers send orders?",
     answer:
-      "No. Customers keep sending POs, WhatsApp messages, scanned forms and email attachments exactly as they do today. crossPOd reads those sources and proposes structured records from them.",
+      "No. Customers keep messaging you on WhatsApp exactly as they do today, and your team keeps working in Google Drive. crossPOd reads those sources and proposes structured records from them.",
   },
   {
     question: "Can crossPOd enter orders into my system on its own?",
     answer:
-      "crossPOd proposes; a person confirms. Every proposed field carries a link to the message or document line it came from, so your coordinator checks it in seconds before it becomes a confirmed record.",
+      "crossPOd proposes; a person confirms. Every proposed field carries a link to the message or document passage it came from, so your coordinator checks it in seconds before it becomes a confirmed record.",
   },
   {
-    question: "How does crossPOd handle PDPA?",
+    question: "What can crossPOd read today?",
     answer:
-      "Consent, retention windows, access control and a full audit history are part of ingestion rather than an afterthought. You can see who confirmed what, when, and from which source.",
+      "WhatsApp chats, connected live or uploaded as an export, and Google Docs, Sheets, Slides and text files in My Drive or Shared Drives. PDFs, scanned forms and email are not read yet — tell us if your orders arrive that way.",
   },
   {
     question: "What happens when a customer changes an order?",
