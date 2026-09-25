@@ -11,6 +11,7 @@
     "db:migrate": ".venv/bin/python -m alembic upgrade head",
     "db:check": ".venv/bin/python -m alembic check",
     "db:readiness": ".venv/bin/python -m scripts.check_database",
+    "db:metrics": ".venv/bin/python -m scripts.usage_metrics",
     "db:ingest": ".venv/bin/python -m scripts.ingest",
     "db:reembed": ".venv/bin/python -m scripts.reembed",
     "worker": ".venv/bin/python -m watchfiles --filter python '.venv/bin/python -m scripts.worker' app scripts",
