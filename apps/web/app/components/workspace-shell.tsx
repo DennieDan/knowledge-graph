@@ -10,6 +10,7 @@ import SourcesView from "./sources-view";
 import StacksView from "./stacks-view";
 import SubstackDetail from "./substack-detail";
 import ToCheckView from "./to-check-view";
+import MaintenanceView from "./maintenance-view";
 import WhatsAppConnect from "./whatsapp-connect";
 import DrivePicker from "./drive-picker";
 import AccountOnboarding from "./account-onboarding";
@@ -75,6 +76,7 @@ const NAV_ITEMS = [
   { icon: "search", label: "Search", id: "search" },
   { icon: "layers", label: "Stacks", id: "stacks" },
   { icon: "database", label: "Sources", id: "sources" },
+  { icon: "settings", label: "Maintenance", id: "maintenance" },
 ] as const satisfies { icon: string; label: string; id: NavId }[];
 
 const viewLabel = (view: NavId) => NAV_ITEMS.find((item) => item.id === view)?.label ?? "Stacks";
@@ -861,6 +863,9 @@ export default function WorkspaceShell() {
                 This address doesn&apos;t match a page. <Link href={NAV_PATHS.stacks}>Go to Stacks</Link>
               </p>
             </div>
+          )}
+          {activeNav === "maintenance" && (
+            <MaintenanceView accountId={activeAccount?.id ?? null} />
           )}
 
           <div className={activeNav !== "stacks" ? styles.hiddenView : undefined}>

@@ -1,0 +1,60 @@
+.root {
+  padding: 28px;
+  flex: 1;
+  max-width: 720px;
+}
+
+.title {
+  font-size: 26px;
+  letter-spacing: -0.6px;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+
+.lead {
+  color: var(--cp-muted);
+  font-size: 15px;
+  line-height: 1.45;
+  margin: 0 0 16px;
+  max-width: 42ch;
+}
+
+.alarms {
+  margin: 0 0 16px;
+  padding-left: 18px;
+  color: var(--md-sys-color-on-surface);
+  font-size: 14px;
+}
+
+.toggle {
+  border: 1px solid var(--cp-border, #d9d9d9);
+  background: transparent;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--cp-muted);
+}
+
+.toggle:hover {
+  background: var(--cp-hover);
+}
+
+.panels {
+  margin-top: 20px;
+  display: grid;
+  gap: 16px;
+}
+
+.panels h2 {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 4px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--cp-muted);
+}
+
+.panels p {
+  margin: 0;
+  font-size: 14px;
+}

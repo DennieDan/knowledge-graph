@@ -57,6 +57,10 @@ export interface DriveWorkspace {
   kind: "my_drive" | "shared_drive";
   private: boolean;
   updated_at: string;
+  last_success_at?: string | null;
+  last_error?: string | null;
+  last_error_at?: string | null;
+  health?: "fresh" | "stale" | "failed";
 }
 
 export interface DrivePermission {
@@ -397,7 +401,16 @@ export function fileAllSubstacks(accountId: string): Promise<{ filed: number }> 
   return apiFetch(`/accounts/${accountId}/stacks/file-all`, { method: "POST" });
 }
 
-export interface DriveSyncResult { synced: number; ingested: number; skipped: number; errors: string[] }
+export interface DriveSyncResult {
+  synced?: number;
+  ingested?: number;
+  skipped?: number;
+  errors?: string[];
+  queued?: boolean;
+  job_id?: string;
+  workspace_id?: string;
+  status?: string;
+}
 
 export function syncDriveWorkspace(workspaceId: string): Promise<DriveSyncResult> {
   return apiFetch(`/drive/workspaces/${workspaceId}/sync`, { method: "POST" });
@@ -557,4 +570,30 @@ export function dismissFinding(accountId: string, findingId: string, reason: str
     method: "POST",
     body: JSON.stringify({ reason }),
   });
+}
+
+export interface HealthAlarm {
+  key: string;
+  message: string;
+}
+
+export interface HealthWindow {
+  confirms: Record<string, number>;
+  findings: { raised: number; dismissed: number; open: number; dismiss_rate: number };
+  model_spend_tokens?: number;
+}
+
+export interface HealthSnapshot {
+  at_rest: string;
+  alarms: HealthAlarm[];
+  windows: { "7d": HealthWindow; "28d": HealthWindow };
+  nightly_test: { status: string; started_at: string; recall_at_5_mean: number | null } | null;
+  queue_depth: number;
+  jobs?: { queue_depth: number; failures_last_24h: number };
+  model_spend_tokens_today: number;
+  daily_token_budget?: number;
+}
+
+export function getHealth(accountId: string): Promise<HealthSnapshot> {
+  return apiFetch(`/accounts/${accountId}/health`);
 }
