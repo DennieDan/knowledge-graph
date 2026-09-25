@@ -921,16 +921,18 @@ export default function WorkspaceShell() {
               <p className={styles.placeholderText}>
                 This address doesn&apos;t match a page. <Link href={NAV_PATHS.stacks}>Go to Stacks</Link>
               </p>
-              <div className={styles.morningSlot}>
-                <MorningPanel
-                  accountId={activeAccount?.id ?? null}
-                  onOpenToCheck={() => selectNav("tocheck")}
-                />
-              </div>
             </div>
           )}
           {activeNav === "maintenance" && (
-            <MaintenanceView accountId={activeAccount?.id ?? null} />
+            <>
+              <div className={styles.morningSlot}>
+                <MorningPanel
+                  accountId={activeAccount?.id ?? null}
+                  onOpenToCheck={() => navigate(analyzeHref, "link")}
+                />
+              </div>
+              <MaintenanceView accountId={activeAccount?.id ?? null} />
+            </>
           )}
 
           <div className={activeNav !== "stacks" ? styles.hiddenView : undefined}>
