@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     waha_webhook_url: str | None = None
     # Shared secret sent by WAHA as X-Webhook-Token and verified on receipt.
     waha_webhook_secret: SecretStr | None = None
+    # Meta Cloud API app secret for X-Hub-Signature-256 over the raw webhook body.
+    # Unset keeps the WAHA test-number path (no Hub signature header).
+    whatsapp_app_secret: SecretStr | None = None
     # Self-hosted encoder; must emit EMBEDDING_DIMENSIONS-wide vectors.
     embedding_model: str = EMBEDDING_MODEL
     embedding_device: str | None = None

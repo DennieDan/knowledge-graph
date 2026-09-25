@@ -320,7 +320,7 @@ class AnalysisRun(Base):
 class KnowledgeJob(Base):
     __tablename__ = "knowledge_jobs"
     __table_args__ = (
-        CheckConstraint("kind IN ('embed_version','discover_document','generate_substack','reconcile_scope','run_checks','sync_workspace','whatsapp_ingest','score_questions','run_recheck')", name="valid_knowledge_job_kind"),
+        CheckConstraint("kind IN ('embed_version','discover_document','generate_substack','reconcile_scope','run_checks','sync_workspace','whatsapp_ingest','score_questions','run_recheck','propose_version')", name="valid_knowledge_job_kind"),
         CheckConstraint("status IN ('queued','running','succeeded','failed','cancelled','budget_exhausted')", name="valid_knowledge_job_status"),
         Index("ix_knowledge_jobs_available", "status", "available_at"),
     )

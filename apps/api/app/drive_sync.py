@@ -67,6 +67,18 @@ def _selected_ids(session: Session, workspace: DriveWorkspace, user: User) -> se
     return set(selection.selected_file_ids)
 
 
+def may_see(file: dict, selected: set[str] | None, parents_of: dict[str, list[str]]) -> bool:
+    """#92 Step 3 share gate: only ingest what the person already shared / selected.
+
+    selected is None when share_all; empty set means nothing is shared.
+    """
+    if selected is None:
+        return True
+    if not selected:
+        return False
+    return selection_covers(file, selected, parents_of)
+
+
 def _needs_ingest(row: DriveFile, file: dict) -> bool:
     if row.ingested_modified_time is None:
         return True
@@ -120,7 +132,7 @@ def sync_workspace(session: Session, workspace: DriveWorkspace, connection: Driv
         if file.get("trashed") or mime_type == FOLDER_MIME:
             continue
         row = rows[file["id"]]
-        if not _is_supported(mime_type) or not (selected is None or selection_covers(file, selected, parents_of)):
+        if not _is_supported(mime_type) or not may_see(file, selected, parents_of):
             skipped += 1
             continue
         if not _needs_ingest(row, file):
