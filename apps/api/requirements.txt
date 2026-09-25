@@ -12,3 +12,5 @@ python-multipart==0.0.32
 itsdangerous==2.2.0
 openai==3.14.1
 pypdf==6.9.1
+# The assistant connector (app/connector.py). 1.x: the 2.x line needs a newer Starlette than FastAPI 0.116 allows.
+mcp==1.30.0
