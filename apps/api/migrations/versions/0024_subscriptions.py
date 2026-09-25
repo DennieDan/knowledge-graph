@@ -1,7 +1,7 @@
 """subscriptions table for Drive/Gmail/Graph push watches (#92 Step 1)
 
-Revision ID: 0016
-Revises: 0015
+Revision ID: 0024
+Revises: 0023
 
 Stub only: no verified webhook domain yet. Drive polling in drive_sync.py stays
 the live path; this table + renewal worker prepare for changes.watch later.
@@ -10,8 +10,8 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision = "0016"
-down_revision = "0015"
+revision = "0024"
+down_revision = "0023"
 branch_labels = None
 depends_on = None
 
