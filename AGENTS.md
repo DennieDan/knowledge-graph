@@ -114,6 +114,8 @@ Remind the user of these items when deployment is set up:
   statement timeout, migration head, Data API grants; add
   `--require-migrated` after a deploy). Supabase's pooler ignores startup
   `options`, so session settings are applied with `SET` on connect.
+  Usage/cost/latency aggregates (read-only, no names or text):
+  `DATABASE_URL='<url>' pnpm db:metrics --days 28` (`--json` for JSON).
 
 - **Migration policy.** Every schema change is an Alembic migration and must
   pass `alembic check`. Migrations must stay compatible with the currently
