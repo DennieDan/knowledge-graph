@@ -81,9 +81,6 @@ export default function SourcesView({
     }
   };
 
-  const failed = workspaces.filter((row) => row.health === "failed");
-  const stale = workspaces.filter((row) => row.health === "stale");
-
   return (
     <div className={styles.page}>
       <div className={styles.headRow}>
@@ -153,16 +150,6 @@ export default function SourcesView({
             ) : (
               <a href={loginUrl}>Sign in to connect</a>
             )}
-          </div>
-        </div>
-
-        <div className={styles.connCard}>
-          <p className={styles.connName}>Coverage</p>
-          <div className={styles.connRow}>
-            <span className={styles.pillLight}>
-              {failed.length + stale.length} gap{failed.length + stale.length === 1 ? "" : "s"}
-            </span>
-            <span className={styles.connMeta}>Drive health</span>
           </div>
         </div>
       </div>
