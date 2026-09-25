@@ -3,8 +3,10 @@
 `POST /drive/workspaces/{id}/sync` lists the workspace, upserts `drive_files`,
 and ingests every selected file whose content may have changed. Re-ingestion is
 idempotent: `document_versions` skips unchanged content via `content_hash`.
-A future optimization is `changes.list` with a stored page token instead of a
-full listing.
+
+Live sync path (#92): keep this polling until a verified webhook domain exists
+and `subscriptions.start_watch` can call Google `changes.watch`. The subscription
+table and renewal stub sit beside this module — do not delete or replace polling.
 """
 from datetime import datetime, timezone
 from uuid import UUID
@@ -65,6 +67,18 @@ def _selected_ids(session: Session, workspace: DriveWorkspace, user: User) -> se
     return set(selection.selected_file_ids)
 
 
+def may_see(file: dict, selected: set[str] | None, parents_of: dict[str, list[str]]) -> bool:
+    """#92 Step 3 share gate: only ingest what the person already shared / selected.
+
+    selected is None when share_all; empty set means nothing is shared.
+    """
+    if selected is None:
+        return True
+    if not selected:
+        return False
+    return selection_covers(file, selected, parents_of)
+
+
 def _needs_ingest(row: DriveFile, file: dict) -> bool:
     if row.ingested_modified_time is None:
         return True
@@ -118,7 +132,7 @@ def sync_workspace(session: Session, workspace: DriveWorkspace, connection: Driv
         if file.get("trashed") or mime_type == FOLDER_MIME:
             continue
         row = rows[file["id"]]
-        if not _is_supported(mime_type) or not (selected is None or selection_covers(file, selected, parents_of)):
+        if not _is_supported(mime_type) or not may_see(file, selected, parents_of):
             skipped += 1
             continue
         if not _needs_ingest(row, file):

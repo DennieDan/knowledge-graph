@@ -300,6 +300,26 @@ export function getSubstackDetail(id: string): Promise<ApiSubstackDetail> {
   return apiFetch(`/substacks/${id}`);
 }
 
+export interface ApiPictureNode {
+  id: string;
+  type_id: string;
+  name: string;
+  depth: number;
+}
+
+export interface ApiClientPicture {
+  subject: ApiPictureNode;
+  nodes: ApiPictureNode[];
+  edges: { from_id: string; to_id: string; relation: string; source: string }[];
+  omitted_neighbours: Record<string, number>;
+  truncated: boolean;
+  caps: { max_depth: number; max_nodes: number; max_neighbours_per_node: number };
+}
+
+export function getClientPicture(accountId: string, substackId: string): Promise<ApiClientPicture> {
+  return apiFetch(`/accounts/${accountId}/clients/${substackId}/picture`);
+}
+
 export function createSubstack(
   accountId: string,
   input: { stack_type: string; name: string; summary?: string; generate?: boolean },
@@ -333,6 +353,36 @@ export function keepCurrentSubstackContent(id: string, contentId: string): Promi
 
 export function confirmAllSubstacks(accountId: string): Promise<{ confirmed: number }> {
   return apiFetch(`/accounts/${accountId}/substacks/confirm-all`, { method: "POST" });
+}
+
+export type ReplyChannel = "email" | "whatsapp";
+
+export interface ReplyDraft {
+  body: string;
+  channel: ReplyChannel;
+  sources_used: { field_key: string; value: string; claim_id: string | null }[];
+}
+
+export function draftSubstackReply(
+  accountId: string,
+  substackId: string,
+  channel?: ReplyChannel,
+): Promise<ReplyDraft> {
+  return apiFetch(`/accounts/${accountId}/substacks/${substackId}/reply/draft`, {
+    method: "POST",
+    body: JSON.stringify(channel ? { channel } : {}),
+  });
+}
+
+export function sendSubstackReply(
+  accountId: string,
+  substackId: string,
+  input: { body: string; channel: ReplyChannel },
+): Promise<{ status: "logged" }> {
+  return apiFetch(`/accounts/${accountId}/substacks/${substackId}/reply/send`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
 }
 
 export interface AnalysisRun {
@@ -583,6 +633,25 @@ export interface HealthWindow {
   model_spend_tokens?: number;
 }
 
+export interface HealthTemplateMetric {
+  template_or_stack_key: string;
+  review_rate: number;
+  edit_count: number;
+  acceptance: number | null;
+}
+
+export interface HealthGoldenPanel {
+  status: "fixture" | "live";
+  metrics: {
+    corpus?: string;
+    question_count?: number;
+    labelled_count?: number;
+    acceptance_mean?: number | null;
+    note?: string;
+    [key: string]: unknown;
+  };
+}
+
 export interface HealthSnapshot {
   at_rest: string;
   alarms: HealthAlarm[];
@@ -592,6 +661,10 @@ export interface HealthSnapshot {
   jobs?: { queue_depth: number; failures_last_24h: number };
   model_spend_tokens_today: number;
   daily_token_budget?: number;
+  /** #102 — per-template ladder metrics (7d). */
+  per_template?: HealthTemplateMetric[];
+  /** #102 — golden acceptance; fixture until #106 live cut. */
+  golden?: HealthGoldenPanel;
 }
 
 export function getHealth(accountId: string): Promise<HealthSnapshot> {

@@ -1,4 +1,4 @@
-"""Nightly question scoring — retrieval first; answer scoring stubbed until #72."""
+"""Nightly question scoring — retrieval first; answer / golden stubs (#72, #106)."""
 from __future__ import annotations
 
 import os
@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from .config import get_settings
 from .findings import create_finding
+from .golden import fixture_golden_metrics, run_golden
 from .models import TestQuestion, TestResult, TestRun
 from .retrieval import search_chunks
 from .spend import budget_exhausted
@@ -140,8 +141,13 @@ def run_retrieval_score(session: Session, organization_id: UUID) -> TestRun:
 
 
 def run_answer_score(session: Session, organization_id: UUID) -> TestRun:
-    """Stub until chat agent (#72) lands. Records a skipped run."""
+    """Answer scoring stub: attach golden harness/fixture metrics (#106).
+
+    Live answer scoring against the chat agent still waits on labelled quotes
+    and the golden cut; do not treat these metrics as a release gate.
+    """
     settings = get_settings()
+    golden = run_golden(session, organization_id, held_out=False)
     run = TestRun(
         organization_id=organization_id,
         kind="answer",
@@ -151,7 +157,12 @@ def run_answer_score(session: Session, organization_id: UUID) -> TestRun:
         model=settings.openai_model,
         started_at=utcnow(),
         finished_at=utcnow(),
-        metrics={"reason": "chat_agent_not_merged", "stub": True},
+        metrics={
+            "reason": "live_golden_cut_not_done",
+            "stub": True,
+            "golden": golden,
+            "fixture": fixture_golden_metrics(),
+        },
     )
     session.add(run)
     session.commit()
@@ -198,9 +209,11 @@ def run_score_job(session: Session, organization_id: UUID) -> dict:
         return {"status": "budget_exhausted"}
     retrieval = run_retrieval_score(session, organization_id)
     answer = run_answer_score(session, organization_id)
+    golden = run_golden(session, organization_id, held_out=False)
     return {
         "retrieval_run_id": str(retrieval.id),
         "retrieval_status": retrieval.status,
         "answer_run_id": str(answer.id),
         "answer_status": answer.status,
+        "golden": golden,
     }

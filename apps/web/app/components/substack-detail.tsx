@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Icon from "./icons";
+import ClientPicture from "./client-picture";
 import { type StackType, type Substack, type UiSubstackDetail } from "../lib/stacks";
+import { draftSubstackReply, sendSubstackReply, type ReplyChannel, type ReplyDraft } from "../lib/api";
 import { track } from "../lib/analytics";
 import styles from "./substack-detail.module.css";
 
@@ -12,6 +14,7 @@ interface Props {
   detail: UiSubstackDetail | null;
   details: Record<string, UiSubstackDetail>;
   backLabel: string;
+  accountId: string | null;
   onBack: () => void;
   /** Present when the record was opened from the Analyze workspace queue. */
   queue: { position: number; total: number; onPrev: (() => void) | null; onNext: (() => void) | null } | null;
@@ -38,7 +41,7 @@ function HighlightedToken({ children, id, sourceIds, pinned, onHover, onPin }: {
   return <mark data-source-anchor className={`${styles.highlightedToken} ${pinned ? styles.pinned : ""}`} onMouseEnter={() => onHover(sourceIds)} onMouseLeave={() => onHover(null)} onClick={() => onPin({ id, sourceIds })}>{children}</mark>;
 }
 
-export default function SubstackDetail({ substack, stackTypes, detail, details, backLabel, onBack, queue, onOpen, onEnsureDetail, onConfirmContent, onKeepCurrentContent }: Props) {
+export default function SubstackDetail({ substack, stackTypes, detail, details, backLabel, accountId, onBack, queue, onOpen, onEnsureDetail, onConfirmContent, onKeepCurrentContent }: Props) {
   const [query, setQuery] = useState("");
   const [showPending, setShowPending] = useState(false);
   const [updateMenuOpen, setUpdateMenuOpen] = useState(false);
@@ -48,8 +51,16 @@ export default function SubstackDetail({ substack, stackTypes, detail, details, 
   const [relatedPreviewId, setRelatedPreviewId] = useState<string | null>(null);
   const [relatedOpen, setRelatedOpen] = useState(true);
   const [panelOpen, setPanelOpen] = useState(true);
+  const [replyOpen, setReplyOpen] = useState(false);
+  const [replyDraft, setReplyDraft] = useState<ReplyDraft | null>(null);
+  const [replyBody, setReplyBody] = useState("");
+  const [replyBusy, setReplyBusy] = useState(false);
+  const [replyError, setReplyError] = useState<string | null>(null);
+  const [replyLogged, setReplyLogged] = useState(false);
   const type = stackTypes.find((item) => item.id === substack.typeId);
   const isConversation = substack.typeId === "conversations";
+  const isClient = substack.typeId === "clients";
+  const canReply = substack.typeId === "sales-orders" && Boolean(accountId);
   const sources = detail?.sources ?? [];
   const previewSources = relatedPreviewId && details[relatedPreviewId] ? details[relatedPreviewId].sources : sources;
   const activeSourceIds = hoveredSourceIds ?? (relatedPreviewId ? null : pinned?.sourceIds ?? null);
@@ -96,6 +107,43 @@ export default function SubstackDetail({ substack, stackTypes, detail, details, 
   });
   const summarized = Boolean(displayed?.id) && !(displayed?.segments ?? []).some((segment) => segment.kind !== "text");
 
+  const openReply = async () => {
+    if (!accountId || replyBusy) return;
+    setReplyBusy(true);
+    setReplyError(null);
+    setReplyLogged(false);
+    try {
+      const draft = await draftSubstackReply(accountId, substack.id);
+      setReplyDraft(draft);
+      setReplyBody(draft.body);
+      setReplyOpen(true);
+      track("reply_drafted", { stack_type: substack.typeId, channel: draft.channel });
+    } catch (error) {
+      setReplyOpen(true);
+      setReplyDraft(null);
+      setReplyBody("");
+      setReplyError(error instanceof Error ? error.message : "Could not draft a reply.");
+    } finally {
+      setReplyBusy(false);
+    }
+  };
+
+  const sendReply = async () => {
+    if (!accountId || !replyDraft || replyBusy || !replyBody.trim()) return;
+    setReplyBusy(true);
+    setReplyError(null);
+    try {
+      const channel: ReplyChannel = replyDraft.channel;
+      await sendSubstackReply(accountId, substack.id, { body: replyBody.trim(), channel });
+      setReplyLogged(true);
+      track("reply_sent", { stack_type: substack.typeId, channel });
+    } catch (error) {
+      setReplyError(error instanceof Error ? error.message : "Could not log the reply.");
+    } finally {
+      setReplyBusy(false);
+    }
+  };
+
   return (
     <div className={`${styles.page} ${panelOpen ? "" : styles.pagePanelClosed}`}>
       <section className={styles.content}>
@@ -111,7 +159,18 @@ export default function SubstackDetail({ substack, stackTypes, detail, details, 
               <button type="button" onClick={queue.onNext ?? undefined} disabled={!queue.onNext} aria-label="Next item to check"><Icon name="chevron-right" size={16} /></button>
             </nav>
           )}
-          <button className={queue ? `${styles.panelToggle} ${styles.panelToggleInline}` : styles.panelToggle} onClick={() => togglePanel(!panelOpen)} aria-label={panelOpen ? "Close side panel" : "Open side panel"} aria-expanded={panelOpen}><Icon name="panel-right" size={18} /></button>
+          <button className={queue || canReply ? `${styles.panelToggle} ${styles.panelToggleInline}` : styles.panelToggle} onClick={() => togglePanel(!panelOpen)} aria-label={panelOpen ? "Close side panel" : "Open side panel"} aria-expanded={panelOpen}><Icon name="panel-right" size={18} /></button>
+          {canReply && (
+            <button
+              type="button"
+              className={queue ? styles.replyButton : `${styles.replyButton} ${styles.replyButtonEnd}`}
+              onClick={openReply}
+              disabled={replyBusy}
+              aria-label="Draft a reply from this order"
+            >
+              <Icon name="send" size={14} /> Reply
+            </button>
+          )}
         </header>
 
         {substack.generating && (
@@ -177,6 +236,43 @@ export default function SubstackDetail({ substack, stackTypes, detail, details, 
           </div>
         )}
 
+        {replyOpen && (
+          <section className={styles.replyPanel} aria-label="Reply draft">
+            <div className={styles.replyHeader}>
+              <h2>Reply draft</h2>
+              {replyDraft && <span className={styles.replyChannel}>{replyDraft.channel}</span>}
+              <button type="button" className={styles.replyDismiss} onClick={() => setReplyOpen(false)} aria-label="Close reply draft">
+                <Icon name="x" size={14} />
+              </button>
+            </div>
+            {replyError && <p className={styles.replyError} role="alert">{replyError}</p>}
+            {replyDraft && (
+              <>
+                <textarea
+                  className={styles.replyBody}
+                  value={replyBody}
+                  onChange={(event) => {
+                    setReplyBody(event.target.value);
+                    setReplyLogged(false);
+                  }}
+                  rows={5}
+                  aria-label="Edit reply before sending"
+                />
+                <p className={styles.replyHint}>
+                  Drafted from confirmed values only. Nothing sends until you tap Send
+                  {replyDraft.channel === "email" ? " (email is logged only — no SMTP)." : " (WhatsApp is logged only — no templates)."}
+                </p>
+                <div className={styles.replyActions}>
+                  <button type="button" className={styles.sendButton} onClick={sendReply} disabled={replyBusy || replyLogged || !replyBody.trim()}>
+                    <Icon name="send" size={14} /> {replyLogged ? "Logged" : "Send"}
+                  </button>
+                  {replyLogged && <span className={styles.replyLogged}>Logged on the order timeline — not transmitted.</span>}
+                </div>
+              </>
+            )}
+          </section>
+        )}
+
         <div className={styles.toolbar}>
           {isConversation && <span className={styles.sortLabel}>Most recent first</span>}
           <label><Icon name="search" size={14} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={isConversation ? "Search summary" : "Search content"} /></label>
@@ -225,6 +321,15 @@ export default function SubstackDetail({ substack, stackTypes, detail, details, 
               <p className={styles.empty}>{(displayed?.segments.length ?? 0) === 0 ? (substack.generating ? "Generating content…" : "No generated content yet.") : "No matching content."}</p>
             )}
           </div>
+        )}
+
+        {isClient && accountId && (
+          <ClientPicture
+            accountId={accountId}
+            substackId={substack.id}
+            stackTypes={stackTypes}
+            onOpen={onOpen}
+          />
         )}
 
         <section className={`${styles.related} ${relatedOpen ? "" : styles.relatedClosed}`}>

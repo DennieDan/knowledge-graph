@@ -13,14 +13,16 @@ from .findings import create_finding
 from .jobs import JobNotReady, claim_job, defer_job, fail_job, finish_job, park_budget_exhausted
 from .knowledge_analysis import discover_document, generate_substack, regenerate_records
 from .models import DriveConnection, DriveWorkspace, DriveWorkspaceConnection, KnowledgeJob, Substack, User
+from .propose import run_propose_version
+from .recheck import run_recheck
 from .scoring import run_score_job
 from .spend import budget_exhausted
 
 # Tolerances (#31 step 3).
 # Prompt and idempotent, retried 4x with backoff: embed_version, sync_workspace, whatsapp_ingest.
 # Batchable, retried 4x then marked generation_error: discover_document, generate_substack.
-# Scheduled and skippable, never retried into the next night: run_checks, score_questions.
-SCHEDULED_KINDS = ("run_checks", "score_questions")
+# Scheduled and skippable, never retried into the next night: run_checks, score_questions, run_recheck.
+SCHEDULED_KINDS = ("run_checks", "score_questions", "run_recheck")
 # Kinds that call a model check the daily token budget before running.
 BUDGETED_KINDS = ("generate_substack", "score_questions")
 
@@ -135,6 +137,10 @@ def _dispatch(session: Session, job: KnowledgeJob) -> None:
         run_all_checks(session, job.organization_id)
     elif job.kind == "score_questions":
         run_score_job(session, job.organization_id)
+    elif job.kind == "run_recheck":
+        run_recheck(session, job.organization_id)
+    elif job.kind == "propose_version":
+        run_propose_version(session, UUID(job.payload["document_version_id"]))
     else:
         raise ValueError(f"unsupported_job_kind:{job.kind}")
 

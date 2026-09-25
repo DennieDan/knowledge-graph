@@ -18,6 +18,7 @@ from .embedding_jobs import enqueue_version_embedding
 from .generation import LLM_STACK_TYPES, mark_stale_for_document, run_generation
 from .ingest import SourceDocument, drop_superseded_chunks, ingest_document
 from .models import Document, DocumentVersion, Substack, SubstackSource
+from .propose import enqueue_propose_from
 
 STACK_TYPE_FOR_SOURCE = {
     "google_drive": "files",
@@ -82,4 +83,6 @@ def ingest_and_file(session: Session, organization_id: UUID, source_document: So
                 run_generation(session, stale)
         drop_superseded_chunks(session, document.id)
         enqueue_version_embedding(session, version, document)
+        # #92 Step 3/4: after a new version, queue propose_from (worker runs it).
+        enqueue_propose_from(session, version, document)
     return version

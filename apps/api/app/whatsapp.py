@@ -1,4 +1,6 @@
 import hashlib
+import hmac
+import json
 import time
 from datetime import datetime, timezone
 from uuid import UUID
@@ -26,6 +28,16 @@ INGEST_DEBOUNCE_SECONDS = 30
 UPLOAD_MAX_BYTES = 5 * 1024 * 1024
 
 router = APIRouter(prefix="/whatsapp", tags=["whatsapp"])
+
+
+def hmac_sha256_hex(secret: str, raw: bytes) -> str:
+    return hmac.new(secret.encode("utf-8"), raw, hashlib.sha256).hexdigest()
+
+
+def verify_hub_signature(raw: bytes, signature_header: str, app_secret: str) -> bool:
+    """Meta Cloud API: X-Hub-Signature-256 = 'sha256=' + hmac_sha256(app_secret, raw)."""
+    expected = "sha256=" + hmac_sha256_hex(app_secret, raw)
+    return hmac.compare_digest(expected, signature_header.strip())
 
 
 class PairingRequest(BaseModel):
@@ -505,15 +517,40 @@ async def webhook(
     request: Request,
     background_tasks: BackgroundTasks,
     x_webhook_token: str | None = Header(default=None),
+    x_hub_signature_256: str | None = Header(default=None),
     session: Session = Depends(get_session),
 ):
+    """WAHA test-number path and Meta Cloud API signature path sit side by side.
+
+    #92 Step 2: when X-Hub-Signature-256 is present, verify HMAC over the RAW body
+    before any JSON parse. When the header is absent, keep the existing WAHA door
+    (optional X-Webhook-Token). Propose readers run against stored whatsapp_messages.
+    """
     settings = get_settings()
-    if settings.waha_webhook_secret is not None and (
+    # RAW BYTES first — re-serializing parsed JSON will not match Meta's signature.
+    raw = await request.body()
+
+    if x_hub_signature_256:
+        secret = settings.whatsapp_app_secret
+        if secret is None or not verify_hub_signature(
+            raw, x_hub_signature_256, secret.get_secret_value()
+        ):
+            raise HTTPException(status_code=403, detail="invalid_hub_signature")
+    elif settings.waha_webhook_secret is not None and (
         x_webhook_token != settings.waha_webhook_secret.get_secret_value()
     ):
         raise HTTPException(status_code=401, detail="invalid_webhook_token")
 
-    event = await request.json()
+    try:
+        event = json.loads(raw.decode("utf-8") or "{}")
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise HTTPException(status_code=400, detail="invalid_json") from exc
+
+    # Official Cloud API payloads use `object: whatsapp_business_account` — accept
+    # after signature verification; message storage still lands via WAHA today.
+    if event.get("object") == "whatsapp_business_account":
+        return {"status": "ok"}
+
     session_name = event.get("session")
     if not session_name:
         return {"status": "ignored"}

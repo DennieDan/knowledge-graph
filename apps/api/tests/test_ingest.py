@@ -81,9 +81,11 @@ class DriveFetchTests(unittest.TestCase):
             fetch_file_text("token", {"id": "f1", "mimeType": "text/markdown"})
         self.assertEqual("media", get.call_args.kwargs["params"]["alt"])
 
-    def test_binary_files_are_rejected(self):
+    def test_unknown_binary_files_are_rejected(self):
+        from app.drive import UnsupportedFileType
+
         with self.assertRaises(UnsupportedFileType):
-            fetch_file_text("token", {"id": "f1", "mimeType": "application/pdf"})
+            fetch_file_text("token", {"id": "f1", "mimeType": "image/png"})
 
 
 class IngestDocumentTests(unittest.TestCase):
