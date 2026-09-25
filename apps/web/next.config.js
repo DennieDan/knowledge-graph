@@ -29,6 +29,10 @@ const nextConfig = staticExport
     }
   : landingOnly
   ? {
+      async redirects() {
+        // One indexable URL for the landing page: the root.
+        return [{ source: "/landing", destination: "/", permanent: true }];
+      },
       async rewrites() {
         // The landing page is the whole site here, so it answers at the root
         // instead of the workspace redirect in app/page.tsx.

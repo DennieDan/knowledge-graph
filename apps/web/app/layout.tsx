@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import { siteUrl } from "./lib/site";
+import { site, siteUrl } from "./lib/site";
 import "./globals.css";
 
 const inter = Inter({
@@ -11,8 +11,12 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: "crosspod",
-  description: "Your knowledge, together.",
+  title: {
+    default: `${site.name} — ${site.tagline}`,
+    template: `%s | ${site.name}`,
+  },
+  description: site.metaDescription,
+  applicationName: site.name,
 };
 
 export default function RootLayout({
@@ -21,7 +25,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang={site.language}>
       <body className={inter.variable}>{children}</body>
     </html>
   );
