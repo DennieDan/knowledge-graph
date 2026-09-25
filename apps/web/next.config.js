@@ -8,8 +8,10 @@ const proxyTarget = process.env.API_PROXY_TARGET?.replace(/\/+$/, "");
 const posthogHost = (process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://us.i.posthog.com").replace(/\/+$/, "");
 const posthogAssets = posthogHost.replace(/:\/\/(\w+)\.i\./, "://$1-assets.i.");
 const landingOnly = process.env.NEXT_PUBLIC_LANDING_ONLY === "true";
+// GitHub Pages cannot run a Next server; a Vercel landing deployment can.
+const staticExport = process.env.LANDING_STATIC_EXPORT === "true";
 
-if (process.env.VERCEL_ENV === "production") {
+if (process.env.VERCEL_ENV === "production" && !landingOnly) {
   if (!apiUrl) throw new Error("NEXT_PUBLIC_API_URL must be set for production builds");
   if (apiUrl.startsWith("/") && !proxyTarget) {
     throw new Error("API_PROXY_TARGET must be set when NEXT_PUBLIC_API_URL is a relative path");
@@ -17,13 +19,25 @@ if (process.env.VERCEL_ENV === "production") {
 }
 
 /** @type {import('next').NextConfig} */
-const nextConfig = landingOnly
+const nextConfig = staticExport
   ? {
       // Static export for GitHub Pages; rewrites and proxying cannot run there.
       output: "export",
       trailingSlash: true,
       basePath: process.env.NEXT_PUBLIC_BASE_PATH || undefined,
       images: { unoptimized: true },
+    }
+  : landingOnly
+  ? {
+      async rewrites() {
+        // The landing page is the whole site here, so it answers at the root
+        // instead of the workspace redirect in app/page.tsx.
+        return {
+          beforeFiles: [{ source: "/", destination: "/landing" }],
+          afterFiles: [],
+          fallback: [],
+        };
+      },
     }
   : {
       // PostHog API paths rely on trailing slashes.
