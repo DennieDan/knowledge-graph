@@ -1,5 +1,7 @@
+// Canonical origin of the marketing deployment; override once a domain exists.
 export const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "https://crosspod.sg";
+  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ??
+  "https://knowledge-graph-web-sooty.vercel.app";
 
 export const landingOnly = process.env.NEXT_PUBLIC_LANDING_ONLY === "true";
 
