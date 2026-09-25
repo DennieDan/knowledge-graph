@@ -21,6 +21,7 @@ concurrency:
 
 env:
   NEXT_PUBLIC_LANDING_ONLY: "true"
+  LANDING_STATIC_EXPORT: "true"
   NEXT_PUBLIC_BASE_PATH: /knowledge-graph
   NEXT_PUBLIC_SITE_URL: https://denniedan.github.io/knowledge-graph
 
