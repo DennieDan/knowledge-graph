@@ -1,7 +1,7 @@
 """Postgres RLS second gate for org isolation (#101 Step 2).
 
-Revision ID: 0017
-Revises: 0016
+Revision ID: 0027
+Revises: 0026
 
 App-layer field filters in record_access remain the primary gate. This
 revision enables row-level security as a second wall:
@@ -21,8 +21,8 @@ Tests SET LOCAL ROLE to a non-bypass role inside a rolled-back transaction.
 from alembic import op
 
 
-revision = "0017"
-down_revision = "0016"
+revision = "0027"
+down_revision = "0026"
 branch_labels = None
 depends_on = None
 
