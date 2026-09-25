@@ -40,26 +40,36 @@ def search_chunks(
     owner_user_id: UUID | None,
     query: str,
     limit: int,
+    *,
+    document_ids: list[UUID] | None = None,
 ) -> list[RetrievedChunk]:
     """Rank chunks for a person's query.
 
     Unlike `retrieve_chunks`, which widens the set with keyword hits and
     neighbouring chunks so a generator has context, every row here is a hit the
     reader asked for, ordered by distance.
+
+    When `document_ids` is set (ask-from-order), ranking is limited to those
+    documents so this order's sources come before a company-wide sweep.
     """
     settings = get_settings()
     distance = Chunk.embedding.cosine_distance(embed_query(query))
+    filters = [
+        Document.organization_id == organization_id,
+        visibility_filter(owner_user_id),
+        _latest_version_filter(),
+        Chunk.embedding.is_not(None),
+        Chunk.embedding_model == settings.embedding_model,
+    ]
+    if document_ids is not None:
+        if not document_ids:
+            return []
+        filters.append(Document.id.in_(document_ids))
     rows = session.execute(
         select(Chunk, Document, distance.label("distance"))
         .join(DocumentVersion, Chunk.document_version_id == DocumentVersion.id)
         .join(Document, DocumentVersion.document_id == Document.id)
-        .where(
-            Document.organization_id == organization_id,
-            visibility_filter(owner_user_id),
-            _latest_version_filter(),
-            Chunk.embedding.is_not(None),
-            Chunk.embedding_model == settings.embedding_model,
-        )
+        .where(*filters)
         .order_by(distance, Chunk.id)
         .limit(limit)
     ).all()
@@ -67,6 +77,35 @@ def search_chunks(
         RetrievedChunk(chunk=chunk, document=document, score=float(row_distance))
         for chunk, document, row_distance in rows
     ]
+
+
+def chunks_for_documents(
+    session: Session,
+    organization_id: UUID,
+    owner_user_id: UUID | None,
+    document_ids: list[UUID],
+    limit: int,
+) -> list[RetrievedChunk]:
+    """Load embedded chunks from specific documents the asker may read."""
+    if not document_ids:
+        return []
+    settings = get_settings()
+    rows = session.execute(
+        select(Chunk, Document)
+        .join(DocumentVersion, Chunk.document_version_id == DocumentVersion.id)
+        .join(Document, DocumentVersion.document_id == Document.id)
+        .where(
+            Document.organization_id == organization_id,
+            visibility_filter(owner_user_id),
+            _latest_version_filter(),
+            Document.id.in_(document_ids),
+            Chunk.embedding.is_not(None),
+            Chunk.embedding_model == settings.embedding_model,
+        )
+        .order_by(Chunk.position, Chunk.id)
+        .limit(limit)
+    ).all()
+    return [RetrievedChunk(chunk=chunk, document=document) for chunk, document in rows]
 
 
 def retrieve_chunks(

@@ -24,6 +24,9 @@ from .queue import router as queue_router
 
 
 from .replies import router as replies_router
+
+
+from .morning import router as morning_router
 from .search import router as search_router
 from .stacks import router as stacks_router
 from .timeline import router as timeline_router
@@ -81,6 +84,9 @@ app.include_router(timeline_router)
 # #94 F-03: the assistant connector, read-only over MCP, and its keys.
 app.include_router(connector_keys_router)
 mount_connector(app)
+
+
+app.include_router(morning_router)
 
 
 @app.get("/health")

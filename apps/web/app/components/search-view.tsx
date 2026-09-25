@@ -88,11 +88,13 @@ function AnswerBlock({
   onOpenRecord: (id: string) => void;
 }) {
   const [feedback, setFeedback] = useState(message.feedback);
+  const [reasonOpen, setReasonOpen] = useState(false);
   const [stepsOpen, setStepsOpen] = useState(false);
 
-  const rate = (rating: "up" | "down") => {
+  const rate = (rating: "up" | "down", reason?: string) => {
     setFeedback(rating);
-    setChatFeedback(accountId, message.id, rating).catch(() =>
+    setReasonOpen(false);
+    setChatFeedback(accountId, message.id, rating, reason).catch(() =>
       setFeedback(message.feedback),
     );
   };
@@ -145,7 +147,7 @@ function AnswerBlock({
             <button
               type="button"
               className={`${styles.rateBtn} ${feedback === "down" ? styles.rateOn : ""}`}
-              onClick={() => rate("down")}
+              onClick={() => setReasonOpen((v) => !v)}
               aria-label="Not helpful"
               aria-pressed={feedback === "down"}
             >
@@ -164,6 +166,20 @@ function AnswerBlock({
           </button>
         )}
       </div>
+      {reasonOpen && (
+        <div className={styles.reasonRow} role="group" aria-label="Why was this unhelpful?">
+          {["Wrong answer", "Missing sources", "Out of date", "Other"].map((label) => (
+            <button
+              key={label}
+              type="button"
+              className={styles.reasonChip}
+              onClick={() => rate("down", label)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
       {stepsOpen && (
         <ul className={styles.stepsList}>
           {queries.map((q, i) => (
@@ -223,9 +239,15 @@ function LiveProgress({ events }: { events: ChatProgress[] }) {
 export default function SearchView({
   accountId,
   onOpenRecord,
+  scopeSubstackId = null,
+  scopeLabel = null,
+  onClearScope,
 }: {
   accountId: string | null;
   onOpenRecord: (id: string) => void;
+  scopeSubstackId?: string | null;
+  scopeLabel?: string | null;
+  onClearScope?: () => void;
 }) {
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [threadId, setThreadId] = useState<string | null>(null);
@@ -286,6 +308,11 @@ export default function SearchView({
     };
   }, [accountId]);
 
+  const startNew = () => {
+    setThreadId(null);
+    onClearScope?.();
+  };
+
   const send = async () => {
     const text = input.trim();
     if (!text || !accountId || busy) return;
@@ -314,11 +341,16 @@ export default function SearchView({
           citations: [],
           steps: [],
           feedback: null,
+          feedback_reason: null,
           created_at: null,
         },
       ]);
-      const answer = await streamChatMessage(accountId, id, text, (event) =>
-        setProgress((p) => [...p, event]),
+      const answer = await streamChatMessage(
+        accountId,
+        id,
+        text,
+        (event) => setProgress((p) => [...p, event]),
+        { substackId: scopeSubstackId },
       );
       setMessages((m) => [...m, answer]);
       setInput("");
@@ -350,7 +382,7 @@ export default function SearchView({
         <button
           type="button"
           className={styles.newThread}
-          onClick={() => setThreadId(null)}
+          onClick={startNew}
         >
           <Icon name="plus" size={14} /> New question
         </button>
@@ -360,7 +392,10 @@ export default function SearchView({
               key={t.id}
               type="button"
               className={`${styles.threadItem} ${t.id === threadId ? styles.threadOn : ""}`}
-              onClick={() => setThreadId(t.id)}
+              onClick={() => {
+                setThreadId(t.id);
+                onClearScope?.();
+              }}
             >
               {t.title ?? "Untitled"}
             </button>
@@ -376,11 +411,24 @@ export default function SearchView({
               {indexing}
             </p>
           )}
+          {scopeSubstackId && scopeLabel && (
+            <p className={styles.scopeBanner}>
+              <Icon name="layers" size={14} />
+              Asking about <strong>{scopeLabel}</strong>
+              {onClearScope && (
+                <button type="button" onClick={onClearScope} aria-label="Clear order scope">
+                  <Icon name="x" size={12} />
+                </button>
+              )}
+            </p>
+          )}
           {loading ? (
             <p className={styles.empty}>Loading…</p>
           ) : messages.length === 0 && !busy ? (
             <p className={styles.empty}>
-              Ask a question about your checked records and sources.
+              {scopeLabel
+                ? `Ask a question about ${scopeLabel}.`
+                : "Ask a question about your checked records and sources."}
             </p>
           ) : (
             messages.map((m) =>
@@ -414,7 +462,11 @@ export default function SearchView({
           <input
             type="text"
             aria-label="Ask a question"
-            placeholder="Ask about orders, clients, documents…"
+            placeholder={
+              scopeLabel
+                ? `Ask about ${scopeLabel}…`
+                : "Ask about orders, clients, documents…"
+            }
             value={input}
             onChange={(e) => setInput(e.target.value)}
             disabled={!accountId || busy}

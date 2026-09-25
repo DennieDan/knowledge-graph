@@ -225,6 +225,61 @@
   color: var(--md-sys-color-primary);
 }
 
+.reasonRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.reasonChip {
+  padding: 4px 10px;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: 999px;
+  background: var(--md-sys-color-surface);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.reasonChip:hover {
+  border-color: var(--md-sys-color-primary);
+  color: var(--md-sys-color-primary);
+}
+
+.scopeBanner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+  font-size: 13px;
+}
+
+.scopeBanner strong {
+  font-weight: 600;
+}
+
+.scopeBanner button {
+  display: grid;
+  place-items: center;
+  margin-left: auto;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.scopeBanner button:hover {
+  background: color-mix(in srgb, var(--md-sys-color-on-secondary-container) 12%, transparent);
+}
+
 .stepsBtn {
   display: inline-flex;
   align-items: center;

@@ -1,7 +1,7 @@
 """connector_keys: one named, revocable, read-only key per AI assistant (#94)
 
-Revision ID: 0030
-Revises: 0029
+Revision ID: 0032
+Revises: 0031
 
 Additive only. The assistant connector (MCP, app/connector.py) authenticates
 with these keys. Only the SHA-256 of each key is stored.
@@ -10,8 +10,8 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision = "0030"
-down_revision = "0029"
+revision = "0032"
+down_revision = "0031"
 branch_labels = None
 depends_on = None
 
