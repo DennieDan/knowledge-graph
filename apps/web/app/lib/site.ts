@@ -8,9 +8,22 @@ export const site = {
   tagline: "Every order, confirmed in one place",
   description:
     "crossPOd reads the purchase orders, WhatsApp messages, scanned forms and Drive files your customers already send, turns them into confirmed records with evidence, and answers questions about them. Built for B2B suppliers and Singapore SMEs.",
+  // Search results cut off around 160 characters; the long form is for og: and JSON-LD.
+  metaDescription:
+    "Turn PO PDFs, WhatsApp messages and scanned forms into confirmed orders with evidence on every field — purchase order automation for Singapore B2B suppliers.",
   locale: "en_SG",
+  language: "en-SG",
   twitter: "@crosspodhq",
   contactEmail: "hello@crosspod.sg",
+  // Raster logo for structured data; the nav uses an inline SVG of the same mark.
+  logoPath: "/crosspod-logo.png",
+} as const;
+
+// TODO: replace with the registered entity's details before launch.
+export const company = {
+  legalName: "crossPOd Pte. Ltd.",
+  addressLocality: "Singapore",
+  addressCountry: "SG",
 } as const;
 
 export const plans = [

@@ -1,19 +1,23 @@
 import type { Metadata } from "next";
-import { faqs, plans, site, siteUrl } from "../lib/site";
+import { company, faqs, plans, site, siteUrl } from "../lib/site";
 import DemoDialog from "./demo-dialog";
 import FaqAccordion from "./faq-accordion";
 import PricingTabs from "./pricing-tabs";
 import SourcesCarousel from "./sources-carousel";
 import styles from "./page.module.css";
 
-const pageUrl = `${siteUrl}/landing`;
+// The landing page is served at the root of the marketing deployment.
+const pageUrl = siteUrl;
+const logoUrl = `${siteUrl}${site.logoPath}`;
 
-const title = `${site.name} — ${site.tagline}`;
+const title = `Purchase Order Automation for Singapore B2B Suppliers | ${site.name}`;
+const socialTitle = `${site.name} — ${site.tagline}`;
 
 export const metadata: Metadata = {
-  title,
-  description: site.description,
+  title: { absolute: title },
+  description: site.metaDescription,
   keywords: [
+    "order entry software",
     "order management software Singapore",
     "purchase order automation",
     "WhatsApp order processing",
@@ -33,13 +37,14 @@ export const metadata: Metadata = {
     url: pageUrl,
     siteName: site.name,
     locale: site.locale,
-    title,
+    title: socialTitle,
     description: site.description,
   },
   twitter: {
     card: "summary_large_image",
     site: site.twitter,
-    title,
+    creator: site.twitter,
+    title: socialTitle,
     description: site.description,
   },
 };
@@ -86,9 +91,33 @@ const features = [
   },
 ] as const;
 
+const organizationId = `${siteUrl}/#organization`;
+
 const jsonLd = {
   "@context": "https://schema.org",
   "@graph": [
+    {
+      "@type": "Organization",
+      "@id": organizationId,
+      name: site.name,
+      legalName: company.legalName,
+      url: pageUrl,
+      logo: logoUrl,
+      email: site.contactEmail,
+      address: {
+        "@type": "PostalAddress",
+        addressLocality: company.addressLocality,
+        addressCountry: company.addressCountry,
+      },
+    },
+    {
+      "@type": "WebSite",
+      "@id": `${siteUrl}/#website`,
+      name: site.name,
+      url: pageUrl,
+      inLanguage: site.language,
+      publisher: { "@id": organizationId },
+    },
     {
       "@type": "SoftwareApplication",
       name: site.name,
@@ -96,6 +125,7 @@ const jsonLd = {
       operatingSystem: "Web",
       url: pageUrl,
       description: site.description,
+      publisher: { "@id": organizationId },
       offers: plans
         .filter((plan) => plan.price.startsWith("S$"))
         .map((plan) => ({
@@ -103,7 +133,7 @@ const jsonLd = {
           name: plan.name,
           price: plan.price.replace("S$", ""),
           priceCurrency: "SGD",
-          url: `${pageUrl}#pricing`,
+          url: `${pageUrl}/#pricing`,
         })),
     },
     {
@@ -117,6 +147,26 @@ const jsonLd = {
   ],
 };
 
+// Inlined so the mark paints with the first byte of HTML and follows the text color.
+function BrandMark() {
+  return (
+    <svg
+      className={styles.brandMark}
+      viewBox="0 0 32 32"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={3.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M16 3.4 L26.6 9.2 L16 15 L5.4 9.2 Z" fill="currentColor" />
+      <path d="M5.4 17.2 L16 23 L26.6 17.2" />
+      <path d="M5.4 23.4 L16 29.2 L26.6 23.4" />
+    </svg>
+  );
+}
+
 export default function LandingPage() {
   return (
     <div className={styles.page}>
@@ -128,6 +178,7 @@ export default function LandingPage() {
 
       <header className={styles.nav}>
         <a className={styles.brand} href="#hero">
+          <BrandMark />
           {site.name}
           <span className={styles.brandDot} />
         </a>
@@ -157,11 +208,12 @@ export default function LandingPage() {
               For B2B suppliers and Singapore SMEs
             </p>
             <h1 className={styles.heroTitle}>
-              Every order, <em>confirmed</em> in one place.
+              Purchase orders, <em>confirmed</em> in one place.
             </h1>
             <p className={styles.heroBody}>
-              POs, WhatsApp, email, scans — crossPOd turns all of it into one
-              confirmed order your whole team can trust.
+              PO PDFs, WhatsApp, email, scans — crossPOd is order entry software
+              that turns all of it into one confirmed order your whole team can
+              trust.
             </p>
             <div className={styles.heroActions}>
               <DemoDialog
@@ -304,7 +356,10 @@ export default function LandingPage() {
         <p>
           {site.name} — {site.tagline}.
         </p>
-        <p>Singapore</p>
+        <p>
+          {company.legalName} · {company.addressLocality} ·{" "}
+          <a href={`mailto:${site.contactEmail}`}>{site.contactEmail}</a>
+        </p>
       </footer>
     </div>
   );

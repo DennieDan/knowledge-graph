@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 import { site } from "../lib/site";
 
 export const dynamic = "force-static";
-export const alt = `${site.name} — ${site.tagline}`;
+export const alt = `${site.name} — purchase orders, confirmed in one place`;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -21,16 +21,22 @@ export default function OpengraphImage() {
           color: "#ffffff",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <div
-            style={{
-              width: 14,
-              height: 14,
-              borderRadius: 7,
-              background: "#3c6e71",
-            }}
-          />
-          <div style={{ fontSize: 34, fontWeight: 700 }}>{site.name}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+          <svg
+            width={52}
+            height={52}
+            viewBox="0 0 32 32"
+            fill="none"
+            stroke="#ffffff"
+            strokeWidth={3.6}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M16 3.4 L26.6 9.2 L16 15 L5.4 9.2 Z" fill="#ffffff" />
+            <path d="M5.4 17.2 L16 23 L26.6 17.2" />
+            <path d="M5.4 23.4 L16 29.2 L26.6 23.4" />
+          </svg>
+          <div style={{ fontSize: 44, fontWeight: 700 }}>{site.name}</div>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
@@ -52,7 +58,7 @@ export default function OpengraphImage() {
               maxWidth: 940,
             }}
           >
-            Every order, confirmed in one place.
+            Purchase orders, confirmed in one place.
           </div>
         </div>
 

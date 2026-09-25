@@ -32,14 +32,22 @@
 
 .brand {
   display: inline-flex;
-  align-items: baseline;
+  align-items: center;
   gap: 4px;
   font-size: 20px;
   font-weight: 700;
   letter-spacing: -0.02em;
 }
 
+.brandMark {
+  width: 24px;
+  height: 24px;
+  margin-right: 4px;
+}
+
 .brandDot {
+  align-self: flex-end;
+  margin-bottom: 4px;
   width: 6px;
   height: 6px;
   border-radius: 50%;
