@@ -15,10 +15,10 @@ confirms every change.
 
 | Matriculation No. | Name | Main contributions |
 | ----------------- | ---- | ------------------ |
-| EXXXXXXX | Đinh Duy Linh Đan | Repository lead; knowledge pipeline (WhatsApp/Drive ingestion, chunking, embeddings), LLM extraction and generation, Stacks/Substacks API and UI |
-| E1121733 | Subramanian Karthikeyan | Marketing landing page, SEO/OG metadata, Vercel deployment configuration; backend API and tests |
-| EXXXXXXX | Ng Chen Meng | Backend review/operations stack: findings and checks, background job scheduler, question set, nightly scorer and regression gate, health/Maintenance |
-| E1406293 | Kalent Chia Chang Rong | Frontend: Ask chat interface, "To check" review queue, Stacks/substack detail, workspace shell and UI refinement; end-to-end testing |
+| A0276151H | Dinh Duy Linh Dan | Repository lead; knowledge pipeline (WhatsApp/Drive ingestion, chunking, embeddings), LLM extraction and generation, Stacks/Substacks API and UI |
+| A0308874R | Kalent Chia Chang Rong | Frontend: Ask chat interface, "To check" review queue, Stacks/substack detail, workspace shell and UI refinement; end-to-end testing |
+| A0322532R | Ng Chen Meng | Backend review/operations stack: findings and checks, background job scheduler, question set, nightly scorer and regression gate, health/Maintenance |
+| A0272330R | Subramanian Karthikeyan | Marketing landing page, SEO/OG metadata, Vercel deployment configuration; backend API and tests |
 
 ## What's inside
 
@@ -233,6 +233,8 @@ deployment checklist (OAuth redirect URIs, environment variables) lives in
 - [create-turbo / Turborepo starter](https://turborepo.dev/) — monorepo scaffold, build orchestration, pnpm workspaces
 - [Next.js 16](https://nextjs.org/) (App Router, Turbopack) and [React 19](https://react.dev/) — web frontend and landing page
 - [Material Design 3](https://m3.material.io/) — design system and color tokens (`--md-sys-color-*` in `apps/web/app/globals.css`)
+- [Mobbin](https://mobbin.com/) — UI design patterns and screen references
+- [Impeccable](https://impeccable.style/) — design reference for layout and visual polish
 - [FastAPI](https://fastapi.tiangolo.com/) + [SQLAlchemy](https://www.sqlalchemy.org/) + [Alembic](https://alembic.sqlalchemy.org/) — API, ORM, migrations
 - [PostgreSQL](https://www.postgresql.org/) + [pgvector](https://github.com/pgvector/pgvector) — storage and vector similarity search
 - [sentence-transformers](https://www.sbert.net/) with [`intfloat/multilingual-e5-small`](https://huggingface.co/intfloat/multilingual-e5-small) — self-hosted embeddings (model choice: [our survey](docs/research/embedding-model.md))
