@@ -19,11 +19,13 @@ export default function SourcesView({
   activeAccount,
   onManageWhatsApp,
   onManageDrive,
+  onSynced,
 }: {
   me: Me | null;
   activeAccount: Account | null;
   onManageWhatsApp: () => void;
   onManageDrive: () => void;
+  onSynced: () => void;
 }) {
   const [syncMsg, setSyncMsg] = useState("");
   const [syncState, setSyncState] = useState<{ done: number; total: number } | null>(null);
@@ -69,7 +71,7 @@ export default function SourcesView({
       if (rows.length === 0) {
         setSyncMsg("No Drive workspaces to sync.");
       } else {
-        setSyncMsg(`Queued ${queued} sync job(s). Worker will update freshness.`);
+        setSyncMsg(`Queued ${queued} sync documents.`);
       }
       refresh();
     } catch (reason) {
@@ -78,9 +80,6 @@ export default function SourcesView({
       setSyncState(null);
     }
   };
-
-  const failed = workspaces.filter((row) => row.health === "failed");
-  const stale = workspaces.filter((row) => row.health === "stale");
 
   return (
     <div className={styles.page}>
@@ -151,16 +150,6 @@ export default function SourcesView({
             ) : (
               <a href={loginUrl}>Sign in to connect</a>
             )}
-          </div>
-        </div>
-
-        <div className={styles.connCard}>
-          <p className={styles.connName}>Coverage</p>
-          <div className={styles.connRow}>
-            <span className={styles.pillLight}>
-              {failed.length + stale.length} gap{failed.length + stale.length === 1 ? "" : "s"}
-            </span>
-            <span className={styles.connMeta}>Drive health</span>
           </div>
         </div>
       </div>
