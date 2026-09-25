@@ -1,12 +1,26 @@
-# crossPOd
+<div align="center">
+  <img src="docs/assets/crosspod-banner.png" alt="crosspod" width="720" />
 
-**Every order, confirmed in one place.**
+  <h1>crosspod</h1>
 
-crossPOd is a knowledge platform for B2B suppliers and Singapore SMEs. It reads
-the purchase orders, WhatsApp messages, scanned forms, email attachments and
-Drive files customers already send, proposes structured records with evidence
-links, and answers questions from confirmed data. AI proposes — a person
-confirms every change.
+  <p><i>Every order, confirmed in one place.</i></p>
+
+  <p>
+    <img src="https://img.shields.io/badge/Next.js-16-black?style=flat-square" alt="Next.js 16" />
+    <img src="https://img.shields.io/badge/FastAPI-%2B_SQLAlchemy-009688?style=flat-square" alt="FastAPI + SQLAlchemy" />
+    <img src="https://img.shields.io/badge/PostgreSQL_18-%2B_pgvector-4169E1?style=flat-square" alt="PostgreSQL 18 + pgvector" />
+    <img src="https://img.shields.io/badge/OpenAI-gpt--5--mini-412991?style=flat-square" alt="OpenAI gpt-5-mini" />
+    <img src="https://img.shields.io/badge/Turborepo-%2B_pnpm-EF4444?style=flat-square" alt="Turborepo + pnpm" />
+    <img src="https://img.shields.io/badge/status-in_development-orange?style=flat-square" alt="status: in development" />
+  </p>
+
+  <p>
+    crosspod is a knowledge platform for B2B suppliers and Singapore SMEs. It reads the purchase orders,<br />
+    WhatsApp messages, scanned forms, email attachments and Drive files customers already send, proposes<br />
+    structured records with evidence links, and answers questions from confirmed data.<br />
+    <b>AI proposes — a person confirms every change.</b>
+  </p>
+</div>
 
 - **Live app:** https://knowledge-graph-web-sooty.vercel.app
 - CS3216 Assignment 3 · Group `asg3-dinh-subramanian-ng-kalent`
