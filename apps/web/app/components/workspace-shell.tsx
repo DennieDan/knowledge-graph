@@ -19,6 +19,7 @@ import CompanyMembers from "./company-members";
 import { CreateSubstackModal, DeleteSubstackModal } from "./stack-modals";
 import SignOutModal from "./sign-out-modal";
 import OnboardingBanner, { type OnboardingStep } from "./onboarding-banner";
+import BrandMark from "../landing/brand-mark";
 import {
   STACK_TYPES,
   toSubstack,
@@ -644,7 +645,7 @@ export default function WorkspaceShell() {
         >
           <div className={styles.brand}>
             <span className={styles.brandIcon}>
-              <Icon name="layers" size={15} />
+              <BrandMark size={15} />
             </span>
             crosspod
           </div>
