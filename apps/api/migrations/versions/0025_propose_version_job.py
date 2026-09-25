@@ -1,7 +1,7 @@
 """Add propose_version knowledge job kind (#92 Steps 3–4)
 
-Revision ID: 0017
-Revises: 0016
+Revision ID: 0025
+Revises: 0024
 
 After a new document version is ingested, the worker runs propose_from so every
 proposed field carries a verbatim quote. Extends the job-kind check only.
@@ -9,8 +9,8 @@ proposed field carries a verbatim quote. Extends the job-kind check only.
 from alembic import op
 
 
-revision = "0017"
-down_revision = "0016"
+revision = "0025"
+down_revision = "0024"
 branch_labels = None
 depends_on = None
 
