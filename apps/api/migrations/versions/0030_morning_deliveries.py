@@ -1,15 +1,15 @@
 """morning_deliveries table for email dry-run logging (#95)
 
-Revision ID: 0016
-Revises: 0015
+Revision ID: 0030
+Revises: 0029
 """
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 
-revision = "0016"
-down_revision = "0015"
+revision = "0030"
+down_revision = "0029"
 branch_labels = None
 depends_on = None
 
