@@ -46,7 +46,7 @@ export default function OpengraphImage() {
               maxWidth: 940,
             }}
           >
-            Purchase orders, confirmed in one place.
+            Every order, confirmed in one place.
           </div>
         </div>
 
