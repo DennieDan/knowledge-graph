@@ -41,6 +41,7 @@ class SchedulerTests(unittest.TestCase):
         }
         self.assertIn("run_checks", kinds)
         self.assertIn("score_questions", kinds)
+        self.assertIn("run_recheck", kinds)
 
     def test_budget_parks_generation_until_tomorrow(self):
         self.org.daily_token_budget = 100

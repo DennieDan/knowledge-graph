@@ -1,9 +1,10 @@
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Optional
 from uuid import UUID, uuid4
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func, text
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func, text, Numeric
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -319,7 +320,7 @@ class AnalysisRun(Base):
 class KnowledgeJob(Base):
     __tablename__ = "knowledge_jobs"
     __table_args__ = (
-        CheckConstraint("kind IN ('embed_version','discover_document','generate_substack','reconcile_scope','run_checks','sync_workspace','whatsapp_ingest','score_questions')", name="valid_knowledge_job_kind"),
+        CheckConstraint("kind IN ('embed_version','discover_document','generate_substack','reconcile_scope','run_checks','sync_workspace','whatsapp_ingest','score_questions','run_recheck')", name="valid_knowledge_job_kind"),
         CheckConstraint("status IN ('queued','running','succeeded','failed','cancelled','budget_exhausted')", name="valid_knowledge_job_status"),
         Index("ix_knowledge_jobs_available", "status", "available_at"),
     )
@@ -657,3 +658,155 @@ class ConfirmEvent(Base):
     kind: Mapped[str] = mapped_column(String(20))
     by_user_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+# --- Records / claims (#93 Step 1). Findings stay as above; do not replace. ---
+
+CLAIM_STATUSES = ("proposed", "confirmed", "superseded", "retracted")
+CLAIM_VALUE_TYPES = ("text", "numeric", "date", "bool")
+ORDER_EVENT_KINDS = (
+    "read",
+    "proposed",
+    "confirmed",
+    "edited",
+    "replied",
+    "rechecked",
+    "superseded",
+)
+
+
+class Record(Base):
+    __tablename__ = "records"
+    __table_args__ = (
+        Index("ix_records_org_stack_match", "organization_id", "stack_key", "match_key"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    stack_key: Mapped[str] = mapped_column(String(80))
+    parent_record_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("records.id", ondelete="SET NULL"), index=True)
+    match_key: Mapped[Optional[str]] = mapped_column(String(255))
+    # Bridge to existing Substack rows (#44); nullable until a record is linked.
+    substack_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("substacks.id", ondelete="SET NULL"), index=True)
+    attributes: Mapped[dict] = mapped_column(JSONB, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Claim(Base):
+    __tablename__ = "claims"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN (" + ",".join(f"'{s}'" for s in CLAIM_STATUSES) + ")",
+            name="valid_claim_status",
+        ),
+        CheckConstraint(
+            "value_type IN (" + ",".join(f"'{t}'" for t in CLAIM_VALUE_TYPES) + ")",
+            name="valid_claim_value_type",
+        ),
+        Index("ix_claims_record_field_status", "record_id", "field_key", "status"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    record_id: Mapped[UUID] = mapped_column(ForeignKey("records.id", ondelete="CASCADE"), index=True)
+    field_key: Mapped[str] = mapped_column(String(120))
+    value_text: Mapped[Optional[str]] = mapped_column(Text)
+    value_numeric: Mapped[Optional[Decimal]] = mapped_column(Numeric)
+    value_date: Mapped[Optional[date]] = mapped_column(Date)
+    value_bool: Mapped[Optional[bool]] = mapped_column(Boolean)
+    value_type: Mapped[str] = mapped_column(String(20))
+    quote: Mapped[Optional[str]] = mapped_column(Text)
+    location: Mapped[Optional[dict]] = mapped_column(JSONB)
+    origin: Mapped[str] = mapped_column(String(80))
+    status: Mapped[str] = mapped_column(String(20), default="proposed")
+    confirmed_by_user_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    confirmed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    asserted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    retracted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    # WhatsApp chats are user-scoped; confirmed facts stay org-owned but
+    # visibility of the source must still honour this user (#93 Step 2).
+    visible_via_user_id: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
+    finding_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("findings.id", ondelete="SET NULL"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class RecordLink(Base):
+    """PRD name: links. Polymorphic edges between records and other kinds."""
+
+    __tablename__ = "record_links"
+    __table_args__ = (
+        Index("ix_record_links_from", "organization_id", "from_kind", "from_id"),
+        Index("ix_record_links_to", "organization_id", "to_kind", "to_id"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    from_kind: Mapped[str] = mapped_column(String(50))
+    from_id: Mapped[UUID] = mapped_column()
+    to_kind: Mapped[str] = mapped_column(String(50))
+    to_id: Mapped[UUID] = mapped_column()
+    relation_name: Mapped[str] = mapped_column(String(120))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ChangeEvent(Base):
+    __tablename__ = "change_events"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "sequence_no", name="uq_change_events_org_sequence"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    sequence_no: Mapped[int] = mapped_column(Integer)
+    caused_by_finding_id: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey("findings.id", ondelete="SET NULL"), index=True
+    )
+    caused_by_user_id: Mapped[Optional[UUID]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    change_kind: Mapped[str] = mapped_column(String(80))
+    before_json: Mapped[Optional[dict]] = mapped_column(JSONB)
+    after_json: Mapped[Optional[dict]] = mapped_column(JSONB)
+    reverts_change_event_id: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey("change_events.id", ondelete="SET NULL")
+    )
+
+
+class OrderEvent(Base):
+    """Append-only order timeline. actor_user_id is required — no anonymous events."""
+
+    __tablename__ = "order_events"
+    __table_args__ = (
+        CheckConstraint(
+            "kind IN (" + ",".join(f"'{k}'" for k in ORDER_EVENT_KINDS) + ")",
+            name="valid_order_event_kind",
+        ),
+        Index("ix_order_events_order_at", "order_id", "at"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    order_id: Mapped[UUID] = mapped_column(ForeignKey("records.id", ondelete="CASCADE"))
+    kind: Mapped[str] = mapped_column(String(20))
+    actor_user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), index=True)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    payload: Mapped[dict] = mapped_column(JSONB, default=dict)
+
+
+class Subscription(Base):
+    """Push-watch subscription for Drive, Gmail, or Graph (#92).
+
+    Stub until a verified webhook domain is registered. Drive polling in
+    drive_sync.py remains the live sync path.
+    """
+
+    __tablename__ = "subscriptions"
+    __table_args__ = (Index("ix_subscriptions_expires_at", "expires_at"),)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    provider: Mapped[str] = mapped_column(String(40))
+    external_channel_id: Mapped[Optional[str]] = mapped_column(String(255))
+    resource_id: Mapped[Optional[str]] = mapped_column(String(255))
+    cursor: Mapped[Optional[str]] = mapped_column(Text)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    connection_id: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey("drive_connections.id", ondelete="SET NULL"), index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

@@ -8,12 +8,12 @@ from sqlalchemy.orm import Session
 
 from app.database import get_engine
 from app.models import Organization, TestQuestion
-from scripts.load_questions import load_fixture, upsert_rows
+from scripts.load_questions import load_fixture, upsert_rows, validate_fixture
 
 
 class QuestionFixtureTests(unittest.TestCase):
     def setUp(self):
-        self.data = load_fixture()
+        self.data = validate_fixture(load_fixture())
         self.synthetic = self.data["synthetic"]
         self.shapes = self.data["from_interview_shapes"]
 
@@ -38,6 +38,15 @@ class QuestionFixtureTests(unittest.TestCase):
         for q in self.synthetic:
             self.assertIsInstance(q["expected_chunk_ids"], list)
             self.assertIsInstance(q["expected_substack_ids"], list)
+
+    def test_dual_label_fields_present(self):
+        for q in self.synthetic:
+            self.assertIn("label_a", q)
+            self.assertIn("label_b", q)
+            self.assertIn("agreed", q)
+            self.assertEqual(q["label_a"]["status"], "outstanding")
+            self.assertEqual(q["label_b"]["status"], "outstanding")
+        self.assertEqual(sum(1 for q in self.synthetic if q["held_out"]), 10)
 
 
 class QuestionLoadTests(unittest.TestCase):
@@ -64,6 +73,8 @@ class QuestionLoadTests(unittest.TestCase):
         again = self.session.scalars(select(TestQuestion).where(TestQuestion.organization_id == self.org.id)).all()
         self.assertEqual(len(again), 65)
         self.assertTrue(all(r.meta.get("fixture_id") == r.external_key for r in again))
+        labelled = [r for r in again if r.origin == "synthetic"]
+        self.assertTrue(all(r.meta.get("label_a", {}).get("status") == "outstanding" for r in labelled))
 
 
 if __name__ == "__main__":

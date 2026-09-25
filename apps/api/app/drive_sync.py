@@ -3,8 +3,10 @@
 `POST /drive/workspaces/{id}/sync` lists the workspace, upserts `drive_files`,
 and ingests every selected file whose content may have changed. Re-ingestion is
 idempotent: `document_versions` skips unchanged content via `content_hash`.
-A future optimization is `changes.list` with a stored page token instead of a
-full listing.
+
+Live sync path (#92): keep this polling until a verified webhook domain exists
+and `subscriptions.start_watch` can call Google `changes.watch`. The subscription
+table and renewal stub sit beside this module — do not delete or replace polling.
 """
 from datetime import datetime, timezone
 from uuid import UUID

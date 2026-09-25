@@ -83,6 +83,13 @@ These tables deliberately have **no `organization_id`** — imported chats belon
 to the person, never to a workspace. Disconnecting (`DELETE /whatsapp/connect`)
 cascades and deletes the chats and messages.
 
+**Claim seam (#93 Step 2).** When a fact is proposed from a WhatsApp message into
+an org record, the claim still has two owners: `organization_id` (who owns the
+record) and `visible_via_user_id` (the connection's user — who was allowed to
+see the source). Use `app.claims.create_claim`, which requires
+`visible_via_user_id` for WhatsApp origins. Feature 10's permission check must
+honour both, or a private chat leaks to the company through a confirmed record.
+
 ### Endpoints
 
 All require the session cookie except `/whatsapp/webhooks`.
