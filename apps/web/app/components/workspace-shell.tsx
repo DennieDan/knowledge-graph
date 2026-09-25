@@ -16,6 +16,7 @@ import AccountOnboarding from "./account-onboarding";
 import AnalyzeDialog from "./analyze-dialog";
 import CompanyMembers from "./company-members";
 import { CreateSubstackModal, DeleteSubstackModal } from "./stack-modals";
+import SignOutModal from "./sign-out-modal";
 import {
   STACK_TYPES,
   toSubstack,
@@ -66,7 +67,8 @@ import styles from "./workspace-shell.module.css";
 type ModalState =
   | null
   | { kind: "createSubstack"; typeId: string }
-  | { kind: "deleteSubstack"; substack: Substack; source: "analyze" | "stacks"; message?: string };
+  | { kind: "deleteSubstack"; substack: Substack; source: "analyze" | "stacks"; message?: string }
+  | { kind: "signOut" };
 
 const NAV_ITEMS = [
   { icon: "activity", label: "Analyze workspace", id: "tocheck" },
@@ -196,9 +198,11 @@ export default function WorkspaceShell() {
     if (me) identifyUser(me, activeAccount);
   }, [me, activeAccount]);
 
-  const signOut = () => {
+  const signOut = async () => {
+    await logout();
     resetAnalytics();
-    logout().then(() => setMe(null));
+    setModal(null);
+    setMe(null);
   };
 
   const refreshSubstacks = useCallback(() => {
@@ -688,7 +692,7 @@ export default function WorkspaceShell() {
                 <button
                   type="button"
                   className={styles.signOut}
-                  onClick={signOut}
+                  onClick={() => setModal({ kind: "signOut" })}
                 >
                   Sign out
                 </button>
@@ -799,7 +803,7 @@ export default function WorkspaceShell() {
                   <button
                     type="button"
                     className={styles.signOut}
-                    onClick={signOut}
+                    onClick={() => setModal({ kind: "signOut" })}
                   >
                     Sign out
                   </button>
@@ -932,6 +936,11 @@ export default function WorkspaceShell() {
             onClose={closeModal}
             onConfirm={() => handleDeleteSubstack(modal.substack, modal.source)}
           />
+        </Modal>
+      )}
+      {modal?.kind === "signOut" && (
+        <Modal onClose={closeModal}>
+          <SignOutModal email={me.email} onClose={closeModal} onConfirm={signOut} />
         </Modal>
       )}
       {waOpen && (
