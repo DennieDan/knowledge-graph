@@ -66,7 +66,7 @@ import styles from "./workspace-shell.module.css";
 type ModalState =
   | null
   | { kind: "createSubstack"; typeId: string }
-  | { kind: "deleteSubstack"; substack: Substack; message?: string };
+  | { kind: "deleteSubstack"; substack: Substack; source: "analyze" | "stacks"; message?: string };
 
 const NAV_ITEMS = [
   { icon: "activity", label: "Analyze workspace", id: "tocheck" },
@@ -230,6 +230,19 @@ export default function WorkspaceShell() {
     if (!activeAccount || !analysisRuns.some(analysisInProgress)) return;
     const timer = window.setInterval(() => {
       listAnalysis(activeAccount.id).then((runs) => {
+        for (const run of runs) {
+          if (analysisInProgress(run) || !analysisRuns.some((prev) => prev.id === run.id && analysisInProgress(prev))) continue;
+          track("analysis_completed", {
+            status: run.status,
+            trigger: run.trigger,
+            documents: run.documents_total,
+            records_created: run.substacks_created,
+            records_updated: run.substacks_updated,
+            generated: run.generation_completed,
+            generation_failed: run.generation_failed,
+            failures: run.failures,
+          });
+        }
         setAnalysisRuns(runs);
         if (!runs.some(analysisInProgress)) {
           refreshSubstacks();
@@ -319,7 +332,26 @@ export default function WorkspaceShell() {
     }
   }, [change, substacks, substacksLoaded]);
 
-  const closeModal = useCallback(() => setModal(null), []);
+  const closeModal = () => {
+    if (modal?.kind === "createSubstack") track("substack_create_cancelled", { stack_type: modal.typeId });
+    if (modal?.kind === "deleteSubstack") {
+      track("substack_delete_cancelled", { stack_type: modal.substack.typeId, source: modal.source });
+    }
+    setModal(null);
+  };
+
+  const openCreateSubstack = (typeId: string) => {
+    track("substack_create_clicked", { stack_type: typeId });
+    setModal({ kind: "createSubstack", typeId });
+  };
+
+  const openDeleteSubstack = (substack: Substack, source: "analyze" | "stacks", message?: string) => {
+    track("substack_delete_clicked", { stack_type: substack.typeId, status: substack.status, source });
+    setModal({ kind: "deleteSubstack", substack, source, message });
+  };
+
+  /** "update" re-confirms an already-confirmed record; "generation" confirms newly generated content. */
+  const confirmChange = (ss: Substack | undefined) => (ss?.reviewState === "pending_update" ? "update" : "generation");
 
   const commitSidebarWidth = (width: number) => {
     const next = clampSidebar(width);
@@ -368,6 +400,11 @@ export default function WorkspaceShell() {
     setAnalyzeOpen(true);
   };
 
+  const handleCancelAnalysis = () => {
+    track("analysis_cancelled");
+    setAnalyzeOpen(false);
+  };
+
   const handleStartAnalysis = async (mode: RegenerateMode, substackIds: string[]) => {
     if (!activeAccount) return;
     setAnalysisBusy(true);
@@ -399,7 +436,10 @@ export default function WorkspaceShell() {
   const handleRetryAnalysis = (runId: string) => {
     setAnalysisBusy(true);
     retryAnalysis(runId)
-      .then(({ run }) => setAnalysisRuns((runs) => [run, ...runs.filter((item) => item.id !== run.id)]))
+      .then(({ run }) => {
+        track("analysis_retried");
+        setAnalysisRuns((runs) => [run, ...runs.filter((item) => item.id !== run.id)]);
+      })
       .catch((reason) => showNotice(reason instanceof Error ? reason.message : "Analysis could not be retried."))
       .finally(() => setAnalysisBusy(false));
   };
@@ -423,7 +463,7 @@ export default function WorkspaceShell() {
     setAnalysisBusy(true);
     confirmSubstack(ss.id)
       .then(() => {
-        track("substack_confirmed", { method: "single", stack_type: ss.typeId });
+        track("substack_confirmed", { method: "single", change: confirmChange(ss), stack_type: ss.typeId });
         refreshSubstacks();
         showNotice(`"${ss.name}" confirmed.`);
       })
@@ -440,11 +480,14 @@ export default function WorkspaceShell() {
 
   const handleConfirmContent = (substackId: string, contentId: string) => {
     const advanceTo = substackId === selectedSubstackId ? queueNav?.nextId ?? null : null;
+    const target = substacks.find((item) => item.id === substackId);
     confirmSubstackContent(substackId, contentId)
       .then(() => {
         track("substack_confirmed", {
           method: "content",
-          stack_type: substacks.find((item) => item.id === substackId)?.typeId ?? null,
+          change: confirmChange(target),
+          stack_type: target?.typeId ?? null,
+          from_review_queue: Boolean(queueNav),
         });
         refreshSubstacks();
         ensureDetail(substackId);
@@ -490,9 +533,9 @@ export default function WorkspaceShell() {
     }
   };
 
-  const handleDeleteSubstack = async (ss: Substack) => {
+  const handleDeleteSubstack = async (ss: Substack, source: "analyze" | "stacks") => {
     await deleteSubstack(ss.id);
-    track("substack_deleted", { stack_type: ss.typeId, status: ss.status });
+    track("substack_deleted", { stack_type: ss.typeId, status: ss.status, review_state: ss.reviewState, source });
     setSubstacks((prev) => prev.filter((item) => item.id !== ss.id));
     setDetails(({ [ss.id]: _removed, ...rest }) => rest);
     setRecentIds((current) => current.filter((id) => id !== ss.id));
@@ -787,11 +830,7 @@ export default function WorkspaceShell() {
                 onConfirmAll={handleConfirmAll}
                 onRetryAnalysis={handleRetryAnalysis}
                 onRetryGeneration={handleRetryGeneration}
-                onDelete={(substack) => setModal({
-                  kind: "deleteSubstack",
-                  substack,
-                  message: "This substack may not be generated in the future.",
-                })}
+                onDelete={(substack) => openDeleteSubstack(substack, "analyze", "This substack may not be generated in the future.")}
               />
             </div>
           )}
@@ -865,8 +904,8 @@ export default function WorkspaceShell() {
                 onSearchChange={setSearchVal}
                 onToggleListMode={() => setListMode((v) => !v)}
                 onOpenDetails={(ss) => openSubstack(ss.id)}
-                onAddItem={(typeId) => setModal({ kind: "createSubstack", typeId })}
-                onDeleteItem={(substack) => setModal({ kind: "deleteSubstack", substack })}
+                onAddItem={openCreateSubstack}
+                onDeleteItem={(substack) => openDeleteSubstack(substack, "stacks")}
               />
             )}
           </div>
@@ -891,7 +930,7 @@ export default function WorkspaceShell() {
             substack={modal.substack}
             message={modal.message}
             onClose={closeModal}
-            onConfirm={() => handleDeleteSubstack(modal.substack)}
+            onConfirm={() => handleDeleteSubstack(modal.substack, modal.source)}
           />
         </Modal>
       )}
@@ -906,8 +945,8 @@ export default function WorkspaceShell() {
       )}
 
       {analyzeOpen && activeAccount && (
-        <Modal onClose={() => setAnalyzeOpen(false)}>
-          <AnalyzeDialog accountId={activeAccount.id} onClose={() => setAnalyzeOpen(false)} onStart={handleStartAnalysis} />
+        <Modal onClose={handleCancelAnalysis}>
+          <AnalyzeDialog accountId={activeAccount.id} onClose={handleCancelAnalysis} onStart={handleStartAnalysis} />
         </Modal>
       )}
 

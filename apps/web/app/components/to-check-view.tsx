@@ -8,6 +8,7 @@ import styles from "./to-check-view.module.css";
 import type { StackType, Substack } from "../lib/stacks";
 import type { ReviewFilter, ReviewState } from "../lib/routes";
 import { reviewQueue, type QueueKind } from "../lib/review-queue";
+import { track } from "../lib/analytics";
 import {
   dismissFinding,
   listFindings,
@@ -173,6 +174,12 @@ export default function ToCheckView({
     listRef.current?.scrollIntoView({ block: "start" });
   };
 
+  // Which button was clicked on the Analyze list; outcome events fire separately once the API call succeeds.
+  const action = (name: string, props: Record<string, string | number | null> = {}) =>
+    track("analyze_list_action", { action: name, filter, total: entries.length, ...props });
+  const rowAction = (name: string, ss: Substack, kind: QueueKind, index: number) =>
+    action(name, { stack_type: ss.typeId, kind, review_state: ss.reviewState, position: pageStart + index + 1 });
+
   const handleDismiss = async (findingId: string, reason: string) => {
     if (!accountId) return;
     setDismissBusy(findingId);
@@ -200,7 +207,7 @@ export default function ToCheckView({
           <span className={styles.chip}>
             {total} {total === 1 ? "item" : "items"} to check
           </span>
-          <button type="button" onClick={onConfirmAll} disabled={busy} className={styles.ghostBtn}>
+          <button type="button" onClick={() => { action("confirm_all"); onConfirmAll(); }} disabled={busy} className={styles.ghostBtn}>
             <Icon name="check" size={13} /> Confirm all
           </button>
           <button type="button" onClick={onAnalyze} disabled={busy || Boolean(activeRun)} className={styles.confirmBtn}>
@@ -232,7 +239,7 @@ export default function ToCheckView({
       {!activeRun && failedRun && (
         <div className={styles.analysisStatus} role="status">
           <span>Analysis needs attention. {failedRun.failures} job{failedRun.failures === 1 ? "" : "s"} failed.</span>
-          <button type="button" onClick={() => onRetryAnalysis(failedRun.id)} disabled={busy}>Retry</button>
+          <button type="button" onClick={() => { action("retry_analysis", { failures: failedRun.failures }); onRetryAnalysis(failedRun.id); }} disabled={busy}>Retry</button>
         </div>
       )}
 
@@ -242,7 +249,10 @@ export default function ToCheckView({
             key={kind}
             type="button"
             aria-pressed={filter === kind}
-            onClick={() => onReviewChange({ ...review, filter: kind, page: 1 })}
+            onClick={() => {
+              track("analyze_list_action", { action: "filter", filter: kind, previous_filter: filter });
+              onReviewChange({ ...review, filter: kind, page: 1 });
+            }}
             className={`${styles.filterChip} ${filter === kind ? styles.filterChipActive : ""}`}
           >
             {label}
@@ -253,7 +263,10 @@ export default function ToCheckView({
           label="Stack type"
           options={typeOptions}
           selected={types}
-          onChange={(next) => onReviewChange({ ...review, types: next, page: 1 })}
+          onChange={(next) => {
+            action("filter_stack_type", { type_count: next.length });
+            onReviewChange({ ...review, types: next, page: 1 });
+          }}
         />
       </div>
 
@@ -266,7 +279,7 @@ export default function ToCheckView({
         </div>
       ) : (
         <div ref={listRef} className={styles.list}>
-          {pageEntries.map((entry) => {
+          {pageEntries.map((entry, index) => {
               if (!("ss" in entry)) {
                 const { finding } = entry;
                 return (
@@ -294,7 +307,9 @@ export default function ToCheckView({
                           defaultValue=""
                           onChange={(event) => {
                             const reason = event.target.value;
-                            if (reason) void handleDismiss(finding.id, reason);
+                            if (!reason) return;
+                            action("dismiss_finding", { check_key: finding.check_key, reason, position: pageStart + index + 1 });
+                            void handleDismiss(finding.id, reason);
                           }}
                         >
                           <option value="" disabled>
@@ -320,7 +335,7 @@ export default function ToCheckView({
                     href={href}
                     scroll={false}
                     className={styles.rowMain}
-                    onClick={(event) => onOpen(event, href)}
+                    onClick={(event) => { rowAction("open_row", ss, kind, index); onOpen(event, href); }}
                     aria-label={`Open ${ss.name}`}
                   >
                     <span className={styles.rowIcon}>
@@ -348,20 +363,20 @@ export default function ToCheckView({
                         type="button"
                         className={styles.confirmBtn}
                         disabled={busy}
-                        onClick={() => onConfirm(ss)}
+                        onClick={() => { rowAction("confirm", ss, kind, index); onConfirm(ss); }}
                       >
                         <Icon name="check" size={13} /> Confirm
                       </button>
                     ) : ss.reviewState === "generation_error" ? (
                       <>
-                        <button type="button" className={styles.reviewBtn} disabled={busy} onClick={() => onRetryGeneration(ss)}>
+                        <button type="button" className={styles.reviewBtn} disabled={busy} onClick={() => { rowAction("retry_generation", ss, kind, index); onRetryGeneration(ss); }}>
                           <Icon name="refresh-cw" size={13} /> Retry
                         </button>
                         <button
                           type="button"
                           className={styles.iconBtn}
                           disabled={busy}
-                          onClick={() => onDelete(ss)}
+                          onClick={() => { rowAction("delete", ss, kind, index); onDelete(ss); }}
                           aria-label={`Delete ${ss.name}`}
                           title="Delete"
                         >
@@ -369,7 +384,10 @@ export default function ToCheckView({
                         </button>
                       </>
                     ) : (
-                      <Link href={href} scroll={false} className={styles.reviewBtn} onClick={(event) => onOpen(event, href)}>
+                      <Link href={href} scroll={false} className={styles.reviewBtn} onClick={(event) => {
+                        rowAction(kind === "update" ? "review_update" : "review", ss, kind, index);
+                        onOpen(event, href);
+                      }}>
                         {kind === "update" ? "Review update" : "Review"}
                       </Link>
                     )}
