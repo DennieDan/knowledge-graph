@@ -507,6 +507,10 @@ export async function streamChatMessage(
   });
   if (!res.ok || !res.body) {
     const detail = await res.json().catch(() => ({}));
+    // An API deployed before streaming existed has no such route; answer without live steps.
+    if ((res.status === 404 || res.status === 405) && detail.detail !== "thread_not_found") {
+      return postChatMessage(accountId, threadId, text);
+    }
     throw new Error(detail.detail ?? `POST ${path} failed: ${res.status}`);
   }
   const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
