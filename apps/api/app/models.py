@@ -511,6 +511,8 @@ class ChatMessage(Base):
     input_tokens: Mapped[Optional[int]] = mapped_column(Integer)
     output_tokens: Mapped[Optional[int]] = mapped_column(Integer)
     feedback: Mapped[Optional[str]] = mapped_column(String(10))
+    # Optional one-line reason with a thumbs vote (#94 / #26); additive.
+    feedback_reason: Mapped[Optional[str]] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

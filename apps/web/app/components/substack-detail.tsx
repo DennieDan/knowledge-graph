@@ -22,6 +22,7 @@ interface Props {
   onEnsureDetail: (id: string) => void;
   onConfirmContent: (contentId: string) => void;
   onKeepCurrentContent: (contentId: string) => void;
+  onAsk?: () => void;
 }
 
 type UpdateAction = "confirm" | "keep";
@@ -41,7 +42,7 @@ function HighlightedToken({ children, id, sourceIds, pinned, onHover, onPin }: {
   return <mark data-source-anchor className={`${styles.highlightedToken} ${pinned ? styles.pinned : ""}`} onMouseEnter={() => onHover(sourceIds)} onMouseLeave={() => onHover(null)} onClick={() => onPin({ id, sourceIds })}>{children}</mark>;
 }
 
-export default function SubstackDetail({ substack, stackTypes, detail, details, backLabel, accountId, onBack, queue, onOpen, onEnsureDetail, onConfirmContent, onKeepCurrentContent }: Props) {
+export default function SubstackDetail({ substack, stackTypes, detail, details, backLabel, accountId, onBack, queue, onOpen, onEnsureDetail, onConfirmContent, onKeepCurrentContent, onAsk }: Props) {
   const [query, setQuery] = useState("");
   const [showPending, setShowPending] = useState(false);
   const [updateMenuOpen, setUpdateMenuOpen] = useState(false);
@@ -159,11 +160,16 @@ export default function SubstackDetail({ substack, stackTypes, detail, details, 
               <button type="button" onClick={queue.onNext ?? undefined} disabled={!queue.onNext} aria-label="Next item to check"><Icon name="chevron-right" size={16} /></button>
             </nav>
           )}
-          <button className={queue || canReply ? `${styles.panelToggle} ${styles.panelToggleInline}` : styles.panelToggle} onClick={() => togglePanel(!panelOpen)} aria-label={panelOpen ? "Close side panel" : "Open side panel"} aria-expanded={panelOpen}><Icon name="panel-right" size={18} /></button>
+          {onAsk && (
+            <button type="button" className={queue ? styles.askButton : `${styles.askButton} ${styles.replyButtonEnd}`} onClick={onAsk} aria-label="Ask about this record">
+              <Icon name="message-circle" size={14} /> Ask about this
+            </button>
+          )}
+          <button className={queue || canReply || onAsk ? `${styles.panelToggle} ${styles.panelToggleInline}` : styles.panelToggle} onClick={() => togglePanel(!panelOpen)} aria-label={panelOpen ? "Close side panel" : "Open side panel"} aria-expanded={panelOpen}><Icon name="panel-right" size={18} /></button>
           {canReply && (
             <button
               type="button"
-              className={queue ? styles.replyButton : `${styles.replyButton} ${styles.replyButtonEnd}`}
+              className={queue || onAsk ? styles.replyButton : `${styles.replyButton} ${styles.replyButtonEnd}`}
               onClick={openReply}
               disabled={replyBusy}
               aria-label="Draft a reply from this order"

@@ -173,6 +173,56 @@ def _by_citation(
     return found
 
 
+def _as_retrieved(
+    session: Session, substack: Substack, score: float | None = None
+) -> RetrievedRecord:
+    content = latest_content(session, substack.id)
+    confirmed_by = (
+        session.get(User, content.confirmed_by_user_id)
+        if content is not None and content.confirmed_by_user_id is not None
+        else None
+    )
+    return RetrievedRecord(
+        substack=substack, content=content, confirmed_by=confirmed_by, score=score
+    )
+
+
+def get_visible_record(
+    session: Session,
+    organization_id: UUID,
+    owner_user_id: UUID | None,
+    substack_id: UUID,
+) -> RetrievedRecord | None:
+    """Load one record the asker may see, or None when it is out of scope."""
+    substack = session.get(Substack, substack_id)
+    if substack is None or substack.organization_id != organization_id:
+        return None
+    if owner_user_id is None:
+        if substack.owner_user_id is not None:
+            return None
+    elif substack.owner_user_id is not None and substack.owner_user_id != owner_user_id:
+        return None
+    return _as_retrieved(session, substack)
+
+
+def source_document_ids(session: Session, substack_id: UUID) -> list[UUID]:
+    """Documents filed into or cited by this record (sources for ask-from-order)."""
+    filed = session.scalars(
+        select(SubstackSource.document_id).where(SubstackSource.substack_id == substack_id)
+    ).all()
+    cited = session.scalars(
+        select(ContentCitation.document_id)
+        .join(SubstackContent, SubstackContent.id == ContentCitation.content_id)
+        .where(SubstackContent.substack_id == substack_id)
+        .distinct()
+    ).all()
+    seen: list[UUID] = []
+    for document_id in [*filed, *cited]:
+        if document_id not in seen:
+            seen.append(document_id)
+    return seen
+
+
 def search_records(
     session: Session,
     organization_id: UUID,
@@ -197,17 +247,9 @@ def search_records(
         if substack_id not in candidates:
             candidates[substack_id] = (substack, score)
 
-    records: list[RetrievedRecord] = []
-    for substack, score in candidates.values():
-        content = latest_content(session, substack.id)
-        confirmed_by = (
-            session.get(User, content.confirmed_by_user_id)
-            if content is not None and content.confirmed_by_user_id is not None
-            else None
-        )
-        records.append(
-            RetrievedRecord(substack=substack, content=content, confirmed_by=confirmed_by, score=score)
-        )
+    records = [
+        _as_retrieved(session, substack, score) for substack, score in candidates.values()
+    ]
     records.sort(key=lambda record: record.rank)
     return records[:limit]
 

@@ -34,11 +34,19 @@ from .prompts import AGENT_PROMPT, CHAT_PROMPT_VERSION, FINAL_PROMPT, REWRITE_PR
 from .record_retrieval import (
     RECORD_RETRIEVAL_VERSION,
     RetrievedRecord,
+    get_visible_record,
     record_evidence_text,
     search_records,
+    source_document_ids,
     who_confirmed,
 )
-from .retrieval import RETRIEVAL_VERSION, RetrievedChunk, evidence_text, search_chunks
+from .retrieval import (
+    RETRIEVAL_VERSION,
+    RetrievedChunk,
+    chunks_for_documents,
+    evidence_text,
+    search_chunks,
+)
 
 SNIPPET_CHARS = 600
 RECORD_EVIDENCE_CHARS = 20000
@@ -186,8 +194,22 @@ def resolve_question(session: Session, thread_id: UUID, question: str) -> str:
     return rewritten or question
 
 
-def _agent_input(question: str, evidence: _Evidence, searches: list[str]) -> str:
+def _agent_input(
+    question: str,
+    evidence: _Evidence,
+    searches: list[str],
+    *,
+    scope: RetrievedRecord | None = None,
+) -> str:
     blocks = [f"<question>\n{question}\n</question>"]
+    if scope is not None:
+        blocks.append(
+            f"<scope record_id=\"{scope.substack.id}\" name=\"{scope.substack.name}\" "
+            f"stack=\"{scope.substack.stack_type}\">"
+            "The asker opened this record. Prefer it and its sources; search further only "
+            "for context this record does not cover."
+            "</scope>"
+        )
     if searches:
         blocks.append("<searches_already_run>\n" + "\n".join(searches) + "\n</searches_already_run>")
     records = record_evidence_text(evidence.ordered_records(), RECORD_EVIDENCE_CHARS)
@@ -220,11 +242,16 @@ class _Searcher:
         self.evidence = _Evidence()
         self.notes: list[str] = []
         self._seen: set[tuple[str, str]] = set()
+        # Ask-from-order (#94): while set, `search_sources` stays on these documents.
+        self.scoped_document_ids: list[UUID] | None = None
+
+    def scope_to(self, document_ids: list[UUID]) -> None:
+        self.scoped_document_ids = document_ids
 
     def already_run(self, tool: str, query: str) -> bool:
         return (tool, query.casefold()) in self._seen
 
-    def run(self, tool: str, query: str) -> dict:
+    def run(self, tool: str, query: str, *, widen: bool = True) -> dict:
         self._seen.add((tool, query.casefold()))
         if tool == "search_records":
             records = search_records(
@@ -232,18 +259,27 @@ class _Searcher:
             )
             new = self.evidence.add_records(records)
             self.notes.append(_search_note(f"records: {query}", len(records), new))
+            if widen:
+                # Related records may need company-wide sources; drop the document filter.
+                self.scoped_document_ids = None
             return {
                 "tool": "search_records",
                 "query": query,
                 "hits": len(records),
                 "new_records": new,
             }
+        scoped = self.scoped_document_ids is not None
         hits = search_chunks(
-            self._session, self._organization_id, self._user_id, query, self._limit
+            self._session,
+            self._organization_id,
+            self._user_id,
+            query,
+            self._limit,
+            document_ids=self.scoped_document_ids,
         )
         new = self.evidence.add(hits)
-        self.notes.append(_search_note(f"sources: {query}", len(hits), new))
-        return {"tool": "search_sources", "query": query, "hits": len(hits), "new_chunks": new}
+        self.notes.append(_search_note(f"{'scoped sources' if scoped else 'sources'}: {query}", len(hits), new))
+        return {"tool": "search_sources", "query": query, "hits": len(hits), "new_chunks": new, "scoped": scoped}
 
 
 def _validated(answer: Answer, allowed: set[str]) -> Answer:
@@ -300,8 +336,15 @@ def run_agent(
     organization_id: UUID,
     user_id: UUID,
     question: str,
+    *,
+    scope_substack_id: UUID | None = None,
 ) -> Generator[dict, None, AgentResult]:
     """Run the loop for one question, yielding progress events as it goes.
+
+    When `scope_substack_id` is set (ask from this order), that record and its
+    sources are seeded into evidence first. Further `search_sources` calls stay
+    on those documents until a model-requested records search widens the set —
+    records-first still applies for related confirmed orders.
 
     Events are what the asker can be shown while waiting: `searching` before a
     search runs, `step` once it has, and `thinking` before each model call. The
@@ -314,10 +357,21 @@ def run_agent(
     usage: list[tuple[int | None, int | None]] = []
     answer: Answer | None = None
     steps: list[dict] = []
+    scope: RetrievedRecord | None = None
+    if scope_substack_id is not None:
+        scope = get_visible_record(session, organization_id, user_id, scope_substack_id)
+        if scope is not None:
+            for seeded in _seed_scope(
+                session, organization_id, user_id, evidence, scope, settings.chat_search_limit
+            ):
+                steps.append(seeded)
+                yield {"type": "step", **seeded}
+            searcher.scope_to(source_document_ids(session, scope.substack.id))
 
     def search(tool: str, query: str, **extra) -> Generator[dict, None, None]:
         yield {"type": "searching", "tool": tool, "query": query}
-        step = {**searcher.run(tool, query), **extra}
+        # The opening searches never widen a scope; only the model's own records search does.
+        step = {**searcher.run(tool, query, widen=not extra.get("opening", False)), **extra}
         steps.append(step)
         yield {"type": "step", **step}
 
@@ -335,7 +389,7 @@ def run_agent(
         yield {"type": "thinking", "stage": "deciding"}
         result = client.parse(
             prompt=AGENT_PROMPT,
-            evidence=_agent_input(question, evidence, searcher.notes),
+            evidence=_agent_input(question, evidence, searcher.notes, scope=scope),
             schema=AgentStep,
             effort=settings.chat_reasoning_effort,
         )
@@ -360,7 +414,7 @@ def run_agent(
         yield {"type": "thinking", "stage": "answering"}
         final = client.parse(
             prompt=FINAL_PROMPT,
-            evidence=_agent_input(question, evidence, searcher.notes),
+            evidence=_agent_input(question, evidence, searcher.notes, scope=scope),
             schema=Answer,
             effort=settings.chat_reasoning_effort,
         )
@@ -371,14 +425,43 @@ def run_agent(
     return _result(session, answer, evidence, steps, question, usage)
 
 
+def _seed_scope(
+    session: Session,
+    organization_id: UUID,
+    user_id: UUID,
+    evidence: _Evidence,
+    scope: RetrievedRecord,
+    limit: int,
+) -> list[dict]:
+    """Pre-load the open record and its sources so ask-from-order starts records-first."""
+    evidence.add_records([scope])
+    document_ids = source_document_ids(session, scope.substack.id)
+    seeded = chunks_for_documents(session, organization_id, user_id, document_ids, limit)
+    evidence.add(seeded)
+    return [
+        {
+            "tool": "scope_record",
+            "record_id": str(scope.substack.id),
+            "name": scope.substack.name,
+            "source_documents": len(document_ids),
+            "source_chunks": len(seeded),
+        }
+    ]
+
+
 def answer_question(
     session: Session,
     organization_id: UUID,
     user_id: UUID,
     question: str,
+    *,
+    scope_substack_id: UUID | None = None,
 ) -> AgentResult:
-    """Run the loop for one question and return an answer with its citations."""
-    events = run_agent(session, organization_id, user_id, question)
+    """Run the loop for one question and return an answer with its citations.
+
+    `scope_substack_id` is the ask-from-order scope; see `run_agent`.
+    """
+    events = run_agent(session, organization_id, user_id, question, scope_substack_id=scope_substack_id)
     while True:
         try:
             next(events)

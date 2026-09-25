@@ -28,6 +28,7 @@ from .auth import get_current_user
 from .chat_agent import AgentResult, answer_question, resolve_question, run_agent
 from .database import get_engine, get_session
 from .models import ChatMessage, ChatThread, User
+from .record_retrieval import get_visible_record
 
 router = APIRouter(tags=["chat"])
 logger = logging.getLogger(__name__)
@@ -44,15 +45,29 @@ class ThreadIn(BaseModel):
 
 class MessageIn(BaseModel):
     text: str = Field(min_length=1, max_length=1000)
+    # Ask-from-order: either field scopes retrieval to that record (#94).
+    # `record_id` is an alias for `substack_id` (citations already use record_id).
+    substack_id: UUID | None = None
+    record_id: UUID | None = None
+
+    def scope_substack_id(self) -> UUID | None:
+        return self.substack_id or self.record_id
 
 
 class FeedbackIn(BaseModel):
     rating: str
+    reason: str | None = Field(default=None, max_length=500)
 
     def normalized(self) -> str:
         if self.rating not in ("up", "down"):
             raise HTTPException(status_code=422, detail="invalid_rating")
         return self.rating
+
+    def normalized_reason(self) -> str | None:
+        if self.reason is None:
+            return None
+        reason = self.reason.strip()
+        return reason or None
 
 
 def _thread_json(thread: ChatThread) -> dict:
@@ -97,6 +112,7 @@ def _message_json(message: ChatMessage) -> dict:
         "citations": message.citations,
         "steps": message.steps,
         "feedback": message.feedback,
+        "feedback_reason": message.feedback_reason,
         "created_at": message.created_at.isoformat() if message.created_at else None,
     }
 
@@ -202,12 +218,15 @@ def post_message(
 ):
     thread = _get_thread(organization_id, thread_id, user, session)
     question = _question(body)
+    scope_id = body.scope_substack_id()
+    if scope_id is not None and get_visible_record(session, organization_id, user.id, scope_id) is None:
+        raise HTTPException(status_code=404, detail="scope_not_found")
 
     resolved = resolve_question(session, thread.id, question)
     session.add(ChatMessage(thread_id=thread.id, role="user", text=question, resolved_question=resolved))
     session.flush()
 
-    result = answer_question(session, organization_id, user.id, resolved)
+    result = answer_question(session, organization_id, user.id, resolved, scope_substack_id=scope_id)
     return _message_json(_save_answer(session, thread, question, resolved, result))
 
 
@@ -237,6 +256,9 @@ def stream_message(
     """
     _get_thread(organization_id, thread_id, user, session)
     question = _question(body)
+    scope_id = body.scope_substack_id()
+    if scope_id is not None and get_visible_record(session, organization_id, user.id, scope_id) is None:
+        raise HTTPException(status_code=404, detail="scope_not_found")
     user_id = user.id
 
     def events() -> Iterator[bytes]:
@@ -246,7 +268,7 @@ def stream_message(
                 resolved = resolve_question(turn, thread.id, question)
                 turn.add(ChatMessage(thread_id=thread.id, role="user", text=question, resolved_question=resolved))
                 turn.flush()
-                agent = run_agent(turn, organization_id, user_id, resolved)
+                agent = run_agent(turn, organization_id, user_id, resolved, scope_substack_id=scope_id)
                 while True:
                     try:
                         yield _event_line(next(agent))
@@ -281,5 +303,6 @@ def set_feedback(
         raise HTTPException(status_code=404, detail="message_not_found")
     _get_thread(organization_id, message.thread_id, user, session)
     message.feedback = rating
+    message.feedback_reason = body.normalized_reason()
     session.commit()
     return _message_json(message)

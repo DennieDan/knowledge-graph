@@ -44,7 +44,8 @@ export type AnalyticsEvent =
   | "breadcrumb_clicked"
   | "review_queue_step"
   | "reply_drafted"
-  | "reply_sent";
+  | "reply_sent"
+  | "ask_from_order";
 
 const enabled = () => Boolean(process.env.NEXT_PUBLIC_POSTHOG_KEY);
 

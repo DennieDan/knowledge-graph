@@ -160,6 +160,7 @@ export default function WorkspaceShell() {
   const [analysisBusy, setAnalysisBusy] = useState(false);
   const [analyzeOpen, setAnalyzeOpen] = useState(false);
   const [inviteToken, setInviteToken] = useState<string | null>(null);
+  const [askScope, setAskScope] = useState<{ id: string; name: string } | null>(null);
   const driveSetupPending = useRef(false);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -908,6 +909,9 @@ export default function WorkspaceShell() {
               <SearchView
                 accountId={me?.active_account_id ?? null}
                 onOpenRecord={openSubstack}
+                scopeSubstackId={askScope?.id ?? null}
+                scopeLabel={askScope?.name ?? null}
+                onClearScope={() => setAskScope(null)}
               />
             </div>
           )}
@@ -951,6 +955,11 @@ export default function WorkspaceShell() {
                 onEnsureDetail={ensureDetail}
                 onConfirmContent={(contentId) => handleConfirmContent(selectedSubstack.id, contentId)}
                 onKeepCurrentContent={(contentId) => handleKeepCurrentContent(selectedSubstack.id, contentId)}
+                onAsk={() => {
+                  setAskScope({ id: selectedSubstack.id, name: selectedSubstack.name });
+                  navigate(NAV_PATHS.search, "link");
+                  track("ask_from_order", { stack_type: selectedSubstack.typeId });
+                }}
               />
             ) : selectedSubstackId ? (
               substacksLoaded && (

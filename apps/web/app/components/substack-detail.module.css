@@ -166,5 +166,20 @@
 .emptyPanel { display: grid; justify-items: center; gap: 8px; padding: 44px 24px; color: var(--cp-muted); text-align: center; }
 .emptyPanel p, .empty { color: var(--cp-muted); font-size: 12px; }
 .empty { padding: 18px 2px; }
+.askButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--cp-border);
+  border-radius: 8px;
+  background: var(--md-sys-color-surface);
+  color: var(--md-sys-color-primary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.askButton:hover { background: var(--md-sys-color-primary-container); border-color: var(--md-sys-color-primary); }
 @media (max-width: 900px) { .page { grid-template-columns: 1fr; } .sources { position: static; height: auto; min-height: 260px; } .related { margin-top: 40px; } }
 @media (max-width: 640px) { .page { padding: 12px; } .header { flex-wrap: wrap; } .toolbar { justify-content: stretch; flex-wrap: wrap; } .toolbar label { width: 100%; } .relatedGrid { grid-template-columns: 1fr; } }
