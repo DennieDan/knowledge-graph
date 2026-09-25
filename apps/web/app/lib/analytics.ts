@@ -28,6 +28,8 @@ export type AnalyticsEvent =
   | "analyze_list_action"
   | "drive_connect_clicked"
   | "drive_connected"
+  | "onboarding_cta_clicked"
+  | "onboarding_dismissed"
   | "drive_selection_saved"
   | "drive_sync_started"
   | "drive_sync_completed"

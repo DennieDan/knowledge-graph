@@ -11,11 +11,13 @@ export default function SourcesView({
   activeAccount,
   onManageWhatsApp,
   onManageDrive,
+  onSynced,
 }: {
   me: Me | null;
   activeAccount: Account | null;
   onManageWhatsApp: () => void;
   onManageDrive: () => void;
+  onSynced: () => void;
 }) {
   const [syncMsg, setSyncMsg] = useState("");
   const [syncState, setSyncState] = useState<{ done: number; total: number } | null>(null);
@@ -50,6 +52,7 @@ export default function SourcesView({
       if (workspaces.length === 0) {
         setSyncMsg("No Drive workspaces to sync.");
       } else {
+        onSynced();
         setSyncMsg(errors.length > 0 ? `Synced ${synced} files, ingested ${ingested} · ${errors.length} error(s)` : `Synced ${synced} files, ingested ${ingested}`);
       }
     } catch (reason) {
