@@ -37,3 +37,15 @@ UI states like "Reading sources…" flash too fast locally. Add latency: `sudo -
 
 ## Window sizing for mobile breakpoints
 The Ask view's rail collapses below 900px. `wmctrl -r :ACTIVE:` may hit the wrong window — list with `wmctrl -l` and target the app window by ID: `wmctrl -i -r <id> -b remove,maximized_vert,maximized_horz && wmctrl -i -r <id> -e 0,20,60,680,660`.
+
+## Seeding for Sources / Maintenance / To check (findings + jobs + health stack)
+- Drive workspaces only list if a `drive_workspace_connections` row (status='active') joins the workspace to the user's `drive_connections` row (status='connected'); `my_drive` rows also need `owner_user_id = user.id`.
+- Workspace `health` in `GET .../drive/workspaces` is computed: `failed` if `last_error` set, else `stale` if `last_success_at` NULL or >30 min old, else `fresh`. Seed one of each for the Sources table.
+- `scripts.worker --once` processes exactly ONE queued job per invocation — call it repeatedly to drain a queue.
+- A failed `sync_workspace` job sets `knowledge_jobs.last_error` and also raises a `source_failed` finding ("A Drive sync failed.") — expect the To check count to grow after draining sync jobs with fake tokens.
+- Findings rows need `decision IS NULL`, unique `dedupe_key`, and `detected_at` < 3 days old if you want Maintenance's "Nothing to act on…" rest line (older open findings trigger the `queue_age` alarm).
+- `GET /accounts/{org}/health` persists its alarms as `health_*` findings — the To check count changes after visiting Maintenance; order tests accordingly.
+- `bulk_confirm_share` alarm needs ≥10 confirm events in 7d with bulk share >50%: seed 12+ proposed substacks with proposed `substack_contents`, click "Confirm all", then reload Maintenance.
+- `dismiss_rate` alarm needs raised ≥5 AND dismissed/raised >20%; keep seeded open findings ≤3 to stay under it.
+- Unlabelled `test_questions` (empty `expected_chunk_ids`) make `score_questions` produce a `skipped` run — never `passed`; seed via `python -m scripts.load_questions --organization-id <uuid>`.
+- `confirm_events` are written by confirm endpoints: single confirm → `person`, "Confirm all" → `bulk`. Maintenance "What people did" reads them.
