@@ -1,7 +1,7 @@
 """records, claims, record_links, change_events, order_events (#93 Step 1)
 
-Revision ID: 0016
-Revises: 0015
+Revision ID: 0023
+Revises: 0022
 
 Additive only. Findings already exist on main (0015 / #15); this migration
 does not recreate or alter findings — claims.finding_id is a nullable FK
@@ -13,8 +13,8 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 
-revision = "0016"
-down_revision = "0015"
+revision = "0023"
+down_revision = "0022"
 branch_labels = None
 depends_on = None
 
