@@ -12,6 +12,8 @@ from .analysis_api import router as analysis_router
 from .auth import router as auth_router
 from .chat import router as chat_router
 from .config import get_settings
+from .connector import connector_lifespan, mount_connector
+from .connector_keys import router as connector_keys_router
 from .database import get_engine
 from .drive import router as drive_router
 from .drive_sync import router as drive_sync_router
@@ -30,7 +32,8 @@ from .timeline import router as timeline_router
 from .subscriptions import router as subscriptions_router
 from .whatsapp import router as whatsapp_router
 
-app = FastAPI(title="Knowledge Graph API")
+# The lifespan runs the assistant connector's MCP transport (#94).
+app = FastAPI(title="Knowledge Graph API", lifespan=connector_lifespan)
 settings = get_settings()
 
 app.add_middleware(
@@ -75,6 +78,9 @@ app.include_router(health_router)
 # #93 Steps 3–4: review queue + order timeline (extend findings; keep /findings).
 app.include_router(queue_router)
 app.include_router(timeline_router)
+# #94 F-03: the assistant connector, read-only over MCP, and its keys.
+app.include_router(connector_keys_router)
+mount_connector(app)
 
 
 @app.get("/health")

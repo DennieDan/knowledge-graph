@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     session_https_only: bool = False
     session_same_site: Literal["lax", "strict", "none"] = "lax"
     web_origin: str = "http://localhost:3000"
+    # Public base URL of this API (e.g. https://kg-api-xxxx.onrender.com), used for the
+    # assistant connector address shown in settings. Unset: taken from the request.
+    public_api_url: str | None = None
     waha_base_url: str = "http://localhost:3100"
     waha_api_key: SecretStr | None = None
     # Public URL WAHA POSTs events to (e.g. https://api.example.com/whatsapp/webhooks).

@@ -29,6 +29,9 @@ services:
         sync: false
       - key: WEB_ORIGIN
         sync: false
+      # Optional: this service's own https URL, shown as the assistant connector address (/mcp).
+      - key: PUBLIC_API_URL
+        sync: false
       - key: SESSION_SECRET
         generateValue: true
       - key: SESSION_HTTPS_ONLY

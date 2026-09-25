@@ -99,6 +99,14 @@ Remind the user of these items when deployment is set up:
   - Never put database, OpenAI, Google secret, session, or WAHA values in
     Vercel, and never in `NEXT_PUBLIC_*` variables.
 
+- **Assistant connector (MCP, #94).** ChatGPT and Claude connect to the
+  Render `kg-api` URL + `/mcp` directly, not through the Vercel `/backend`
+  proxy. Set `PUBLIC_API_URL` on `kg-api` to that URL (e.g.
+  `https://kg-api-xxxx.onrender.com`) so settings show the right address.
+  Keys are per assistant and revocable (`/accounts/{id}/connector-keys`,
+  or `python -m scripts.connector_key` locally); how to connect each
+  assistant is in `apps/api/docs/connector.md`.
+
 - **OAuth app verification.** `drive.readonly` is a restricted Google scope.
   The Google Auth Platform app must be submitted for verification before
   non-test users can grant Drive access in production.

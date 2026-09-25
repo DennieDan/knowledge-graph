@@ -858,3 +858,27 @@ class StackField(Base):
     required: Mapped[bool] = mapped_column(Boolean, default=False)
     meaning: Mapped[Optional[str]] = mapped_column(Text)
     searchable: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+# Assistant connector (#94 F-03): one named, revocable key per connected assistant.
+
+
+class ConnectorKey(Base):
+    """A read-only key that lets one AI assistant read the record over MCP.
+
+    The assistant reads with the walls of the person who created the key: their
+    company, the private records and chats only they can see, and their role's
+    field rules. Only the key's SHA-256 is stored; the key itself is shown once.
+    """
+
+    __tablename__ = "connector_keys"
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(120))
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    # The key's first characters, so settings can tell keys apart without storing them.
+    prefix: Mapped[str] = mapped_column(String(16))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    last_used_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
