@@ -19,6 +19,8 @@ import AnalyzeDialog from "./analyze-dialog";
 import CompanyMembers from "./company-members";
 import { CreateSubstackModal, DeleteSubstackModal } from "./stack-modals";
 import SignOutModal from "./sign-out-modal";
+import OnboardingBanner, { type OnboardingStep } from "./onboarding-banner";
+import BrandMark from "../landing/brand-mark";
 import {
   STACK_TYPES,
   toSubstack,
@@ -94,6 +96,8 @@ const SIDEBAR_MIN = 180;
 const SIDEBAR_MAX = 420;
 const SIDEBAR_STORAGE_KEY = "crosspod.sidebarWidth";
 
+const onboardingKey = (accountId: string, flag: "synced" | "dismissed") => `crosspod.onboarding.${flag}.${accountId}`;
+
 const clampSidebar = (width: number) => Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, Math.round(width)));
 
 function initialSidebarWidth(): number {
@@ -151,6 +155,8 @@ export default function WorkspaceShell() {
   const [driveOpen, setDriveOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
   const [analysisRuns, setAnalysisRuns] = useState<AnalysisRun[]>([]);
+  const [analysisLoaded, setAnalysisLoaded] = useState(false);
+  const [onboardingFlags, setOnboardingFlags] = useState<{ accountId: string; synced: boolean; dismissed: boolean } | null>(null);
   const [analysisBusy, setAnalysisBusy] = useState(false);
   const [analyzeOpen, setAnalyzeOpen] = useState(false);
   const [inviteToken, setInviteToken] = useState<string | null>(null);
@@ -229,10 +235,31 @@ export default function WorkspaceShell() {
     setSubstacksLoaded(false);
     setDetails({});
     setAnalysisRuns([]);
+    setAnalysisLoaded(false);
     setQueueIds([]);
     refreshSubstacks();
-    if (activeAccount) listAnalysis(activeAccount.id).then(setAnalysisRuns).catch(() => setAnalysisRuns([]));
+    if (activeAccount) {
+      listAnalysis(activeAccount.id)
+        .then(setAnalysisRuns)
+        .catch(() => setAnalysisRuns([]))
+        .finally(() => setAnalysisLoaded(true));
+    }
   }, [activeAccount, refreshSubstacks]);
+
+  const activeAccountId = activeAccount?.id ?? null;
+  useEffect(() => {
+    setOnboardingFlags(activeAccountId ? {
+      accountId: activeAccountId,
+      synced: window.localStorage.getItem(onboardingKey(activeAccountId, "synced")) === "1",
+      dismissed: window.localStorage.getItem(onboardingKey(activeAccountId, "dismissed")) === "1",
+    } : null);
+  }, [activeAccountId]);
+
+  const setOnboardingFlag = (flag: "synced" | "dismissed") => {
+    if (!activeAccountId) return;
+    window.localStorage.setItem(onboardingKey(activeAccountId, flag), "1");
+    setOnboardingFlags((current) => current?.accountId === activeAccountId ? { ...current, [flag]: true } : current);
+  };
 
   useEffect(() => {
     if (!activeAccount || !analysisRuns.some(analysisInProgress)) return;
@@ -596,6 +623,17 @@ export default function WorkspaceShell() {
   const crumbLabel = activeNav === "stacks" ? null : activeNav ? viewLabel(activeNav) : "Not found";
   const analyzeState = reviewStateOf(analyzeHref);
 
+  const hasSource = Boolean(activeAccount?.drive_linked) || me.whatsapp_linked || me.whatsapp_uploaded_chats > 0;
+  const onboardingStep: OnboardingStep | null =
+    !activeAccount || !analysisLoaded || !substacksLoaded || onboardingFlags?.accountId !== activeAccount.id
+    || onboardingFlags.dismissed || analysisRuns.some((run) => run.scope === "mine") || substacks.length > 0
+      ? null
+      : !hasSource ? "connect"
+      : activeAccount.drive_linked && !onboardingFlags.synced ? "sync"
+      : "analyze";
+  const onboardingView: NavId = onboardingStep === "analyze" ? "tocheck" : "sources";
+  const onboardingHref = onboardingView === "tocheck" ? analyzeHref : NAV_PATHS.sources;
+
   return (
     <div className={`${styles.app} ${resizing ? styles.appResizing : ""}`}>
       <div
@@ -609,7 +647,7 @@ export default function WorkspaceShell() {
         >
           <div className={styles.brand}>
             <span className={styles.brandIcon}>
-              <Icon name="layers" size={15} />
+              <BrandMark size={15} />
             </span>
             crosspod
           </div>
@@ -731,6 +769,21 @@ export default function WorkspaceShell() {
 
         {/* ── Main ── */}
         <main ref={mainRef} className={styles.main} onScroll={onScroll}>
+          {onboardingStep && (
+            <OnboardingBanner
+              step={onboardingStep}
+              href={onboardingHref}
+              onPage={activeNav === onboardingView}
+              onNavigate={(event) => {
+                track("onboarding_cta_clicked", { step: onboardingStep });
+                linkClick(onboardingHref, "link")(event);
+              }}
+              onDismiss={() => {
+                track("onboarding_dismissed", { step: onboardingStep });
+                setOnboardingFlag("dismissed");
+              }}
+            />
+          )}
           <header className={styles.topbar}>
             <button
               onClick={() => setSidebarOpen((v) => !v)}
@@ -848,6 +901,7 @@ export default function WorkspaceShell() {
               activeAccount={activeAccount}
               onManageWhatsApp={() => setWaOpen(true)}
               onManageDrive={() => setDriveOpen(true)}
+              onSynced={() => setOnboardingFlag("synced")}
             />
           )}
           {visitedViews.has("search") && (
@@ -901,7 +955,7 @@ export default function WorkspaceShell() {
                 onKeepCurrentContent={(contentId) => handleKeepCurrentContent(selectedSubstack.id, contentId)}
                 onAsk={() => {
                   setAskScope({ id: selectedSubstack.id, name: selectedSubstack.name });
-                  selectNav("search");
+                  navigate(NAV_PATHS.search, "link");
                   track("ask_from_order", { stack_type: selectedSubstack.typeId });
                 }}
               />

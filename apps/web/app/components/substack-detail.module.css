@@ -126,12 +126,14 @@
 .reportParagraph { display: block; margin-bottom: 14px; }
 .reportParagraph:last-child { margin-bottom: 0; }
 .reportParagraph .highlightedToken { padding: 0; background: transparent; color: inherit; font-weight: inherit; }
-.reportParagraph .highlightedToken:hover { outline: 0; text-decoration: underline; text-decoration-color: var(--md-sys-color-primary); text-underline-offset: 3px; }
+.reportParagraph .highlightedToken:hover, .reportParagraph .highlightedToken.pinned { outline: 0; text-decoration: underline; text-decoration-color: var(--md-sys-color-primary); text-underline-offset: 3px; }
 .highlightedToken { padding: 2px 4px; border-radius: 4px; background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container); font-weight: 600; cursor: default; }
-.highlightedToken:hover { outline: 1px solid var(--md-sys-color-primary); }
+.highlightedToken:hover, .highlightedToken.pinned { outline: 1px solid var(--md-sys-color-primary); }
+.highlightedToken { cursor: pointer; }
 .topics { display: grid; gap: 12px; max-width: 900px; margin-top: 14px; }
 .topic { padding: 18px 20px; border: 1px solid var(--cp-border); border-radius: 10px; background: var(--md-sys-color-surface-container-low); transition: border-color .15s, background .15s; }
 .topic:hover { border-color: var(--md-sys-color-outline); background: var(--md-sys-color-surface-container-lowest); }
+.topicPinned, .topicPinned:hover { border-color: var(--md-sys-color-primary); background: var(--md-sys-color-surface-container-lowest); }
 .topicMeta { margin-bottom: 5px; color: var(--cp-muted); font-size: 11px; }
 .topic h3 { margin-bottom: 8px; color: var(--cp-ink); font-size: 14px; }
 .topic p { color: var(--md-sys-color-on-surface-variant); font-size: 13px; line-height: 1.7; }
@@ -164,9 +166,6 @@
 .emptyPanel { display: grid; justify-items: center; gap: 8px; padding: 44px 24px; color: var(--cp-muted); text-align: center; }
 .emptyPanel p, .empty { color: var(--cp-muted); font-size: 12px; }
 .empty { padding: 18px 2px; }
-.chat { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding: 17px 16px; border: 0; border-top: 1px solid var(--cp-border); background: white; font-weight: 600; cursor: pointer; color: var(--md-sys-color-primary); }
-.chat:hover { background: var(--md-sys-color-primary-container); }
-.headerActions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 .askButton {
   display: inline-flex;
   align-items: center;

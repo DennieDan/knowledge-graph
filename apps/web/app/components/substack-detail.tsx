@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Icon from "./icons";
 import ClientPicture from "./client-picture";
 import { type StackType, type Substack, type UiSubstackDetail } from "../lib/stacks";
@@ -35,9 +35,11 @@ function formatTopicDate(value: unknown): string {
   return new Date(`${value}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 }
 
-function HighlightedToken({ children, sourceIds, onHover }: { children: React.ReactNode; sourceIds: string[]; onHover: (ids: string[] | null) => void }) {
+type Pin = { id: string; sourceIds: string[] };
+
+function HighlightedToken({ children, id, sourceIds, pinned, onHover, onPin }: { children: React.ReactNode; id: string; sourceIds: string[]; pinned: boolean; onHover: (ids: string[] | null) => void; onPin: (pin: Pin) => void }) {
   if (sourceIds.length === 0) return <>{children}</>;
-  return <mark className={styles.highlightedToken} onMouseEnter={() => onHover(sourceIds)} onMouseLeave={() => onHover(null)}>{children}</mark>;
+  return <mark data-source-anchor className={`${styles.highlightedToken} ${pinned ? styles.pinned : ""}`} onMouseEnter={() => onHover(sourceIds)} onMouseLeave={() => onHover(null)} onClick={() => onPin({ id, sourceIds })}>{children}</mark>;
 }
 
 export default function SubstackDetail({ substack, stackTypes, detail, details, backLabel, accountId, onBack, queue, onOpen, onEnsureDetail, onConfirmContent, onKeepCurrentContent, onAsk }: Props) {
@@ -46,6 +48,7 @@ export default function SubstackDetail({ substack, stackTypes, detail, details, 
   const [updateMenuOpen, setUpdateMenuOpen] = useState(false);
   const [updateAction, setUpdateAction] = useState<UpdateAction>("confirm");
   const [hoveredSourceIds, setHoveredSourceIds] = useState<string[] | null>(null);
+  const [pinned, setPinned] = useState<Pin | null>(null);
   const [relatedPreviewId, setRelatedPreviewId] = useState<string | null>(null);
   const [relatedOpen, setRelatedOpen] = useState(true);
   const [panelOpen, setPanelOpen] = useState(true);
@@ -61,7 +64,18 @@ export default function SubstackDetail({ substack, stackTypes, detail, details, 
   const canReply = substack.typeId === "sales-orders" && Boolean(accountId);
   const sources = detail?.sources ?? [];
   const previewSources = relatedPreviewId && details[relatedPreviewId] ? details[relatedPreviewId].sources : sources;
-  const visibleSources = hoveredSourceIds ? previewSources.filter((source) => hoveredSourceIds.includes(source.id)) : previewSources;
+  const activeSourceIds = hoveredSourceIds ?? (relatedPreviewId ? null : pinned?.sourceIds ?? null);
+  const visibleSources = activeSourceIds ? previewSources.filter((source) => activeSourceIds.includes(source.id)) : previewSources;
+  const sourcesPanelRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (!pinned) return;
+    const unpin = (event: PointerEvent) => {
+      const target = event.target as Element;
+      if (!target.closest("[data-source-anchor]") && !sourcesPanelRef.current?.contains(target)) setPinned(null);
+    };
+    document.addEventListener("pointerdown", unpin);
+    return () => document.removeEventListener("pointerdown", unpin);
+  }, [pinned]);
   const related = detail?.related ?? [];
   const [relatedTypeFilter, setRelatedTypeFilter] = useState<Set<string>>(new Set());
   const relatedTypes = useMemo(() => [...new Set(related.map((item) => item.typeId))], [related]);
@@ -279,7 +293,7 @@ export default function SubstackDetail({ substack, stackTypes, detail, details, 
               const expanded = expandedTopics.has(topic.id);
               const meta = [TOPIC_KINDS[String(topic.locator?.kind)] ?? "Topic", formatTopicDate(topic.locator?.date)].filter(Boolean).join(" · ");
               return (
-                <article key={topic.id} className={styles.topic} onMouseEnter={() => setHoveredSourceIds(topic.sourceIds)} onMouseLeave={() => setHoveredSourceIds(null)}>
+                <article key={topic.id} data-source-anchor className={`${styles.topic} ${pinned?.id === topic.id ? styles.topicPinned : ""}`} onMouseEnter={() => setHoveredSourceIds(topic.sourceIds)} onMouseLeave={() => setHoveredSourceIds(null)} onClick={() => setPinned({ id: topic.id, sourceIds: topic.sourceIds })}>
                   <div className={styles.topicMeta}>{meta}</div>
                   <h3>{topic.name}</h3>
                   <p className={expanded ? undefined : styles.clamped}>{topic.value}</p>
@@ -302,7 +316,7 @@ export default function SubstackDetail({ substack, stackTypes, detail, details, 
                 <p>
                   {matchingSegments.map((segment) => (
                     <span key={segment.id} className={segment.kind === "text" ? styles.reportParagraph : undefined}>
-                      <HighlightedToken sourceIds={segment.sourceIds} onHover={setHoveredSourceIds}>
+                      <HighlightedToken id={segment.id} sourceIds={segment.sourceIds} pinned={pinned?.id === segment.id} onHover={setHoveredSourceIds} onPin={setPinned}>
                         {segment.kind === "field" && segment.name ? `${segment.name}: ${segment.value}` : segment.value}
                       </HighlightedToken>
                     </span>
@@ -353,21 +367,12 @@ export default function SubstackDetail({ substack, stackTypes, detail, details, 
         </section>
       </section>
 
-      {panelOpen && <aside className={styles.sources}>
+      {panelOpen && <aside ref={sourcesPanelRef} className={styles.sources}>
         <div className={styles.sourcesHeader}><h2>{isConversation ? "Attachments" : "Sources"}</h2><button onClick={() => togglePanel(false)} aria-label="Close side panel"><Icon name="x" size={16} /></button></div>
         <div className={styles.sourceList}>
-          {visibleSources.map((source, index) => <button key={`${source.id}-${index}`} onClick={() => { track("source_opened", { stack_type: substack.typeId, source_type: source.type }); if (source.substackId) onOpen(source.substackId); }}><b>{String(index + 1).padStart(2, "0")}</b><span><strong>{source.name}</strong><small>{source.type} · {source.origin} · {source.updated}</small><small>{source.note}</small></span></button>)}
+          {visibleSources.map((source, index) => <button key={`${source.id}-${index}`} onClick={() => { track("source_opened", { stack_type: substack.typeId, source_type: source.type }); if (source.substackId) { setPinned(null); onOpen(source.substackId); } }}><b>{String(index + 1).padStart(2, "0")}</b><span><strong>{source.name}</strong><small>{source.type} · {source.origin} · {source.updated}</small><small>{source.note}</small></span></button>)}
           {visibleSources.length === 0 && <div className={styles.emptyPanel}><Icon name="file-text" size={20} /><p>No sources linked to this content.</p></div>}
         </div>
-        {onAsk ? (
-          <button type="button" className={styles.chat} onClick={onAsk}>
-            Ask about this <Icon name="message-circle" size={14} />
-          </button>
-        ) : (
-          <button type="button" className={styles.chat} disabled>
-            Ask about this
-          </button>
-        )}
       </aside>}
     </div>
   );

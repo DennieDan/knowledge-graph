@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { company, faqs, plans, site, siteUrl } from "../lib/site";
+import { faqs, plans, site, siteUrl } from "../lib/site";
+import BrandMark from "./brand-mark";
 import DemoDialog from "./demo-dialog";
 import FaqAccordion from "./faq-accordion";
 import PricingTabs from "./pricing-tabs";
@@ -10,20 +11,19 @@ import styles from "./page.module.css";
 const pageUrl = siteUrl;
 const logoUrl = `${siteUrl}${site.logoPath}`;
 
-const title = `Purchase Order Automation for Singapore B2B Suppliers | ${site.name}`;
+const title = `WhatsApp Order Records for Singapore SMEs | ${site.name}`;
 const socialTitle = `${site.name} — ${site.tagline}`;
 
 export const metadata: Metadata = {
   title: { absolute: title },
   description: site.metaDescription,
   keywords: [
-    "order entry software",
-    "order management software Singapore",
-    "purchase order automation",
+    "WhatsApp order tracking",
     "WhatsApp order processing",
+    "company knowledge base Singapore",
     "B2B supplier software",
-    "SME order entry",
-    "PO data extraction",
+    "SME order records",
+    "order change tracking",
   ],
   applicationName: site.name,
   alternates: { canonical: pageUrl },
@@ -38,21 +38,21 @@ export const metadata: Metadata = {
     siteName: site.name,
     locale: site.locale,
     title: socialTitle,
-    description: site.description,
+    description: site.socialDescription,
   },
   twitter: {
     card: "summary_large_image",
     site: site.twitter,
     creator: site.twitter,
     title: socialTitle,
-    description: site.description,
+    description: site.socialDescription,
   },
 };
 
 const steps = [
   {
     step: "Read",
-    body: "crossPOd watches the channels your customers already use and pulls out orders, quantities, dates and revisions — including the ones buried in a WhatsApp voice note or a scanned fax.",
+    body: "crossPOd watches the channels your customers already use and pulls out orders, quantities, dates and changes — from WhatsApp threads and the Google Drive documents your team already keeps.",
   },
   {
     step: "Confirm",
@@ -66,16 +66,16 @@ const steps = [
 
 const features = [
   {
-    title: "Every format your customers actually send",
-    body: "PO PDFs, WhatsApp threads, scanned forms, email attachments and Google Drive files land in one queue instead of five inboxes.",
+    title: "WhatsApp and Drive in one place",
+    body: "Customer WhatsApp threads and your Google Docs, Sheets and Slides are read into one workspace instead of scattered across phones and folders.",
   },
   {
     title: "Evidence on every field",
-    body: "A quantity is never just a number. crossPOd keeps the line, page or message it came from attached to the record forever.",
+    body: "A quantity is never just a number. crossPOd keeps the message or document passage it came from attached to the record.",
   },
   {
-    title: "12 Stacks, ready on day one",
-    body: "Sales Orders, Clients, Items, Invoices, Suppliers, Supplier Orders, Production Jobs, Specifications, Conversations, PICs, Meetings and Files.",
+    title: "9 Stacks, ready on day one",
+    body: "Sales Orders, Clients, Items, Suppliers, Supplier Orders, Specifications, Conversations, Meetings and Files.",
   },
   {
     title: "Revisions that stop surprising you",
@@ -86,8 +86,8 @@ const features = [
     body: "The terms, part codes and quirks your senior admin keeps in her head become records anyone on the team can look up.",
   },
   {
-    title: "PDPA compliance built into ingestion",
-    body: "Consent, retention, access control and audit history are part of how sources are read, not a policy document nobody reads.",
+    title: "Built around your Google Workspace",
+    body: "Everyone signs in with their own account. Each person's My Drive and each Shared Drive become separate workspaces, and you choose which folders are read.",
   },
 ] as const;
 
@@ -100,14 +100,13 @@ const jsonLd = {
       "@type": "Organization",
       "@id": organizationId,
       name: site.name,
-      legalName: company.legalName,
       url: pageUrl,
       logo: logoUrl,
       email: site.contactEmail,
       address: {
         "@type": "PostalAddress",
-        addressLocality: company.addressLocality,
-        addressCountry: company.addressCountry,
+        addressLocality: site.addressLocality,
+        addressCountry: site.addressCountry,
       },
     },
     {
@@ -147,26 +146,6 @@ const jsonLd = {
   ],
 };
 
-// Inlined so the mark paints with the first byte of HTML and follows the text color.
-function BrandMark() {
-  return (
-    <svg
-      className={styles.brandMark}
-      viewBox="0 0 32 32"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={3.6}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M16 3.4 L26.6 9.2 L16 15 L5.4 9.2 Z" fill="currentColor" />
-      <path d="M5.4 17.2 L16 23 L26.6 17.2" />
-      <path d="M5.4 23.4 L16 29.2 L26.6 23.4" />
-    </svg>
-  );
-}
-
 export default function LandingPage() {
   return (
     <div className={styles.page}>
@@ -178,7 +157,7 @@ export default function LandingPage() {
 
       <header className={styles.nav}>
         <a className={styles.brand} href="#hero">
-          <BrandMark />
+          <BrandMark className={styles.brandMark} />
           {site.name}
           <span className={styles.brandDot} />
         </a>
@@ -208,12 +187,12 @@ export default function LandingPage() {
               For B2B suppliers and Singapore SMEs
             </p>
             <h1 className={styles.heroTitle}>
-              Purchase orders, <em>confirmed</em> in one place.
+              Every order, <em>confirmed</em> in one place.
             </h1>
             <p className={styles.heroBody}>
-              PO PDFs, WhatsApp, email, scans — crossPOd is order entry software
-              that turns all of it into one confirmed order your whole team can
-              trust.
+              WhatsApp threads, Google Docs and Sheets — crossPOd turns them into
+              confirmed order records with evidence, and a second brain your
+              whole team can ask.
             </p>
             <div className={styles.heroActions}>
               <DemoDialog
@@ -226,8 +205,8 @@ export default function LandingPage() {
             </div>
             <ul className={styles.heroProof}>
               <li>No change for your customers</li>
-              <li>PDPA-ready ingestion</li>
-              <li>Live in under two weeks</li>
+              <li>Every answer cites its source</li>
+              <li>Works with Google Workspace</li>
             </ul>
           </div>
 
@@ -260,8 +239,8 @@ export default function LandingPage() {
             </div>
             <div className={`${styles.card} ${styles.cardConfirmed}`}>
               <span className={styles.cardTagOk}>Confirmed by Serene</span>
-              <strong>Production Job PJ-1042 updated</strong>
-              <p>Material shortfall flagged to Suppliers Stack</p>
+              <strong>Sales Order SO-88213 updated</strong>
+              <p>Rev A kept in the order&apos;s history</p>
             </div>
             <div className={`${styles.card} ${styles.cardAsk}`}>
               <span className={styles.cardTag}>Ask crossPOd</span>
@@ -325,7 +304,7 @@ export default function LandingPage() {
             <h2>Priced per team, not per order.</h2>
             <p className={styles.sectionBody}>
               Priced in SGD. Every plan includes onboarding of your existing
-              order formats, and you can leave with your data whenever you like.
+              order formats.
             </p>
           </div>
           <PricingTabs />
@@ -340,7 +319,7 @@ export default function LandingPage() {
           <p className={styles.sectionLabel}>05 / Get started</p>
           <h2>Bring one week of messy orders. We&apos;ll run them through.</h2>
           <p className={styles.sectionBody}>
-            A 20-minute walkthrough on your own POs and WhatsApp threads — you
+            A 20-minute walkthrough on your own WhatsApp threads and Drive documents — you
             will see exactly what crossPOd proposes and what your team would
             confirm.
           </p>
@@ -357,7 +336,7 @@ export default function LandingPage() {
           {site.name} — {site.tagline}.
         </p>
         <p>
-          {company.legalName} · {company.addressLocality} ·{" "}
+          {site.addressLocality} ·{" "}
           <a href={`mailto:${site.contactEmail}`}>{site.contactEmail}</a>
         </p>
       </footer>
