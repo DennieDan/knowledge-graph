@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { company, faqs, plans, site, siteUrl } from "../lib/site";
+import BrandMark from "./brand-mark";
 import DemoDialog from "./demo-dialog";
 import FaqAccordion from "./faq-accordion";
 import PricingTabs from "./pricing-tabs";
@@ -147,26 +148,6 @@ const jsonLd = {
   ],
 };
 
-// Inlined so the mark paints with the first byte of HTML and follows the text color.
-function BrandMark() {
-  return (
-    <svg
-      className={styles.brandMark}
-      viewBox="0 0 32 32"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={3.6}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M16 3.4 L26.6 9.2 L16 15 L5.4 9.2 Z" fill="currentColor" />
-      <path d="M5.4 17.2 L16 23 L26.6 17.2" />
-      <path d="M5.4 23.4 L16 29.2 L26.6 23.4" />
-    </svg>
-  );
-}
-
 export default function LandingPage() {
   return (
     <div className={styles.page}>
@@ -178,7 +159,7 @@ export default function LandingPage() {
 
       <header className={styles.nav}>
         <a className={styles.brand} href="#hero">
-          <BrandMark />
+          <BrandMark className={styles.brandMark} />
           {site.name}
           <span className={styles.brandDot} />
         </a>

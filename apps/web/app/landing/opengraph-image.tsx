@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 import { site } from "../lib/site";
+import BrandMark from "./brand-mark";
 
 export const dynamic = "force-static";
 export const alt = `${site.name} — purchase orders, confirmed in one place`;
@@ -22,20 +23,7 @@ export default function OpengraphImage() {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-          <svg
-            width={52}
-            height={52}
-            viewBox="0 0 32 32"
-            fill="none"
-            stroke="#ffffff"
-            strokeWidth={3.6}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M16 3.4 L26.6 9.2 L16 15 L5.4 9.2 Z" fill="#ffffff" />
-            <path d="M5.4 17.2 L16 23 L26.6 17.2" />
-            <path d="M5.4 23.4 L16 29.2 L26.6 23.4" />
-          </svg>
+          <BrandMark size={52} color="#ffffff" />
           <div style={{ fontSize: 44, fontWeight: 700 }}>{site.name}</div>
         </div>
 

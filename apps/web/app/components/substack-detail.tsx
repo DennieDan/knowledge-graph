@@ -248,7 +248,6 @@ export default function SubstackDetail({ substack, stackTypes, detail, details, 
           {visibleSources.map((source, index) => <button key={`${source.id}-${index}`} onClick={() => { track("source_opened", { stack_type: substack.typeId, source_type: source.type }); if (source.substackId) onOpen(source.substackId); }}><b>{String(index + 1).padStart(2, "0")}</b><span><strong>{source.name}</strong><small>{source.type} · {source.origin} · {source.updated}</small><small>{source.note}</small></span></button>)}
           {visibleSources.length === 0 && <div className={styles.emptyPanel}><Icon name="file-text" size={20} /><p>No sources linked to this content.</p></div>}
         </div>
-        <button className={styles.chat}>Chat with POPO <Icon name="chevron-down" /></button>
       </aside>}
     </div>
   );
