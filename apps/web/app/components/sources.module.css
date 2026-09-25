@@ -81,6 +81,19 @@
   color: var(--cp-muted);
 }
 
+.connHealth {
+  margin: 10px 0 0;
+  font-size: 11px;
+  color: var(--cp-muted);
+}
+
+.connHealthWarn {
+  margin: 10px 0 0;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--cp-ink);
+}
+
 .connAction {
   margin-top: 12px;
   display: flex;

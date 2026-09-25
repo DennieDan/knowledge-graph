@@ -83,6 +83,13 @@ export default function SourcesView({
 
   const failed = workspaces.filter((row) => row.health === "failed");
   const stale = workspaces.filter((row) => row.health === "stale");
+  const gaps = failed.length + stale.length;
+  const driveHealth =
+    workspaces.length === 0
+      ? ""
+      : gaps === 0
+        ? `All ${workspaces.length} drive${workspaces.length === 1 ? "" : "s"} fresh`
+        : `${gaps} of ${workspaces.length} drive${workspaces.length === 1 ? "" : "s"} stale${failed.length > 0 ? ` · ${failed.length} failed` : ""}`;
 
   return (
     <div className={styles.page}>
@@ -101,6 +108,9 @@ export default function SourcesView({
               <span className={styles.connMeta}>{activeAccount.name}</span>
             )}
           </div>
+          {activeAccount?.drive_linked && driveHealth && (
+            <p className={gaps > 0 ? styles.connHealthWarn : styles.connHealth}>{driveHealth}</p>
+          )}
           <div className={styles.connAction}>
             {activeAccount?.drive_linked ? (
               <>
@@ -153,16 +163,6 @@ export default function SourcesView({
             ) : (
               <a href={loginUrl}>Sign in to connect</a>
             )}
-          </div>
-        </div>
-
-        <div className={styles.connCard}>
-          <p className={styles.connName}>Coverage</p>
-          <div className={styles.connRow}>
-            <span className={styles.pillLight}>
-              {failed.length + stale.length} gap{failed.length + stale.length === 1 ? "" : "s"}
-            </span>
-            <span className={styles.connMeta}>Drive health</span>
           </div>
         </div>
       </div>
