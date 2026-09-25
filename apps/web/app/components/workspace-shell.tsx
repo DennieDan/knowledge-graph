@@ -11,6 +11,7 @@ import StacksView from "./stacks-view";
 import SubstackDetail from "./substack-detail";
 import ToCheckView from "./to-check-view";
 import MaintenanceView from "./maintenance-view";
+import MorningPanel from "./morning-panel";
 import WhatsAppConnect from "./whatsapp-connect";
 import DrivePicker from "./drive-picker";
 import AccountOnboarding from "./account-onboarding";
@@ -919,7 +920,15 @@ export default function WorkspaceShell() {
             </div>
           )}
           {activeNav === "maintenance" && (
-            <MaintenanceView accountId={activeAccount?.id ?? null} />
+            <>
+              <div className={styles.morningSlot}>
+                <MorningPanel
+                  accountId={activeAccount?.id ?? null}
+                  onOpenToCheck={() => navigate(analyzeHref, "link")}
+                />
+              </div>
+              <MaintenanceView accountId={activeAccount?.id ?? null} />
+            </>
           )}
 
           <div className={activeNav !== "stacks" ? styles.hiddenView : undefined}>
